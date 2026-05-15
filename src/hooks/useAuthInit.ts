@@ -24,12 +24,13 @@ export function useAuthInit() {
                     asyncStorage.getItem("domain_name"),
                 ]);
 
+                // if (__DEV__) console.log("authinit storedDomain:", storedDomain);5
+
                 if (!access || !refresh) {
-                    // No tokens — fresh install or logged out
+                    setIsReady(true);
                     return;
                 }
 
-                // ── Rehydrate tokens + domain BEFORE calling /me/ ────────
                 setTokens(access, refresh);
 
                 if (storedDomain) {
@@ -40,24 +41,18 @@ export function useAuthInit() {
                     const me = await httpClient.get("accounts/me/") as unknown as User;
                     setUser(me);
 
-                    // ── Keep domain from asyncStorage as source of truth ─
-                    // me.tenant_schema is only the schema key e.g. "nagpur"
-                    // storedDomain is the full domain e.g. "nagpur.api.polynexus.in"
                     const domain = storedDomain ?? me.tenant_schema ?? "";
-                    setDomainAndRoute(domain, null);
-
+                    if (domain) {
+                        setDomainAndRoute(domain, null);
+                    }
                 } catch (err) {
-                    // Token expired or revoked — clear everything
                     logError(err, "useAuthInit:/api/accounts/me/");
                     if (__DEV__) console.warn(`[Bootstrap] ${getErrorMessage(err)}`);
 
                     await tokenUtils.clearTokens();
-                    await asyncStorage.removeItem("domain_name");
                     clearAuth();
                 }
-
             } catch (err) {
-                // SecureStore or AsyncStorage read failure — device issue
                 logError(err, "useAuthInit:Storage");
                 if (__DEV__) {
                     console.error(`[Bootstrap] ${errorMessages.UNKNOWN}`, err);

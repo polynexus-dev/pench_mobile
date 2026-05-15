@@ -7,6 +7,7 @@ import { tokenUtils } from "../utils/tokenUtils";
 import { getErrorMessage } from "@/errors/errorHandler";
 import { ROUTES } from "@/constants/route";
 import type { OTPRequestPayload, OTPVerifyPayload } from "../types/auth.types";
+import { asyncStorage } from "@services/storage/asyncStorage";
 
 export function useRequestOTP() {
   const { show } = useToast();
@@ -48,8 +49,13 @@ export function useVerifyOTP() {
       setTokens(data.access, data.refresh);
       setUser(data.user);
 
-      const domain = data.tenant_domain ?? data.domain_name ?? "";
+      const domain = data.domain_name ?? data.tenant_domain ?? "";
       const routeId = data.active_route_id ?? null;
+
+      if (domain) {
+        await asyncStorage.setItem("domain_name", domain);
+      }
+
       setDomainAndRoute(domain, routeId);
 
       if (data.user.is_driver) {

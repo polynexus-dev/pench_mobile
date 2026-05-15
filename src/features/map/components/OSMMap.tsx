@@ -28,15 +28,16 @@ export default function OSMMap() {
   // ── Fetch route stops ────────────────────────────────────
   useEffect(() => {
     if (!token || !domain_name) return;
+    if (__DEV__) console.log("✅ OSM:", domain_name);
 
     const fetchRoute = async () => {
       try {
         const data = await httpClient.get(
           // `https://${domain_name}/api/erp/orders/driver/my-route/`
-          `http://${domain_name}/api/erp/orders/driver/my-route`
+          `http://${domain_name}:8000/api/erp/orders/driver/my-route`
         ) as unknown as { stops: any[] };
 
-        if (__DEV__) console.log("✅ Route data:", data);
+        // if (__DEV__) console.log("✅ Route data:", data);
         setRouteData(data);
       } catch (err) {
         if (__DEV__) console.error("❌ Route fetch error:", err);

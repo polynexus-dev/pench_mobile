@@ -23,8 +23,16 @@ export function useLogin() {
       setTokens(access, refresh);
       setUser(user);
 
-      const domain = res.domain_name ?? res.tenant_domain ?? "";
-      await asyncStorage.setItem("domain_name", domain);
+      // const domain = res.domain_name ?? res.tenant_domain ?? "";
+      const domain = res.domain_name ?? "null_null";
+      console.log(typeof domain, domain);
+
+      if (__DEV__) console.log("login", domain);
+      if (domain) {
+        asyncStorage.setItem("domain_name", domain);
+        if (__DEV__) console.log("domain saved to async store");
+      }
+
       setDomainAndRoute(domain, active_route_id ?? null);
 
       if (user.is_driver) {
@@ -32,7 +40,6 @@ export function useLogin() {
       } else if (user.is_customer) {
         router.replace(ROUTES.CUSTOMER.DASHBOARD as any);
       } else {
-        // Unknown role — clear auth and show error
         show({
           message: "Unauthorized access. Please contact support.",
           type: "error",
