@@ -1,43 +1,60 @@
 import React, { useEffect, useRef, useState } from "react";
-import { StatusBar } from "react-native";
+import {
+  StatusBar,
+  View,
+  Text,
+} from "react-native";
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuthStore } from "@store/authStore";
 import { useTrackingStore } from "@store/trackingStore";
 import { httpClient } from "@services/api/httpClient";
 
+type RouteResponse = { stops: any[] };
+
 export default function OSMMap() {
   const webRef = useRef<WebView>(null);
   const [webViewReady, setWebViewReady] = useState(false);
-  const [routeData, setRouteData] = useState<any>(null);
+  const [routeData, setRouteData] = useState<RouteResponse | null>(null);
+  const [starting, setStarting] = useState(false);
 
   const token = useAuthStore((s) => s.accessToken);
   const domain_name = useAuthStore((s) => s.domain_name);
-  console.log("map osm", domain_name);
-  
+
   const location = useTrackingStore((s) => s.location);
-  const startTracking = useTrackingStore((s) => s.startTracking);
-  const stopTracking = useTrackingStore((s) => s.stopTracking);
+  const error = useTrackingStore((s) => s.error);
 
-  // ── Start GPS tracking ───────────────────────────────────
-  useEffect(() => {
-    startTracking();
-    return () => stopTracking();
-  }, []);
+  // const handleStartTrip = async () => {
+  //   const { startTrip, connectSocket, startTracking } = useTrackingStore.getState();
+  //   if (!token || !domain_name) return;
 
-  // ── Fetch route stops ────────────────────────────────────
+  //   setStarting(true);
+  //   const ok = await startTrip(token);
+  //   if (ok) {
+  //     connectSocket(domain_name, token);
+  //     await startTracking();
+  //   }
+  //   setStarting(false);
+  // };
+
+  // const handleStopTrip = () => {
+  //   const { stopTrip } = useTrackingStore.getState();
+  //   stopTrip();
+  // };
+
   useEffect(() => {
-    if (!token || !domain_name) return;
-    if (__DEV__) console.log("✅ OSM:", domain_name);
+    if (!token || !domain_name) {
+      if (__DEV__) console.warn("❌ Token or domain_name not set in authStore");
+      return;
+    }
 
     const fetchRoute = async () => {
       try {
-        const data = await httpClient.get(
-          // `https://${domain_name}/api/erp/orders/driver/my-route/`
-          `http://${domain_name}:8000/api/erp/orders/driver/my-route`
-        ) as unknown as { stops: any[] };
+        const data = (await httpClient.get(
+          `https://${domain_name}/api/erp/orders/driver/my-route/`
+        )) as unknown as RouteResponse;
 
-        // if (__DEV__) console.log("✅ Route data:", data);
+        if (__DEV__) console.log("✅ Route data:", data);
         setRouteData(data);
       } catch (err) {
         if (__DEV__) console.error("❌ Route fetch error:", err);
@@ -47,36 +64,34 @@ export default function OSMMap() {
     fetchRoute();
   }, [token, domain_name]);
 
-  // ── Inject stops into WebView ────────────────────────────
   useEffect(() => {
     if (!routeData || !webViewReady || !webRef.current) return;
 
     const stops = routeData.stops || [];
     webRef.current.injectJavaScript(`
-            (function() {
-                if (window.loadStops) {
-                    window.loadStops(${JSON.stringify(stops)});
-                }
-            })();
-            true;
-        `);
+      (function() {
+        if (window.loadStops) {
+          window.loadStops(${JSON.stringify(stops)});
+        }
+      })();
+      true;
+    `);
   }, [routeData, webViewReady]);
 
-  // ── Inject live location updates ─────────────────────────
   useEffect(() => {
     if (!location || !webViewReady || !webRef.current) return;
 
     webRef.current.injectJavaScript(`
-            (function() {
-                if (window.updateUserLocation) {
-                    window.updateUserLocation({
-                        lat: ${location.lat},
-                        lng: ${location.lng}
-                    });
-                }
-            })();
-            true;
-        `);
+      (function() {
+        if (window.updateUserLocation) {
+          window.updateUserLocation({
+            lat: ${location.lat},
+            lng: ${location.lng}
+          });
+        }
+      })();
+      true;
+    `);
   }, [location, webViewReady]);
 
   const html = `
@@ -190,17 +205,38 @@ export default function OSMMap() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
       <StatusBar barStyle="light-content" />
-      <WebView
-        ref={webRef}
-        originWhitelist={["*"]}
-        source={{ html }}
-        javaScriptEnabled
-        domStorageEnabled
-        onLoad={() => {
-          if (__DEV__) console.log("🗺️ WebView ready");
-          setWebViewReady(true);
-        }}
-      />
+
+      <View style={{ flex: 1 }}>
+        <WebView
+          ref={webRef}
+          originWhitelist={["*"]}
+          source={{ html }}
+          javaScriptEnabled
+          domStorageEnabled
+          onLoad={() => {
+            if (__DEV__) console.log("🗺️ WebView ready");
+            setWebViewReady(true);
+          }}
+        />
+
+        {/* Trip Controls */}
+        <View
+          style={{
+            position: "absolute",
+            left: 16,
+            right: 16,
+            bottom: 130,
+            zIndex: 30,
+          }}
+        >
+
+          {error ? (
+            <Text style={{ color: "#fca5a5", marginTop: 8, textAlign: "center" }}>
+              {error}
+            </Text>
+          ) : null}
+        </View>
+      </View>
     </SafeAreaView>
   );
 }

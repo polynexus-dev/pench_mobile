@@ -32,11 +32,13 @@ export const useTrackingStore = createStore<TrackingStore>("tracking", (set, get
     startTrip: async (token: string) => {
         set((s) => { s.loading = true; s.error = null; });
         try {
-            const { domain_name } = useAuthStore.getState();
+            const { domain_name, route_id } = useAuthStore.getState();
 
             if (!domain_name) throw new Error("domain_name not set in authStore");
 
-            const url = `https://${domain_name}/api/erp/orders/driver/start-trip/`;
+            if (__DEV__) console.log(route_id, domain_name);
+
+            const url = `https://${domain_name}/api/erp/orders/driver/${route_id}/start-trip/`;
             if (__DEV__) console.log("🚀 Starting trip at:", url);
 
             const res = await fetch(url, {
@@ -71,10 +73,19 @@ export const useTrackingStore = createStore<TrackingStore>("tracking", (set, get
     },
 
     connectSocket: (domain: string, token: string) => {
+        //  new logic ////
+        const existing = get().socket;
+
+        if (existing) {
+            existing.onclose = null;
+            existing.close();
+        }
+        ////
         const ws = new WebSocket(`wss://${domain}/ws/tracking/?token=${token}`);
         ws.onopen = () => { if (__DEV__) console.log("✅ WebSocket connected"); };
         ws.onclose = () => {
-            if (__DEV__) console.log("🔄 WebSocket closed, reconnecting...");
+            if (!get().isTripStarted) return;
+            if (__DEV__) console.log("🔄 WebSocket closed, Reconnecting...");
             setTimeout(() => get().connectSocket(domain, token), 3000);
         };
         ws.onerror = (e: any) => { if (__DEV__) console.log("❌ WebSocket error:", e.message); };
@@ -82,8 +93,17 @@ export const useTrackingStore = createStore<TrackingStore>("tracking", (set, get
     },
 
     disconnectSocket: () => {
-        get().socket?.close();
-        set((s) => { s.socket = null; });
+        // get().socket?.close();
+        // set((s) => { s.socket = null; });
+        //new logic
+        const ws = get().socket;
+        if (ws) {
+            ws.onclose = null;
+            ws.close();
+        }
+        set((s) => {
+            s.socket = null;
+        });
     },
 
     startTracking: async () => {
@@ -123,3 +143,4 @@ export const useTrackingStore = createStore<TrackingStore>("tracking", (set, get
         set((s) => { s.watcher = null; });
     },
 }));
+

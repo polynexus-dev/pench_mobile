@@ -22,9 +22,12 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import OSMMap from "../components/OSMMap";
+import { useAuthStore, useTrackingStore } from "@/store";
 
 export default function MapScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+
+  const isTripStarted = useTrackingStore((s) => s.isTripStarted);
 
   const snapPoints = useMemo(
     () => ["25%", "40%", "75%"],
@@ -54,11 +57,28 @@ export default function MapScreen() {
     ),
     [],
   );
+  const handleTripToggle = async () => {
+    const { accessToken, domain_name } = useAuthStore.getState();
+    const { startTrip, stopTrip, connectSocket, startTracking, isTripStarted } = useTrackingStore.getState();
+
+    if (!accessToken || !domain_name) return;
+
+    if (isTripStarted) {
+      stopTrip();
+      return;
+    }
+
+    const ok = await startTrip(accessToken);
+    if (ok) {
+      connectSocket(domain_name, accessToken);
+      await startTracking();
+    }
+  };
 
   return (
     <SafeAreaView
       edges={["top"]}
-      className="flex-1"
+      className="flex-1 bg-black"
     >
       {/* Fullscreen Map */}
       <View className="absolute inset-0">
@@ -102,7 +122,20 @@ export default function MapScreen() {
       </View>
 
       {/* Floating Buttons */}
-      <View className="absolute bottom-32 right-4 z-20">
+      <View className="absolute bottom-32 right-4 z-20 items-end">
+
+        {/* Toggle Trip Button */}
+        <TouchableOpacity
+          onPress={handleTripToggle}
+          className={`mb-3 h-14 w-14 items-center justify-center rounded-full shadow-lg ${isTripStarted ? "bg-red-500" : "bg-brand-primary"
+            }`}
+        >
+          <Ionicons
+            name={isTripStarted ? "stop" : "play"}
+            size={24}
+            color="white"
+          />
+        </TouchableOpacity>
         {/* Route List Button */}
         <TouchableOpacity
           onPress={openSheet}
