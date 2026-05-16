@@ -1,2 +1,2 @@
-// import { ForgotPasswordScreen } from "@/features/auth";
-// export default ForgotPasswordScreen;
+import { ForgotPasswordScreen } from "@/features/auth";
+export default ForgotPasswordScreen;

@@ -4,15 +4,12 @@ import React, {
   useMemo,
   useRef,
 } from "react";
-
 import {
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -20,12 +17,12 @@ import {
 } from "@gorhom/bottom-sheet";
 
 import { Ionicons } from "@expo/vector-icons";
-
-import OSMMap from "../components/OSMMap";
+import OSMMap, { OSMMapHandle } from "../components/OSMMap";
 import { useAuthStore, useTrackingStore } from "@/store";
 
 export default function MapScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const mapRef = useRef<OSMMapHandle>(null);
 
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
 
@@ -82,7 +79,7 @@ export default function MapScreen() {
     >
       {/* Fullscreen Map */}
       <View className="absolute inset-0">
-        <OSMMap />
+        <OSMMap ref={mapRef} />
       </View>
 
       {/* Top Route Status */}
@@ -150,6 +147,7 @@ export default function MapScreen() {
 
         {/* Recenter Button */}
         <TouchableOpacity
+          onPress={() => mapRef.current?.centerOnUser()}
           className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
         >
           <Ionicons

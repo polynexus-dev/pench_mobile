@@ -33,8 +33,11 @@ export const useTrackingStore = createStore<TrackingStore>("tracking", (set, get
         set((s) => { s.loading = true; s.error = null; });
         try {
             const { domain_name, route_id } = useAuthStore.getState();
+            console.log("tracking STORE", route_id);
+
 
             if (!domain_name) throw new Error("domain_name not set in authStore");
+            if (!route_id) throw new Error("route_id not set in authStore");
 
             if (__DEV__) console.log(route_id, domain_name);
 
