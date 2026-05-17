@@ -1,410 +1,309 @@
 import React from "react";
-
 import {
     ScrollView,
     Text,
     TouchableOpacity,
     View,
+    StatusBar
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { Ionicons } from "@expo/vector-icons";
-
 import { useRouter } from "expo-router";
-
-import { useAuthStore } from "@store/authStore";
-
-import { DashboardHeader } from "../components/DashboardHeader";
-import { GreetingRow } from "../components/GreetingRow";
-import { SectionHeading } from "../components/SectionHeading";
+import { useAuthStore } from "@/store/authStore";
+import { useTrackingStore } from "@/store/trackingStore";
+import { ROUTES } from "@/constants/route";
+// import { StatusBar } from "expo-status-bar";
 
 export function DriverDashboardScreen() {
     const router = useRouter();
+    const user = useAuthStore((s) => s.user);
+    const isTripStarted = useTrackingStore((s) => s.isTripStarted);
 
-    const { user } = useAuthStore();
+    const handleTripToggle = async () => {
+        const { accessToken, domain_name } = useAuthStore.getState();
+        const { startTrip, stopTrip, connectSocket, startTracking, isTripStarted } =
+            useTrackingStore.getState();
 
-    // TODO: Replace with API
-    const stats = {
-        newOrders: 6,
-        dailyDeliveries: 62,
-        completedDeliveries: 38,
-        pendingStops: 24,
-        specialOrders: 16,
-        bottleReturns: 52,
+        if (!accessToken || !domain_name) return;
+
+        if (isTripStarted) {
+            stopTrip();
+            return;
+        }
+
+        const ok = await startTrip(accessToken);
+        if (ok) {
+            connectSocket(domain_name, accessToken);
+            await startTracking();
+        }
     };
 
-    const fullName =
-        user?.username ?? "Driver";
-
     return (
-        <SafeAreaView className="flex-1 bg-bg-screen">
+        <SafeAreaView edges={["top"]} className="flex-1 bg-bg-screen">
+            {/* <StatusBar  style="dark"  backgroundColor="#58585800"/> */}
+            <StatusBar barStyle="light-content" />
             <ScrollView
                 showsVerticalScrollIndicator={false}
-                contentContainerStyle={{
-                    paddingBottom: 120,
-                    paddingHorizontal: 10,
-                }}
+                contentContainerStyle={{ paddingBottom: 120, paddingHorizontal: 10 }}
             >
-                {/* Header */}
-                <DashboardHeader
-                    cityName={
-                        user?.city_name ?? "Nagpur"
-                    }
-                    hubName="Bilzen"
-                />
 
-                {/* Greeting */}
-                <GreetingRow
-                    name={fullName}
-                />
+                {/* ── Header ─────────────────────────────────────── */}
+                <View className="flex-row items-center justify-between pt-4 pb-2">
+                    <View>
+                        <Text className="text-caption text-text-muted tracking-widest uppercase">
+                            Good Morning 👋
+                        </Text>
+                        <Text className="text-title font-bold text-text-primary mt-0.5">
+                            {user?.first_name ?? "Driver"}
+                        </Text>
+                    </View>
 
-                {/* Route Hero Card */}
-                <View className="mx-5 mt-5 rounded-[32px] bg-brand-primary p-5">
+                    <View className="flex-row items-center gap-x-3">
+                        {/* Live / Offline Badge */}
+                        <View
+                            className={`flex-row items-center gap-x-1.5 px-3 py-1.5 rounded-badge ${isTripStarted ? "bg-success" : "bg-border-disable"
+                                }`}
+                        >
+                            <View
+                                className={`w-2 h-2 rounded-full ${isTripStarted ? "bg-white" : "bg-text-muted"
+                                    }`}
+                            />
+                            <Text
+                                className={`text-caption font-semibold ${isTripStarted ? "text-text-white" : "text-text-muted"
+                                    }`}
+                            >
+                                {isTripStarted ? "LIVE" : "OFFLINE"}
+                            </Text>
+                        </View>
 
-                    <View className="flex-row items-start justify-between">
+                        {/* Avatar */}
+                        <View className="w-10 h-10 rounded-full bg-brand-light items-center justify-center">
+                            <Ionicons name="person" size={20} color="#1B5E37" />
+                        </View>
+                    </View>
+                </View>
 
+                {/* ── Trip Control Card ───────────────────────────── */}
+                <View className="mt-4 rounded-card bg-brand-primary p-5">
+                    <View className="flex-row items-center justify-between">
                         <View>
-                            <Text className="text-sm text-white/70">
+                            <Text className="text-caption text-brand-light tracking-widest uppercase">
                                 Today's Route
                             </Text>
-
-                            <Text className="mt-2 text-3xl font-bold text-white">
-                                Route 12A
+                            <Text className="text-body-lg font-bold text-white mt-1">
+                                Nagpur Express Delivery
                             </Text>
-
-                            <Text className="mt-2 text-sm text-white/80">
-                                {stats.completedDeliveries}
-                                {" / "}
-                                {stats.dailyDeliveries}
-                                {" "}
-                                deliveries completed
+                            <Text className="text-caption text-brand-light mt-0.5">
+                                38 / 62 Deliveries Completed
                             </Text>
                         </View>
 
-                        <View className="rounded-full bg-white/20 px-3 py-1">
-                            <Text className="text-xs font-semibold text-white">
-                                LIVE
-                            </Text>
-                        </View>
+                        <TouchableOpacity
+                            onPress={handleTripToggle}
+                            className={`w-14 h-14 rounded-full items-center justify-center ${isTripStarted ? "bg-error" : "bg-white"
+                                }`}
+                        >
+                            <Ionicons
+                                name={isTripStarted ? "stop" : "play"}
+                                size={24}
+                                color={isTripStarted ? "#fff" : "#1B5E37"}
+                            />
+                        </TouchableOpacity>
                     </View>
 
-                    {/* Progress */}
-                    <View className="mt-5 h-3 overflow-hidden rounded-full bg-white/20">
+                    {/* Progress Bar */}
+                    <View className="mt-4 h-2 rounded-full bg-brand-secondary">
                         <View
-                            className="h-3 rounded-full bg-white"
-                            style={{
-                                width: `${(stats.completedDeliveries / stats.dailyDeliveries) * 100}%`,
-                            }}
+                            className="h-2 rounded-full bg-white"
+                            style={{ width: "61%" }}
                         />
                     </View>
+                    <View className="flex-row justify-between mt-1">
+                        <Text className="text-caption text-brand-light">61% done</Text>
+                        <Text className="text-caption text-brand-light">ETA 1h 24m</Text>
+                    </View>
+                </View>
 
-                    {/* CTA */}
-                    <TouchableOpacity
-                        activeOpacity={0.9}
-                        onPress={() =>
-                            router.push("/(driver)/(tabs)/map")
-                        }
-                        className="mt-5 flex-row items-center justify-center rounded-2xl bg-white py-4"
-                    >
-                        <Ionicons
-                            name="map-outline"
-                            size={18}
-                            color="#1B5E37"
-                        />
+                {/* ── Delivery Stats Row ──────────────────────────── */}
+                <View className="mt-4 flex-row gap-x-3">
+                    <StatCard icon="water" label="Bottles" value="128" color="#1B5E37" />
+                    <StatCard icon="restaurant" label="Special" value="16" color="#D4872A" />
+                    <StatCard icon="return-down-back" label="Returns" value="52" color="#4A4A4A" />
+                </View>
 
-                        <Text className="ml-2 font-semibold text-brand-primary">
-                            Open Live Route
+                {/* ── Next Stop Card ──────────────────────────────── */}
+                <View className="mt-4 rounded-card bg-bg-card p-5 border border-border-disable">
+                    <View className="flex-row items-center justify-between mb-3">
+                        <Text className="text-caption tracking-widest text-brand-primary uppercase font-semibold">
+                            Next Stop
+                        </Text>
+                        <View className="bg-brand-light px-2 py-0.5 rounded-badge">
+                            <Text className="text-caption text-brand-primary font-semibold">
+                                Stop #4
+                            </Text>
+                        </View>
+                    </View>
+
+                    <Text className="text-body-lg font-bold text-text-primary">
+                        Mrs. Deshmukh
+                    </Text>
+                    <Text className="text-body text-text-secondary mt-0.5">
+                        Row House 9, Ramdaspeth, Nagpur
+                    </Text>
+
+                    <View className="flex-row gap-x-2 mt-3">
+                        <ItemBadge label="2 Milk" />
+                        <ItemBadge label="1 Paneer" />
+                    </View>
+
+                    <TouchableOpacity className="mt-4 bg-brand-primary rounded-btn py-3.5 items-center">
+                        <Text className="text-white font-semibold text-body-lg">
+                            Mark Delivered ✓
                         </Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Today's Load */}
-                <View className="mx-5 mt-6 rounded-[32px] bg-white p-5">
+                {/* ── Quick Actions ───────────────────────────────── */}
+                <Text className="mt-6 mb-3 text-label font-semibold text-text-primary">
+                    Quick Actions
+                </Text>
 
-                    <View className="flex-row items-center">
-                        <Ionicons
-                            name="cube-outline"
-                            size={20}
-                            color="#D4872A"
-                        />
+                <View className="flex-row flex-wrap gap-3">
+                    <QuickAction
+                        icon="map"
+                        label="Live Map"
+                        onPress={() => router.push(ROUTES.DRIVER.MAP as any)}
+                        color="#1B5E37"
+                    />
+                    <QuickAction
+                        icon="cube-outline"
+                        label="Bottles"
+                        onPress={() => { }}
+                        color="#1B5E37"
+                    />
+                    <QuickAction
+                        icon="alert-circle-outline"
+                        label="Report"
+                        onPress={() => { }}
+                        color="#D4872A"
+                    />
+                    <QuickAction
+                        icon="cash-outline"
+                        label="Cash"
+                        onPress={() => { }}
+                        color="#1B5E37"
+                    />
+                    <QuickAction
+                        icon="checkmark-done-outline"
+                        label="Attendance"
+                        onPress={() => { }}
+                        color="#1B5E37"
+                    />
+                    <QuickAction
+                        icon="headset-outline"
+                        label="Support"
+                        onPress={() => { }}
+                        color="#4A4A4A"
+                    />
+                </View>
 
-                        <Text className="ml-2 text-xl font-bold text-text-primary">
-                            Today's Load
+                {/* ── Today's Earnings ────────────────────────────── */}
+                <View className="mt-6 rounded-card bg-bg-card p-5 border border-border-disable">
+                    <Text className="text-caption tracking-widest text-text-muted uppercase font-semibold mb-3">
+                        Today's Summary
+                    </Text>
+                    <View className="flex-row justify-between">
+                        <SummaryItem label="Delivered" value="38" />
+                        <SummaryItem label="Pending" value="24" />
+                        <SummaryItem label="COD" value="₹1,240" />
+                    </View>
+                </View>
+
+                {/* ── Alerts ──────────────────────────────────────── */}
+                <View className="mt-4 rounded-card bg-warning/10 border border-warning/30 p-4 flex-row items-start gap-x-3">
+                    <Ionicons name="warning-outline" size={20} color="#D4872A" />
+                    <View className="flex-1">
+                        <Text className="text-label font-semibold text-warning">
+                            Special Instruction
+                        </Text>
+                        <Text className="text-body text-text-secondary mt-0.5">
+                            Customer Amit Kumar has requested early delivery before 8 AM.
                         </Text>
                     </View>
-
-                    <View className="mt-5 flex-row flex-wrap justify-between">
-
-                        <LoadCard
-                            label="Milk"
-                            value="128"
-                        />
-
-                        <LoadCard
-                            label="Paneer"
-                            value="8"
-                        />
-
-                        <LoadCard
-                            label="Curd"
-                            value="5"
-                        />
-
-                        <LoadCard
-                            label="Ghee"
-                            value="3"
-                        />
-                    </View>
                 </View>
 
-                {/* Stats Grid */}
-                <View className="mx-5 mt-6 flex-row flex-wrap justify-between">
-
-                    <DashboardStatCard
-                        icon="time-outline"
-                        title="Pending"
-                        value={`${stats.pendingStops}`}
-                        subtitle="Stops"
-                    />
-
-                    <DashboardStatCard
-                        icon="restaurant-outline"
-                        title="Special"
-                        value={`${stats.specialOrders}`}
-                        subtitle="Orders"
-                    />
-
-                    <DashboardStatCard
-                        icon="refresh-outline"
-                        title="Returns"
-                        value={`${stats.bottleReturns}`}
-                        subtitle="Bottles"
-                    />
-
-                    <DashboardStatCard
-                        icon="checkmark-done-outline"
-                        title="Completed"
-                        value={`${stats.completedDeliveries}`}
-                        subtitle="Delivered"
-                    />
-                </View>
-
-                {/* Next Stop */}
-                <View className="mx-5 mt-6 rounded-[32px] bg-white p-5">
-
-                    <Text className="text-xs tracking-widest text-brand-primary">
-                        NEXT STOP
-                    </Text>
-
-                    <Text className="mt-2 text-2xl font-bold text-text-primary">
-                        Mrs. Deshmukh
-                    </Text>
-
-                    <Text className="mt-2 text-base text-text-secondary">
-                        2 Milk • 1 Paneer
-                    </Text>
-
-                    <Text className="mt-1 text-sm text-text-muted">
-                        ETA • 4 mins
-                    </Text>
-
-                    <View className="mt-5 flex-row">
-
-                        <TouchableOpacity
-                            className="mr-3 flex-1 rounded-2xl bg-brand-primary py-4"
-                        >
-                            <Text className="text-center font-semibold text-white">
-                                Navigate
-                            </Text>
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                            className="flex-1 rounded-2xl bg-brand-light py-4"
-                        >
-                            <Text className="text-center font-semibold text-brand-primary">
-                                Delivered
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-
-                {/* Special Orders */}
-                <View className="mt-6">
-
-                    <SectionHeading
-                        title="Special Orders"
-                        actionLabel="View All"
-                    />
-
-                    <View className="px-5">
-
-                        {[1, 2, 3].map((item) => (
-                            <View
-                                key={item}
-                                className="mb-4 rounded-[28px] border border-warning/20 bg-warning/10 p-5"
-                            >
-                                <View className="flex-row items-center justify-between">
-
-                                    <View>
-                                        <Text className="text-lg font-bold text-text-primary">
-                                            Amit Sharma
-                                        </Text>
-
-                                        <Text className="mt-1 text-sm text-text-secondary">
-                                            Stop #12 • 6:45 AM
-                                        </Text>
-                                    </View>
-
-                                    <Ionicons
-                                        name="alert-circle"
-                                        size={24}
-                                        color="#D4872A"
-                                    />
-                                </View>
-
-                                <View className="mt-4 flex-row flex-wrap">
-
-                                    <View className="mr-2 rounded-full bg-white px-4 py-2">
-                                        <Text className="font-medium text-text-primary">
-                                            2 Paneer
-                                        </Text>
-                                    </View>
-
-                                    <View className="rounded-full bg-white px-4 py-2">
-                                        <Text className="font-medium text-text-primary">
-                                            1 Curd
-                                        </Text>
-                                    </View>
-                                </View>
-                            </View>
-                        ))}
-                    </View>
-                </View>
-
-                {/* Quick Actions */}
-                <View className="mx-5 mt-2 flex-row justify-between">
-
-                    <QuickActionButton
-                        icon="call-outline"
-                        label="Call"
-                    />
-
-                    <QuickActionButton
-                        icon="scan-outline"
-                        label="Scan"
-                    />
-
-                    <QuickActionButton
-                        icon="warning-outline"
-                        label="Issue"
-                    />
-
-                    <QuickActionButton
-                        icon="list-outline"
-                        label="Orders"
-                    />
-                </View>
-
-                {/* Orders */}
-                <View className="mt-6">
-                    <SectionHeading
-                        title="Today's Orders"
-                        actionLabel="View All"
-                    />
-
-                    {/* TODO: OrderList */}
-                </View>
             </ScrollView>
         </SafeAreaView>
     );
 }
 
-interface DashboardStatCardProps {
-    icon: keyof typeof Ionicons.glyphMap;
-    title: string;
-    value: string;
-    subtitle: string;
-}
+// ── Sub Components ───────────────────────────────────────────
 
-function DashboardStatCard({
+function StatCard({
     icon,
-    title,
+    label,
     value,
-    subtitle,
-}: DashboardStatCardProps) {
+    color,
+}: {
+    icon: any;
+    label: string;
+    value: string;
+    color: string;
+}) {
     return (
-        <View className="mb-4 w-[48%] rounded-[28px] bg-white p-5">
-
-            <View className="h-11 w-11 items-center justify-center rounded-2xl bg-brand-light">
-                <Ionicons
-                    name={icon}
-                    size={20}
-                    color="#1B5E37"
-                />
-            </View>
-
-            <Text className="mt-4 text-sm text-text-secondary">
-                {title}
-            </Text>
-
-            <Text className="mt-1 text-3xl font-bold text-text-primary">
-                {value}
-            </Text>
-
-            <Text className="mt-1 text-xs text-text-muted">
-                {subtitle}
-            </Text>
+        <View className="flex-1 bg-bg-card rounded-card p-4 border border-border-disable">
+            <Ionicons name={icon} size={20} color={color} />
+            <Text className="text-2xl font-bold text-text-primary mt-2">{value}</Text>
+            <Text className="text-caption text-text-muted mt-0.5">{label}</Text>
         </View>
     );
 }
 
-interface LoadCardProps {
-    label: string;
-    value: string;
-}
-
-function LoadCard({
-    label,
-    value,
-}: LoadCardProps) {
+function ItemBadge({ label }: { label: string }) {
     return (
-        <View className="mb-3 w-[48%] rounded-2xl bg-bg-input p-4">
-
-            <Text className="text-sm text-text-secondary">
+        <View className="bg-brand-light px-3 py-1.5 rounded-badge">
+            <Text className="text-caption font-semibold text-brand-primary">
                 {label}
             </Text>
-
-            <Text className="mt-2 text-2xl font-bold text-text-primary">
-                {value}
-            </Text>
         </View>
     );
 }
 
-interface QuickActionButtonProps {
-    icon: keyof typeof Ionicons.glyphMap;
-    label: string;
-}
-
-function QuickActionButton({
+function QuickAction({
     icon,
     label,
-}: QuickActionButtonProps) {
+    onPress,
+    color,
+}: {
+    icon: any;
+    label: string;
+    onPress: () => void;
+    color: string;
+}) {
     return (
         <TouchableOpacity
-            activeOpacity={0.85}
-            className="h-20 w-[23%] items-center justify-center rounded-[24px] bg-white"
+            onPress={onPress}
+            className="bg-bg-card border border-border-disable rounded-card items-center justify-center py-4"
+            style={{ width: "30.5%" }}
         >
-            <Ionicons
-                name={icon}
-                size={22}
-                color="#1B5E37"
-            />
-
-            <Text className="mt-2 text-xs font-medium text-text-primary">
+            <View
+                className="w-10 h-10 rounded-full items-center justify-center mb-2"
+                style={{ backgroundColor: color + "18" }}
+            >
+                <Ionicons name={icon} size={20} color={color} />
+            </View>
+            <Text className="text-caption font-semibold text-text-primary">
                 {label}
             </Text>
         </TouchableOpacity>
+    );
+}
+
+function SummaryItem({ label, value }: { label: string; value: string }) {
+    return (
+        <View className="items-center">
+            <Text className="text-xl font-bold text-text-primary">{value}</Text>
+            <Text className="text-caption text-text-muted mt-0.5">{label}</Text>
+        </View>
     );
 }
