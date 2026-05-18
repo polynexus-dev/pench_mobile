@@ -41,8 +41,24 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow Smart Dairy ERP to access your location even in the background during active delivery trips.",
+          "locationWhenInUsePermission": "Allow Smart Dairy ERP to access your location during delivery trips.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
     ],
+    "ios": {
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
+    },
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true

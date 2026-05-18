@@ -10,6 +10,7 @@ import { useAuthInit } from "@/hooks/useAuthInit";
 import * as SplashScreen from "expo-splash-screen";
 import "../global.css";
 import { ToastProvider } from "@/shared/components/Toast/Toast";
+import "@/services/location/backgroundTracking";
 
 SplashScreen.preventAutoHideAsync();
 
