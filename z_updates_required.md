@@ -1,4 +1,4 @@
-## Add the Route response tyes because it's untyped now (16/05/2026)
+## Add the [Route response] tyes because it's untyped now (16/05/2026)
 *****
 ## If location permission denied -> handle it properly instead of error 
 Important issue in your code
@@ -12,3 +12,14 @@ If you want to keep the current structure, your component is already fine; the p
 
 Would you like me to rewrite startTracking() so it correctly opens app settings on Android and iOS?
 *****
+
+UI SETUP
+| Purpose    | Package           |
+| ---------- | ----------------- |
+| Navigation | Expo Router       |
+| Styling    | NativeWind        |
+| Animation  | Reanimated        |
+| Gestures   | Gesture Handler   |
+| Blur       | expo-blur         |
+| Haptics    | expo-haptics      |
+| Icons      | Expo Vector Icons |

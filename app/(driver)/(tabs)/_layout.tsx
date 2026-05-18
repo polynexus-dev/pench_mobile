@@ -16,7 +16,7 @@ export default function DriverTabsLayout() {
 
           position: "absolute",
           marginHorizontal: 10,
-          marginBottom: 15,
+          marginBottom: 10,
 
           height: 65,
           paddingTop: 5,
