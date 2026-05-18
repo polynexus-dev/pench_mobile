@@ -4,23 +4,26 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar,
   Text,
   View,
+  TouchableOpacity
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LoginTabBar } from "../components/LoginTabBar";
 import { OTPLoginForm } from "../components/OTPLoginForm";
 import { UsernameLoginForm } from "../components/UsernameLoginForm";
 import type { LoginMethod } from "../types/auth.types";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 
 export default function LoginScreen() {
   const [method, setMethod] = useState<LoginMethod>("password");
+  const router = useRouter();
 
   return (
     // 🎨 Background color → change "#D6EDE4" or add bg-bg-auth token
-    <>
-      <StatusBar barStyle="dark-content" />
+    <ScreenWrapper>
       <SafeAreaView
         className="flex-1 h-full bg-bg-input"
       // style={{ backgroundColor: "#D6EDE4" }}
@@ -54,7 +57,10 @@ export default function LoginScreen() {
 
               {/* Form — swaps based on active tab */}
               {method === "password" ? (
-                <UsernameLoginForm />
+                <>
+                  <UsernameLoginForm />
+
+                </>
               ) : (
                 <OTPLoginForm />
               )}
@@ -67,6 +73,6 @@ export default function LoginScreen() {
           </ScrollView>
         </KeyboardAvoidingView>
       </SafeAreaView>
-    </>
+    </ScreenWrapper>
   );
 }

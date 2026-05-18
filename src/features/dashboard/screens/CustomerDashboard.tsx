@@ -26,6 +26,7 @@ export function CustomerDashboardScreen() {
     const customerName =
         user?.username ?? "Customer";
 
+        
     // TODO: Replace with API
     const stats = {
         nextDelivery: "Tomorrow, 6:30 AM",
@@ -40,6 +41,8 @@ export function CustomerDashboardScreen() {
     };
 
     return (
+        <>
+        {/* <StatusBar/> */}
         <SafeAreaView className="flex-1 bg-[#F4F7F5]">
 
             <ScrollView
@@ -47,14 +50,14 @@ export function CustomerDashboardScreen() {
                 contentContainerStyle={{
                     paddingBottom: 120,
                 }}
-            >
+                >
                 {/* Header */}
                 <View
                     className="px-5 pb-10 pt-8"
                     style={{
                         backgroundColor: "#1B5E37",
                     }}
-                >
+                    >
                     {/* Greeting */}
                     <View className="flex-row items-center justify-between">
 
@@ -69,7 +72,7 @@ export function CustomerDashboardScreen() {
                                 adjustsFontSizeToFit
                                 minimumFontScale={0.8}
                                 className="mt-2 text-3xl font-bold text-white"
-                            >
+                                >
                                 {customerName}
                             </Text>
 
@@ -83,9 +86,9 @@ export function CustomerDashboardScreen() {
                             className="h-16 w-16 items-center justify-center rounded-full"
                             style={{
                                 backgroundColor:
-                                    "rgba(255,255,255,0.18)",
+                                "rgba(255,255,255,0.18)",
                             }}
-                        >
+                            >
                             <Text className="text-xl font-bold text-white">
                                 {customerName
                                     .slice(0, 2)
@@ -99,9 +102,9 @@ export function CustomerDashboardScreen() {
                         className="mt-8 rounded-[30px] p-5"
                         style={{
                             backgroundColor:
-                                "rgba(255,255,255,0.12)",
+                            "rgba(255,255,255,0.12)",
                         }}
-                    >
+                        >
                         <View className="flex-row items-center justify-between">
 
                             <View className="flex-1">
@@ -118,6 +121,7 @@ export function CustomerDashboardScreen() {
                                     {stats.milkQuantity} Milk
                                 </Text>
                             </View>
+
 
                             <View className="h-16 w-16 items-center justify-center rounded-2xl bg-white/20">
                                 <Ionicons
@@ -375,6 +379,7 @@ export function CustomerDashboardScreen() {
                 </View>
             </ScrollView>
         </SafeAreaView>
+        </>
     );
 }
 

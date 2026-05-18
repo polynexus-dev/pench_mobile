@@ -14,7 +14,7 @@ interface TrackingStore {
     loading: boolean;
     error: string | null;
     startTrip: (token: string) => Promise<boolean>;
-    stopTrip: () => void;
+    stopTrip: (token: string) => Promise<boolean>;
     connectSocket: (domain: string, token: string) => void;
     disconnectSocket: () => void;
     startTracking: () => Promise<void>;
@@ -69,10 +69,70 @@ export const useTrackingStore = createStore<TrackingStore>("tracking", (set, get
         }
     },
 
-    stopTrip: () => {
-        get().stopTracking();
-        get().disconnectSocket();
-        set((s) => { s.isTripStarted = false; });
+
+    stopTrip: async (token: string) => {
+        set((s) => {
+            s.loading = true;
+            s.error = null;
+        });
+
+        try {
+            const { domain_name, route_id } = useAuthStore.getState();
+
+            if (!domain_name) throw new Error("domain_name not set in authStore");
+            if (!route_id) throw new Error("route_id not set in authStore");
+
+            const url = `https://${domain_name}/api/erp/orders/driver/${route_id}/complete-trip/`;
+            if (__DEV__) console.log("🛑 Completing trip at:", url);
+
+            const res = await fetch(url, {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${token}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({}),
+            });
+
+            const rawText = await res.text();
+            if (__DEV__) {
+                console.log("📡 Complete trip status:", res.status);
+                console.log("📦 Complete trip response:", rawText.slice(0, 300));
+            }
+
+            if (!res.ok) {
+                throw new Error(`Complete trip failed: ${res.status}`);
+            }
+
+            const data = JSON.parse(rawText) as {
+                detail: string;
+                completed_at: string;
+                expires_in_seconds: number;
+            };
+
+            if (__DEV__) {
+                console.log("✅", data.detail);
+                console.log("🕒 completed_at:", data.completed_at);
+                console.log("⏳ expires_in_seconds:", data.expires_in_seconds);
+            }
+
+            get().stopTracking();
+            get().disconnectSocket();
+
+            set((s) => {
+                s.isTripStarted = false;
+                s.loading = false;
+            });
+
+            return true;
+        } catch (err: any) {
+            if (__DEV__) console.error("❌ stopTrip error:", err.message);
+            set((s) => {
+                s.error = err.message;
+                s.loading = false;
+            });
+            return false;
+        }
     },
 
     connectSocket: (domain: string, token: string) => {

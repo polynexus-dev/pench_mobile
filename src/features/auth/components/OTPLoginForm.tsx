@@ -31,7 +31,7 @@ export function OTPLoginForm() {
 
     function handleVerifyOTP() {
         if (!otp) return;
-        verifyOTP({ phone, code : otp });
+        verifyOTP({ phone, code: otp });
     }
 
     return (
@@ -40,6 +40,7 @@ export function OTPLoginForm() {
             <View className="flex-row items-center gap-x-2">
                 <View className="flex-1">
                     <AuthInput
+                        label="Phone number"
                         placeholder="Enter phone number"
                         value={phone}
                         onChangeText={setPhone}
@@ -51,7 +52,7 @@ export function OTPLoginForm() {
                     onPress={otpSent ? () => { setOtpSent(false); setOtp(""); } : handleSendOTP}
                     disabled={isSending || !phone}
                     activeOpacity={0.8}
-                    className={`h-14 px-4 rounded-full items-center justify-center ${isSending || !phone ? "bg-brand-primary/50" : "bg-brand-primary"
+                    className={`h-14 px-4 mt-4 rounded-full items-center justify-center ${isSending || !phone ? "bg-brand-primary/50" : "bg-brand-primary"
                         }`}
                 >
                     <Text className="text-white text-xs font-semibold">
@@ -70,6 +71,7 @@ export function OTPLoginForm() {
             {/* OTP Input — shown after OTP is sent */}
             {otpSent && (
                 <AuthInput
+                    label="Enter OTP"
                     placeholder="Enter OTP"
                     value={otp}
                     onChangeText={setOtp}
@@ -91,8 +93,8 @@ export function OTPLoginForm() {
                     disabled={isVerifying || otp.length < 4}
                     activeOpacity={0.85}
                     className={`w-full h-14 rounded-full items-center justify-center mt-2 ${isVerifying || otp.length < 4
-                            ? "bg-brand-primary/50"
-                            : "bg-brand-primary"
+                        ? "bg-brand-primary/50"
+                        : "bg-brand-primary"
                         }`}
                 >
                     <Text className="text-white text-base font-semibold tracking-wide">

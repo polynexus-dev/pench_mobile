@@ -1,7 +1,5 @@
 import React, { useMemo, useRef, useState } from "react";
-
 import {
-  ActivityIndicator,
   Animated,
   Image,
   KeyboardAvoidingView,
@@ -11,13 +9,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
-
 import { Ionicons } from "@expo/vector-icons";
-
 import { useRouter } from "expo-router";
-
 import { AuthInput } from "../components/AuthInput";
 import { useRegister } from "../hooks/useRegister";
 
@@ -34,23 +28,13 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [city, setCity] = useState(CITY_OPTIONS[0].value);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showCityPicker, setShowCityPicker] = useState(false);
 
-  const [city, setCity] = useState(
-    CITY_OPTIONS[0].value,
-  );
+  const dropdownAnim = useRef(new Animated.Value(0)).current;
 
-  const [showPassword, setShowPassword] =
-    useState(false);
-
-  const [showCityPicker, setShowCityPicker] =
-    useState(false);
-
-  const dropdownAnim = useRef(
-    new Animated.Value(0),
-  ).current;
-
-  const { mutate: register, isPending } =
-    useRegister();
+  const { mutate: register, isPending, isError, error } = useRegister();
 
   const isFormValid = useMemo(() => {
     return (
@@ -76,7 +60,6 @@ export default function RegisterScreen() {
 
   function toggleCityPicker() {
     const next = !showCityPicker;
-
     setShowCityPicker(next);
 
     Animated.spring(dropdownAnim, {
@@ -87,66 +70,47 @@ export default function RegisterScreen() {
     }).start();
   }
 
-  const selectedCity = CITY_OPTIONS.find(
-    (c) => c.value === city,
-  );
+  const selectedCity = CITY_OPTIONS.find((c) => c.value === city);
 
   return (
-    <SafeAreaView className="flex-1 bg-bg-screen">
+    <SafeAreaView className="flex-1 bg-surface">
       <KeyboardAvoidingView
         className="flex-1"
-        behavior={
-          Platform.OS === "ios"
-            ? "padding"
-            : undefined
-        }
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingBottom: 40,
-          }}
+          contentContainerStyle={{ flexGrow: 1 }}
         >
-          {/* Header */}
-          <View className="px-6 pt-6">
+          <View className="flex-1 items-center px-6 pt-10 pb-8">
+            {/* Back */}
             <TouchableOpacity
               onPress={() => router.back()}
-              className="h-11 w-11 items-center justify-center rounded-full bg-white"
+              className="self-start mb-4 flex-row items-center gap-x-1"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
             >
-              <Ionicons
-                name="chevron-back"
-                size={22}
-                color="#1A1A1A"
-              />
+              <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
+              <Text className="text-sm font-medium text-text-primary">Back</Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Hero */}
-          <View className="items-center px-6 pt-4">
+            {/* Logo */}
             <Image
               source={require("@assets/images/pench-logo.png")}
-              className="h-28 w-28"
+              className="w-36 h-28"
               resizeMode="contain"
+              accessibilityLabel="Pench Foods logo"
             />
 
-            {/* <Text className="mt-2 text-center text-xl font-bold text-text-primary">
-              Fresh Dairy,
-              {"\n"}
-              Delivered Daily 🥛
-            </Text> */}
-          </View>
-
-          {/* Form Card */}
-          <View className="mx-5 mt-8 rounded-[32px] bg-white px-5 py-6 shadow-sm">
-            <Text className="mb-6 text-2xl font-bold text-text-primary">
+            {/* Title */}
+            <Text className="mt-4 mb-8 text-2xl font-bold text-text-primary">
               Create Account
             </Text>
 
-            <View className="gap-y-4">
-
-              {/* Username */}
+            {/* Form */}
+            <View className="w-full gap-y-4">
               <AuthInput
+                label="Username"
                 placeholder="Choose a username"
                 value={username}
                 onChangeText={setUsername}
@@ -154,42 +118,38 @@ export default function RegisterScreen() {
                 autoCorrect={false}
               />
 
-              {/* Email */}
               <AuthInput
-                placeholder="Email address"
+                label="Email"
+                placeholder="Enter your email"
                 value={email}
                 onChangeText={setEmail}
                 keyboardType="email-address"
                 autoCapitalize="none"
+                autoCorrect={false}
               />
 
-              {/* Phone */}
               <AuthInput
-                placeholder="Phone number"
+                label="Phone Number"
+                placeholder="Enter your phone number"
                 value={phone}
                 onChangeText={setPhone}
                 keyboardType="phone-pad"
                 maxLength={13}
               />
 
-              {/* Password */}
               <AuthInput
-                placeholder="Create password"
+                label="Password"
+                placeholder="Create a password"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
                 rightIcon={
                   <TouchableOpacity
-                    onPress={() =>
-                      setShowPassword((v) => !v)
-                    }
+                    onPress={() => setShowPassword((v) => !v)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   >
                     <Ionicons
-                      name={
-                        showPassword
-                          ? "eye-off-outline"
-                          : "eye-outline"
-                      }
+                      name={showPassword ? "eye-off-outline" : "eye-outline"}
                       size={20}
                       color="#9E9E9E"
                     />
@@ -199,37 +159,27 @@ export default function RegisterScreen() {
 
               {/* City Picker */}
               <View>
+                <Text className="mb-2 ml-1 text-sm font-semibold text-text-primary">
+                  City
+                </Text>
 
                 <TouchableOpacity
                   activeOpacity={0.85}
                   onPress={toggleCityPicker}
-                  className="h-14 flex-row items-center justify-between rounded-full bg-bg-input px-5"
+                  className="h-16 flex-row items-center justify-between rounded-full border border-border-disable bg-border-disable px-6"
                 >
-                  <View className="flex-row items-center">
-                    <Ionicons
-                      name="location-outline"
-                      size={18}
-                      color="#9E9E9E"
-                    />
-
-                    <Text className="ml-2 text-sm text-text-primary">
-                      {selectedCity?.label ??
-                        "Select city"}
-                    </Text>
-                  </View>
+                  <Text className="text-sm font-bold text-text-primary">
+                    {selectedCity?.label ?? "Select your city"}
+                  </Text>
 
                   <Animated.View
                     style={{
                       transform: [
                         {
-                          rotate:
-                            dropdownAnim.interpolate({
-                              inputRange: [0, 1],
-                              outputRange: [
-                                "0deg",
-                                "180deg",
-                              ],
-                            }),
+                          rotate: dropdownAnim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: ["0deg", "180deg"],
+                          }),
                         },
                       ],
                     }}
@@ -242,26 +192,19 @@ export default function RegisterScreen() {
                   </Animated.View>
                 </TouchableOpacity>
 
-                {/* Dropdown */}
                 <Animated.View
                   style={{
-                    maxHeight:
-                      dropdownAnim.interpolate({
-                        inputRange: [0, 1],
-                        outputRange: [
-                          0,
-                          CITY_OPTIONS.length * 58,
-                        ],
-                      }),
+                    maxHeight: dropdownAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, CITY_OPTIONS.length * 58],
+                    }),
                     opacity: dropdownAnim,
                     overflow: "hidden",
                   }}
                 >
-                  <View className="mt-2 overflow-hidden rounded-3xl bg-bg-card">
-
+                  <View className="mt-2 overflow-hidden rounded-3xl bg-white border border-border-disable">
                     {CITY_OPTIONS.map((option) => {
-                      const isSelected =
-                        city === option.value;
+                      const isSelected = city === option.value;
 
                       return (
                         <TouchableOpacity
@@ -270,18 +213,14 @@ export default function RegisterScreen() {
                             setCity(option.value);
                             toggleCityPicker();
                           }}
-                          className={`flex-row items-center justify-between px-5 py-4 ${
-                            isSelected
-                              ? "bg-brand-light"
-                              : "bg-white"
-                          }`}
+                          className={`flex-row items-center justify-between px-5 py-4 ${isSelected ? "bg-brand-light" : "bg-white"
+                            }`}
                         >
                           <Text
-                            className={`text-base ${
-                              isSelected
+                            className={`text-base ${isSelected
                                 ? "font-semibold text-brand-primary"
                                 : "text-text-primary"
-                            }`}
+                              }`}
                           >
                             {option.label}
                           </Text>
@@ -300,49 +239,46 @@ export default function RegisterScreen() {
                 </Animated.View>
               </View>
 
-              {/* CTA */}
+              {isError && (
+                <Text className="text-error text-xs text-center">
+                  {(error as any)?.message ??
+                    "Registration failed. Please try again."}
+                </Text>
+              )}
+
+              {/* Register Button */}
               <TouchableOpacity
-                activeOpacity={0.9}
-                disabled={
-                  !isFormValid || isPending
-                }
                 onPress={handleRegister}
-                className={`mt-3 h-14 items-center justify-center rounded-full ${
-                  isFormValid
-                    ? "bg-brand-primary"
-                    : "bg-brand-primary/40"
-                }`}
+                disabled={!isFormValid || isPending}
+                activeOpacity={0.85}
+                className={`w-full h-14 rounded-full items-center justify-center mt-2 ${!isFormValid || isPending
+                    ? "bg-brand-primary/50"
+                    : "bg-brand-primary"
+                  }`}
               >
-                {isPending ? (
-                  <ActivityIndicator color="white" />
-                ) : (
-                  <Text className="text-base font-semibold text-white">
-                    Create Account
-                  </Text>
-                )}
+                <Text className="text-white text-base font-semibold tracking-wide">
+                  {isPending ? "Creating account..." : "Create account"}
+                </Text>
               </TouchableOpacity>
 
-              {/* Login */}
-              <View className="mt-4 flex-row items-center justify-center">
+              {/* Login Link */}
+              <View className="flex-row items-center justify-center gap-x-1 mt-2">
                 <Text className="text-sm text-text-secondary">
                   Already have an account?
                 </Text>
-
-                <TouchableOpacity
-                  onPress={() => router.back()}
-                >
-                  <Text className="ml-1 text-sm font-semibold text-brand-primary">
+                <TouchableOpacity onPress={() => router.back()}>
+                  <Text className="text-sm font-semibold text-brand-primary">
                     Log in
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
-          </View>
 
-          {/* Footer */}
-          <Text className="mt-8 text-center text-xs text-text-muted">
-            © 2026 Pench Foods. Freshness delivered daily.
-          </Text>
+            {/* Footer */}
+            <Text className="text-xs text-text-muted text-center mt-auto pt-8">
+              © 2026 Pench Foods. All rights reserved.
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

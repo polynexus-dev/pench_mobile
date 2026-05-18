@@ -51,8 +51,24 @@ export interface RegisterPayload {
   tenant_schema: string;
 }
 
+export interface ForgotPasswordPayload {
+  phone: string;
+}
+
+export interface ForgotPasswordResponse {
+  message: string;
+  otp?: string;
+}
+
+export interface ResetPasswordPayload {
+  phone: string;
+  code: string;
+  new_password: string;
+}
+
+export interface ResetPasswordResponse {
+  message: string;
+}
+
 export type LoginMethod = "password" | "otp";
 
-// export interface ForgotPasswordPayload {
-//   email: string;
-// }

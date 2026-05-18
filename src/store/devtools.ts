@@ -8,3 +8,20 @@ export function createStore<T>(
 ) {
   return create<T>()(devtools(immer(initializer), { name, enabled: __DEV__ }));
 }
+
+
+// import { create, StateCreator } from "zustand";
+// import { devtools } from "zustand/middleware";
+// import { immer } from "zustand/middleware/immer";
+
+// export function createStore<T extends object>(
+//   name: string,
+//   initializer: StateCreator<T, [], []>
+// ) {
+//   return create<T>()(
+//     devtools(immer(initializer), {
+//       name,
+//       enabled: __DEV__,
+//     })
+//   );
+// }

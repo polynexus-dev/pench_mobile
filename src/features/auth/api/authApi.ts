@@ -5,9 +5,12 @@ import type {
     OTPVerifyPayload,
     RegisterPayload,
     AuthResponse,
-    OTPRequestResponse
+    OTPRequestResponse,
+    ResetPasswordPayload,
+    ForgotPasswordPayload,
+    ForgotPasswordResponse,
+    ResetPasswordResponse,
 } from "../types/auth.types";
-// import type { ApiResponse } from "@/types/api/responses.types";
 
 export const authApi = {
     login: (payload: LoginPayload): Promise<AuthResponse> =>
@@ -21,5 +24,10 @@ export const authApi = {
 
     register: (payload: RegisterPayload): Promise<AuthResponse> =>
         httpClient.post("accounts/register/", payload),
-};
 
+    forgotPassword: (payload: ForgotPasswordPayload): Promise<ForgotPasswordResponse> =>
+        httpClient.post("accounts/forgot-password/", payload),
+
+    resetPassword: (payload: ResetPasswordPayload): Promise<ResetPasswordResponse> =>
+        httpClient.post("accounts/reset-password/", payload),
+};

@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { View, TouchableOpacity } from "react-native";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { TouchableOpacity } from "react-native";
 import OSMMap, { OSMMapHandle } from "../components/OSMMap";
 import { useAuthStore, useTrackingStore } from "@/store";
 import { TripStatusBanner } from "@/features/map/components/TripStatusBanner";
@@ -17,15 +19,48 @@ import { NextStopCard } from "@/features/map/components/NextStopCard";
 import { StopListItem } from "@/features/map/components/StopListItem";
 
 const MOCK_STOPS = [
-  { id: "1", seq: 1, name: "Kavita Deshmukh", address: "Row House 9, Ramdaspeth, Nagpur", items: ["2 Milk", "1 Curd"], status: "completed" as const, orderId: "order-1" },
-  { id: "2", seq: 2, name: "Amit Kumar", address: "Plot 12, Dharampeth, Nagpur", items: ["1 Milk"], status: "current" as const, orderId: "order-2" },
-  { id: "3", seq: 3, name: "Suresh Patel", address: "Bungalow 7, Wardha Road, Nagpur", items: ["3 Milk", "1 Paneer"], status: "pending" as const, orderId: "order-3" },
-  { id: "4", seq: 4, name: "Priya Mehta", address: "Flat 5, Sitabuldi, Nagpur", items: ["2 Milk"], status: "pending" as const, orderId: "order-4" },
+  {
+    id: "1",
+    seq: 1,
+    name: "Kavita Deshmukh",
+    address: "Row House 9, Ramdaspeth, Nagpur",
+    items: ["2 Milk", "1 Curd"],
+    status: "completed" as const,
+    orderId: "order-1",
+  },
+  {
+    id: "2",
+    seq: 2,
+    name: "Amit Kumar",
+    address: "Plot 12, Dharampeth, Nagpur",
+    items: ["1 Milk"],
+    status: "current" as const,
+    orderId: "order-2",
+  },
+  {
+    id: "3",
+    seq: 3,
+    name: "Suresh Patel",
+    address: "Bungalow 7, Wardha Road, Nagpur",
+    items: ["3 Milk", "1 Paneer"],
+    status: "pending" as const,
+    orderId: "order-3",
+  },
+  {
+    id: "4",
+    seq: 4,
+    name: "Priya Mehta",
+    address: "Flat 5, Sitabuldi, Nagpur",
+    items: ["2 Milk"],
+    status: "pending" as const,
+    orderId: "order-4",
+  },
 ];
 
 export default function MapScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const mapRef = useRef<OSMMapHandle>(null);
+  const insets = useSafeAreaInsets();
 
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
   const loading = useTrackingStore((s) => s.loading);
@@ -47,18 +82,23 @@ export default function MapScreen() {
         opacity={0.3}
       />
     ),
-    [],
+    []
   );
 
   const handleTripToggle = async () => {
     const { accessToken, domain_name } = useAuthStore.getState();
-    const { startTrip, stopTrip, connectSocket, startTracking, isTripStarted } =
-      useTrackingStore.getState();
+    const {
+      startTrip,
+      stopTrip,
+      connectSocket,
+      startTracking,
+      isTripStarted,
+    } = useTrackingStore.getState();
 
     if (!accessToken || !domain_name) return;
 
     if (isTripStarted) {
-      stopTrip();
+      await stopTrip(accessToken);
       return;
     }
 
@@ -70,17 +110,16 @@ export default function MapScreen() {
   };
 
   const currentStop = MOCK_STOPS.find((s) => s.status === "current");
-  const completedCount = MOCK_STOPS.filter((s) => s.status === "completed").length;
+  const completedCount = MOCK_STOPS.filter(
+    (s) => s.status === "completed"
+  ).length;
 
   return (
     <SafeAreaView edges={["top"]} className="flex-1 bg-black">
-
-      {/* Fullscreen Map */}
       <View className="absolute inset-0">
         <OSMMap ref={mapRef} />
       </View>
 
-      {/* Top Route Status Banner */}
       <TripStatusBanner
         routeName="Nagpur Express Delivery"
         completed={completedCount}
@@ -91,7 +130,6 @@ export default function MapScreen() {
         onToggle={handleTripToggle}
       />
 
-      {/* Floating Side Buttons */}
       <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
         <TouchableOpacity
           onPress={openSheet}
@@ -108,11 +146,12 @@ export default function MapScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Bottom Sheet */}
       <BottomSheetModal
         ref={bottomSheetRef}
         snapPoints={snapPoints}
         index={0}
+        topInset={insets.top}
+        bottomInset={insets.bottom}
         enablePanDownToClose
         backdropComponent={backDrop}
         handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
@@ -123,24 +162,44 @@ export default function MapScreen() {
         }}
       >
         <BottomSheetScrollView
-          contentContainerStyle={{ padding: 16, paddingBottom: 120 }}
+          contentContainerStyle={{
+            padding: 16,
+            paddingBottom: 120 + insets.bottom,
+          }}
         >
-          {/* Trip Start Prompt — only when not started */}
           {!isTripStarted && (
             <TripStartPrompt loading={loading} onStart={handleTripToggle} />
           )}
 
-          {/* Stats Row */}
           <RouteStatRow
             stats={[
-              { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
-              { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
-              { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
-              { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
+              {
+                icon: "water-outline",
+                label: "Bottles",
+                value: "128",
+                color: "#1B5E37",
+              },
+              {
+                icon: "restaurant-outline",
+                label: "Special",
+                value: "16",
+                color: "#D4872A",
+              },
+              {
+                icon: "return-down-back",
+                label: "Returns",
+                value: "52",
+                color: "#4A4A4A",
+              },
+              {
+                icon: "cash-outline",
+                label: "COD",
+                value: "₹640",
+                color: "#1B5E37",
+              },
             ]}
           />
 
-          {/* Next Stop */}
           {currentStop && isTripStarted && (
             <NextStopCard
               stopNumber={currentStop.seq}
@@ -152,7 +211,6 @@ export default function MapScreen() {
             />
           )}
 
-          {/* Full Stop List */}
           {MOCK_STOPS.map((stop) => (
             <StopListItem
               key={stop.id}

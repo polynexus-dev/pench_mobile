@@ -2,6 +2,7 @@ import React from "react";
 import { View, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { cn } from "@/utils/cn";
+import { StatusBar } from "expo-status-bar";
 
 interface Props {
   children: React.ReactNode;
@@ -24,13 +25,16 @@ export function ScreenWrapper({ children, className, scrollable = false }: Props
   );
 
   return (
-    <SafeAreaView className="flex-1 bg-surface p-4" edges={["top", "bottom"]}>
-      <KeyboardAvoidingView
-        className="flex-1"
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-      >
-        {content}
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+    <>
+    <StatusBar style="dark" backgroundColor="#F0EBE1"/> 
+      <SafeAreaView className="flex-1 bg-surface p-4" edges={["top", "bottom"]}>
+        <KeyboardAvoidingView
+          className="flex-1"
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
+          {content}
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </>
   );
 }
