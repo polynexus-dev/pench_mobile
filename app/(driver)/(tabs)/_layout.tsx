@@ -1,26 +1,44 @@
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function DriverTabsLayout() {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: "#3b82f6",
-        tabBarInactiveTintColor: "#94a3b8",
-        // tabBarShowLabel: false,
+        tabBarActiveTintColor: "#1e3b2f",
+        // tabBarInactiveTintColor: "#f8f8f8",
+        tabBarInactiveTintColor: "#7d9789",
         tabBarStyle: {
-          backgroundColor: "#0f172a",
-          borderTopColor: "#1e293b",
-          borderRadius: 50,
+          backgroundColor: "#f8f8f8",
+          // backgroundColor: "#1B5E37",
+          // borderTopColor: "#1e3b2f",
+
+          // borderRadius: 50,
 
           position: "absolute",
-          marginHorizontal: 10,
-          marginBottom: 10,
-
+          left: 10,
+          right: 10,
+          bottom: insets.bottom,
           height: 65,
           paddingTop: 5,
           paddingBottom: 10,
+
+          // marginBottom: 10, 
+          // marginHorizontal:10,
+
+          borderTopLeftRadius: 16,
+          borderTopRightRadius: 16,
+
+          overflow: "hidden", // 👈 IMPORTANT
+
+          // elevation: 10, // Android shadow
+          // shadowColor: "#000",
+          // shadowOpacity: 0.2,
+          // shadowRadius: 10,
         },
         tabBarLabelStyle: { fontSize: 10 },
         tabBarItemStyle: {
@@ -33,8 +51,7 @@ export default function DriverTabsLayout() {
         name="dashboard"
         options={{
           title: "Dashboard",
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="home-outline" color={color} size={22} />
           ),
         }}
@@ -43,19 +60,16 @@ export default function DriverTabsLayout() {
         name="map"
         options={{
           title: "Live Map",
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="map-outline" color={color} size={22} />
           ),
         }}
       />
-      {/* ── New Profile Tab ───────────────────────────────────── */}
       <Tabs.Screen
         name="profile"
         options={{
           title: "Profile",
-          headerShown: false,
-          tabBarIcon: ({ color, size }) => (
+          tabBarIcon: ({ color }) => (
             <Ionicons name="person-outline" color={color} size={22} />
           ),
         }}
