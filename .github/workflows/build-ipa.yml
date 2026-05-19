@@ -20,16 +20,13 @@ jobs:
       - name: Install Dependencies
         run: npm install 
 
-      - name: Generate iOS Native Code (Expo Prebuild)
-        run: npx expo prebuild --platform ios
-
       - name: Generate Native iOS Project (Expo Prebuild)
         run: npx expo prebuild --platform ios
 
       - name: Build Unsigned App
         # This compiles the app for physical iOS devices but forcefully strips the Apple signing requirements
         run: |
-          WORKSPACE=$(find ios -name "*.xcworkspace" | head -n 1)
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           echo "Building Workspace: $WORKSPACE with Scheme: $SCHEME"
           xcodebuild -workspace "$WORKSPACE" \
@@ -45,7 +42,7 @@ jobs:
       - name: Convert .app to .ipa
         # An .ipa file is essentially just the .app bundle placed inside a 'Payload' folder and zipped
         run: |
-          WORKSPACE=$(find ios -name "*.xcworkspace" | head -n 1)
+          WORKSPACE=$(find ios -maxdepth 1 -name "*.xcworkspace" | head -n 1)
           SCHEME=$(basename "$WORKSPACE" .xcworkspace)
           mkdir -p Payload
           mv ios/build/Build/Products/Release-iphoneos/$SCHEME.app Payload/
