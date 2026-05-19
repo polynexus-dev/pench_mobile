@@ -150,7 +150,7 @@ export function DriverProfileScreen() {
   return (
     <>
       <StatusBar style="dark" />
-      <SafeAreaView className="flex-1 bg-bg-screen">
+      <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-bg-screen">
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={{ paddingBottom: 70 }}
