@@ -18,7 +18,10 @@ jobs:
           node-version: '18'
 
       - name: Install Dependencies
-        run: npm install # Change to 'yarn install' if you use yarn
+        run: npm install 
+
+      - name: Generate iOS Native Code (Expo Prebuild)
+        run: npx expo prebuild --platform ios
 
       - name: Generate Native iOS Project (Expo Prebuild)
         run: npx expo prebuild --platform ios
