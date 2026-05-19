@@ -17,6 +17,7 @@ import { TripStartPrompt } from "@/features/map/components/TripStartPrompt";
 import { RouteStatRow } from "@/features/map/components/RouteStatRow";
 import { NextStopCard } from "@/features/map/components/NextStopCard";
 import { StopListItem } from "@/features/map/components/StopListItem";
+import { StatusBar } from "expo-status-bar";
 
 const MOCK_STOPS = [
   {
@@ -115,115 +116,118 @@ export default function MapScreen() {
   ).length;
 
   return (
-    <SafeAreaView edges={["top"]} className="flex-1 bg-black">
-      <View className="absolute inset-0">
-        <OSMMap ref={mapRef} />
-      </View>
+    <>
+      <StatusBar style="light" />
+      <SafeAreaView edges={["top"]} className="flex-1 bg-black">
+        <View className="absolute inset-0">
+          <OSMMap ref={mapRef} />
+        </View>
 
-      <TripStatusBanner
-        routeName="Nagpur Express Delivery"
-        completed={completedCount}
-        total={MOCK_STOPS.length}
-        eta="1h 24m"
-        isTripStarted={isTripStarted}
-        loading={loading}
-        onToggle={handleTripToggle}
-      />
+        <TripStatusBanner
+          routeName="Nagpur Express Delivery"
+          completed={completedCount}
+          total={MOCK_STOPS.length}
+          eta="1h 24m"
+          isTripStarted={isTripStarted}
+          loading={loading}
+          onToggle={handleTripToggle}
+        />
 
-      <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
-        <TouchableOpacity
-          onPress={openSheet}
-          className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
-        >
-          <Ionicons name="list" size={22} color="white" />
-        </TouchableOpacity>
+        <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
+          <TouchableOpacity
+            onPress={openSheet}
+            className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
+          >
+            <Ionicons name="list" size={22} color="white" />
+          </TouchableOpacity>
 
-        <TouchableOpacity
-          onPress={() => mapRef.current?.centerOnUser()}
-          className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
-        >
-          <Ionicons name="locate" size={22} color="#1B5E37" />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            onPress={() => mapRef.current?.centerOnUser()}
+            className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
+          >
+            <Ionicons name="locate" size={22} color="#1B5E37" />
+          </TouchableOpacity>
+        </View>
 
-      <BottomSheetModal
-        ref={bottomSheetRef}
-        snapPoints={snapPoints}
-        index={0}
-        topInset={insets.top}
-        bottomInset={insets.bottom}
-        enablePanDownToClose
-        backdropComponent={backDrop}
-        handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
-        backgroundStyle={{
-          backgroundColor: "#F0EBE1",
-          borderTopLeftRadius: 28,
-          borderTopRightRadius: 28,
-        }}
-      >
-        <BottomSheetScrollView
-          contentContainerStyle={{
-            padding: 16,
-            paddingBottom: 120 + insets.bottom,
+        <BottomSheetModal
+          ref={bottomSheetRef}
+          snapPoints={snapPoints}
+          index={0}
+          topInset={insets.top}
+          bottomInset={insets.bottom}
+          enablePanDownToClose
+          backdropComponent={backDrop}
+          handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
+          backgroundStyle={{
+            backgroundColor: "#F0EBE1",
+            borderTopLeftRadius: 28,
+            borderTopRightRadius: 28,
           }}
         >
-          {!isTripStarted && (
-            <TripStartPrompt loading={loading} onStart={handleTripToggle} />
-          )}
+          <BottomSheetScrollView
+            contentContainerStyle={{
+              padding: 15,
+              paddingBottom: 110 + insets.bottom,
+            }}
+          >
+            {!isTripStarted && (
+              <TripStartPrompt loading={loading} onStart={handleTripToggle} />
+            )}
 
-          <RouteStatRow
-            stats={[
-              {
-                icon: "water-outline",
-                label: "Bottles",
-                value: "128",
-                color: "#1B5E37",
-              },
-              {
-                icon: "restaurant-outline",
-                label: "Special",
-                value: "16",
-                color: "#D4872A",
-              },
-              {
-                icon: "return-down-back",
-                label: "Returns",
-                value: "52",
-                color: "#4A4A4A",
-              },
-              {
-                icon: "cash-outline",
-                label: "COD",
-                value: "₹640",
-                color: "#1B5E37",
-              },
-            ]}
-          />
-
-          {currentStop && isTripStarted && (
-            <NextStopCard
-              stopNumber={currentStop.seq}
-              customerName={currentStop.name}
-              address={currentStop.address}
-              items={currentStop.items}
-              orderId={currentStop.orderId}
-              onMarkDelivered={() => console.log("Delivered", currentStop.id)}
+            <RouteStatRow
+              stats={[
+                {
+                  icon: "water-outline",
+                  label: "Bottles",
+                  value: "128",
+                  color: "#1B5E37",
+                },
+                {
+                  icon: "restaurant-outline",
+                  label: "Special",
+                  value: "16",
+                  color: "#D4872A",
+                },
+                {
+                  icon: "return-down-back",
+                  label: "Returns",
+                  value: "52",
+                  color: "#4A4A4A",
+                },
+                {
+                  icon: "cash-outline",
+                  label: "COD",
+                  value: "₹640",
+                  color: "#1B5E37",
+                },
+              ]}
             />
-          )}
 
-          {MOCK_STOPS.map((stop) => (
-            <StopListItem
-              key={stop.id}
-              sequenceNumber={stop.seq}
-              customerName={stop.name}
-              address={stop.address}
-              items={stop.items}
-              status={stop.status}
-              onPress={() => console.log("Stop pressed", stop.id)}
-            />
-          ))}
-        </BottomSheetScrollView>
-      </BottomSheetModal>
-    </SafeAreaView>
+            {currentStop && isTripStarted && (
+              <NextStopCard
+                stopNumber={currentStop.seq}
+                customerName={currentStop.name}
+                address={currentStop.address}
+                items={currentStop.items}
+                orderId={currentStop.orderId}
+                onMarkDelivered={() => console.log("Delivered", currentStop.id)}
+              />
+            )}
+
+            {MOCK_STOPS.map((stop) => (
+              <StopListItem
+                key={stop.id}
+                sequenceNumber={stop.seq}
+                customerName={stop.name}
+                address={stop.address}
+                items={stop.items}
+                status={stop.status}
+                onPress={() => console.log("Stop pressed", stop.id)}
+              />
+            ))}
+          </BottomSheetScrollView>
+        </BottomSheetModal>
+      </SafeAreaView>
+    </>
   );
 }

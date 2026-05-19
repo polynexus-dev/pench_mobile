@@ -15,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@store/authStore";
 
 import { useLogout } from "@features/auth/hooks/useLogout";
+import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -36,8 +37,8 @@ function MenuItem({
       activeOpacity={0.85}
       onPress={onPress}
       className={`mb-4 flex-row items-center rounded-[24px] px-5 py-5 ${danger
-          ? "bg-red-50"
-          : "bg-white"
+        ? "bg-red-50"
+        : "bg-white"
         }`}
       style={{
         elevation: 3,
@@ -53,8 +54,8 @@ function MenuItem({
       {/* Icon */}
       <View
         className={`h-14 w-14 items-center justify-center rounded-2xl ${danger
-            ? "bg-red-100"
-            : "bg-green-100"
+          ? "bg-red-100"
+          : "bg-green-100"
           }`}
       >
         <Ionicons
@@ -77,8 +78,8 @@ function MenuItem({
           minimumFontScale={0.85}
           maxFontSizeMultiplier={1.3}
           className={`text-base font-bold ${danger
-              ? "text-red-600"
-              : "text-gray-900"
+            ? "text-red-600"
+            : "text-gray-900"
             }`}
         >
           {label}
@@ -139,235 +140,237 @@ export function CustomerProfileScreen() {
     user?.customer_dashboard;
 
   return (
-    <SafeAreaView className="flex-1 bg-[#F4F7F5]">
+    <ScreenWrapper>
+      <SafeAreaView className="flex-1 bg-[#F4F7F5]">
 
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{
-          paddingBottom: 120,
-        }}
-      >
-        {/* Hero Section */}
-        <View
-          className="px-5 pb-12 pt-8"
-          style={{
-            backgroundColor: "#1B5E37",
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{
+            paddingBottom: 120,
           }}
         >
-          {/* Top Row */}
-          <View className="flex-row items-center">
-
-            {/* Avatar */}
-            <View
-              className="h-24 w-24 items-center justify-center rounded-full"
-              style={{
-                backgroundColor:
-                  "rgba(255,255,255,0.18)",
-              }}
-            >
-              <Text
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-                numberOfLines={1}
-                className="text-3xl font-bold text-white"
-              >
-                {initials}
-              </Text>
-            </View>
-
-            {/* User Info */}
-            <View className="ml-5 flex-1">
-
-              <Text
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-                maxFontSizeMultiplier={1.3}
-                className="text-3xl font-bold text-white"
-              >
-                {user?.username ?? "Customer"}
-              </Text>
-
-              <Text className="mt-2 text-base text-white/80">
-                Premium Customer
-              </Text>
-
-              <View className="mt-3 flex-row items-center">
-
-                <Ionicons
-                  name="water-outline"
-                  size={16}
-                  color="rgba(255,255,255,0.85)"
-                />
-
-                <Text className="ml-2 text-sm text-white/80">
-                  Daily Fresh Dairy Delivery
-                </Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Stats */}
+          {/* Hero Section */}
           <View
-            className="mt-8 flex-row justify-between rounded-[28px] p-5"
+            className="px-5 pb-12 pt-8"
             style={{
-              backgroundColor:
-                "rgba(255,255,255,0.12)",
+              backgroundColor: "#1B5E37",
             }}
           >
-            <ProfileStat
-              label="Subscriptions"
-              value={String(
-                dashboard?.active_subscriptions ?? 0,
-              )}
-            />
+            {/* Top Row */}
+            <View className="flex-row items-center">
 
-            <ProfileStat
-              label="Orders"
-              value={String(
-                dashboard?.total_orders ?? 0,
-              )}
-            />
+              {/* Avatar */}
+              <View
+                className="h-24 w-24 items-center justify-center rounded-full"
+                style={{
+                  backgroundColor:
+                    "rgba(255,255,255,0.18)",
+                }}
+              >
+                <Text
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  numberOfLines={1}
+                  className="text-3xl font-bold text-white"
+                >
+                  {initials}
+                </Text>
+              </View>
 
-            <ProfileStat
-              label="Balance"
-              value={`₹${dashboard?.pending_balance ?? 0
-                }`}
-            />
+              {/* User Info */}
+              <View className="ml-5 flex-1">
+
+                <Text
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.8}
+                  maxFontSizeMultiplier={1.3}
+                  className="text-3xl font-bold text-white"
+                >
+                  {user?.username ?? "Customer"}
+                </Text>
+
+                <Text className="mt-2 text-base text-white/80">
+                  Premium Customer
+                </Text>
+
+                <View className="mt-3 flex-row items-center">
+
+                  <Ionicons
+                    name="water-outline"
+                    size={16}
+                    color="rgba(255,255,255,0.85)"
+                  />
+
+                  <Text className="ml-2 text-sm text-white/80">
+                    Daily Fresh Dairy Delivery
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* Stats */}
+            <View
+              className="mt-8 flex-row justify-between rounded-[28px] p-5"
+              style={{
+                backgroundColor:
+                  "rgba(255,255,255,0.12)",
+              }}
+            >
+              <ProfileStat
+                label="Subscriptions"
+                value={String(
+                  dashboard?.active_subscriptions ?? 0,
+                )}
+              />
+
+              <ProfileStat
+                label="Orders"
+                value={String(
+                  dashboard?.total_orders ?? 0,
+                )}
+              />
+
+              <ProfileStat
+                label="Balance"
+                value={`₹${dashboard?.pending_balance ?? 0
+                  }`}
+              />
+            </View>
           </View>
-        </View>
 
-        {/* Floating Content */}
-        <View className="-mt-7 rounded-t-[36px] bg-[#F4F7F5] px-5 pt-6">
+          {/* Floating Content */}
+          <View className="-mt-7 rounded-t-[36px] bg-[#F4F7F5] px-5 pt-6">
 
-          {/* Contact Info */}
-          <SectionTitle
-            title="Contact Information"
-          />
+            {/* Contact Info */}
+            <SectionTitle
+              title="Contact Information"
+            />
 
-          <MenuItem
-            icon="call-outline"
-            label="Phone"
-            value={
-              user?.phone ?? "—"
-            }
-          />
-
-          <MenuItem
-            icon="mail-outline"
-            label="Email"
-            value={
-              user?.email ?? "—"
-            }
-          />
-
-          {/* Account */}
-          <SectionTitle
-            title="Account"
-          />
-
-          <MenuItem
-            icon="person-outline"
-            label="Edit Profile"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="lock-closed-outline"
-            label="Change Password"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="notifications-outline"
-            label="Notifications"
-            onPress={() => { }}
-          />
-
-          {/* Subscription */}
-          <SectionTitle
-            title="Subscriptions"
-          />
-
-          <MenuItem
-            icon="refresh-outline"
-            label="My Subscriptions"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="add-circle-outline"
-            label="New Subscription"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="calendar-outline"
-            label="Delivery Schedule"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="receipt-outline"
-            label="Invoices & Billing"
-            onPress={() => { }}
-          />
-
-          {/* Orders */}
-          <SectionTitle
-            title="Orders"
-          />
-
-          <MenuItem
-            icon="cart-outline"
-            label="Order History"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="cube-outline"
-            label="Special Orders"
-            onPress={() => { }}
-          />
-
-          {/* App */}
-          <SectionTitle title="App" />
-
-          <MenuItem
-            icon="help-circle-outline"
-            label="Help & Support"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="information-circle-outline"
-            label="About Pench Foods"
-            onPress={() => { }}
-          />
-
-          <MenuItem
-            icon="shield-checkmark-outline"
-            label="Privacy Policy"
-            onPress={() => { }}
-          />
-
-          {/* Logout */}
-          <View className="mt-3">
             <MenuItem
-              icon="log-out-outline"
-              label="Logout"
-              onPress={handleLogout}
-              danger
+              icon="call-outline"
+              label="Phone"
+              value={
+                user?.phone ?? "—"
+              }
             />
-          </View>
 
-          {/* Footer */}
-          <Text className="pb-10 pt-4 text-center text-xs text-gray-400">
-            © 2026 Pench Foods
-          </Text>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+            <MenuItem
+              icon="mail-outline"
+              label="Email"
+              value={
+                user?.email ?? "—"
+              }
+            />
+
+            {/* Account */}
+            <SectionTitle
+              title="Account"
+            />
+
+            <MenuItem
+              icon="person-outline"
+              label="Edit Profile"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="lock-closed-outline"
+              label="Change Password"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="notifications-outline"
+              label="Notifications"
+              onPress={() => { }}
+            />
+
+            {/* Subscription */}
+            <SectionTitle
+              title="Subscriptions"
+            />
+
+            <MenuItem
+              icon="refresh-outline"
+              label="My Subscriptions"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="add-circle-outline"
+              label="New Subscription"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="calendar-outline"
+              label="Delivery Schedule"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="receipt-outline"
+              label="Invoices & Billing"
+              onPress={() => { }}
+            />
+
+            {/* Orders */}
+            <SectionTitle
+              title="Orders"
+            />
+
+            <MenuItem
+              icon="cart-outline"
+              label="Order History"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="cube-outline"
+              label="Special Orders"
+              onPress={() => { }}
+            />
+
+            {/* App */}
+            <SectionTitle title="App" />
+
+            <MenuItem
+              icon="help-circle-outline"
+              label="Help & Support"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="information-circle-outline"
+              label="About Pench Foods"
+              onPress={() => { }}
+            />
+
+            <MenuItem
+              icon="shield-checkmark-outline"
+              label="Privacy Policy"
+              onPress={() => { }}
+            />
+
+            {/* Logout */}
+            <View className="mt-3">
+              <MenuItem
+                icon="log-out-outline"
+                label="Logout"
+                onPress={handleLogout}
+                danger
+              />
+            </View>
+
+            {/* Footer */}
+            <Text className="pb-10 pt-4 text-center text-xs text-gray-400">
+              © 2026 Pench Foods
+            </Text>
+          </View>
+        </ScrollView>
+      </SafeAreaView>
+    </ScreenWrapper>
   );
 }
 

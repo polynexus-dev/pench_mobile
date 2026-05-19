@@ -14,8 +14,8 @@ import { OTPLoginForm } from "../components/OTPLoginForm";
 import { UsernameLoginForm } from "../components/UsernameLoginForm";
 import type { LoginMethod } from "../types/auth.types";
 import { useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+// import { StatusBar } from "expo-status-bar";
 
 export default function LoginScreen() {
   const [method, setMethod] = useState<LoginMethod>("password");

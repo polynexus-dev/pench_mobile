@@ -1,1 +1,1 @@
-export { DriverProfileScreen as default } from "@/features/user/screens/ProfileScreen";
+export { DriverProfileScreen as default } from "@/features/user/screens/DriverProfileScreen";
