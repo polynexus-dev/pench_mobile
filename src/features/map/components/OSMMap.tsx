@@ -20,6 +20,7 @@ type RouteStop = {
   customer_name: string;
   address: string;
   sequence_number: number;
+  // order_status: "in_transit" | "delivered" | "cancelled" | string;
 };
 
 type RouteResponse = {
@@ -67,6 +68,7 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
       try {
         const data = (await httpClient.get(
           `https://${domain_name}/api/erp/orders/driver/my-route/`
+          // `http://${domain_name}:8888/api/erp/orders/driver/my-route/`
         )) as unknown as RouteResponse;
 
         if (__DEV__) console.log("✅ Route data:", data);
@@ -115,7 +117,7 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
     `);
   }, [location, webViewReady]);
 
-const html = `
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>

@@ -30,47 +30,44 @@ export default function MapScreen() {
   const mapRef = useRef<OSMMapHandle>(null);
   const insets = useSafeAreaInsets();
 
-  // ─── Tracking Store ────────────────────────────────────────────
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
   const trackingLoading = useTrackingStore((s) => s.loading);
 
-  // ─── Geofence Store ────────────────────────────────────────────
   const route = useGeofenceStore((s) => s.route);
   const nearStopId = useGeofenceStore((s) => s.nearStopId);
   const activeStop = useGeofenceStore((s) => s.getActiveStop());
+  const activeStopIsDeliverable = activeStop?.order_status === "in_transit";
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
   const fetchMyRoute = useGeofenceStore((s) => s.fetchMyRoute);
   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
   const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
 
-  const routeStops = route?.stops ?? [];
+  const routeStops = useMemo(
+    () => (route?.stops ?? []).filter((stop) => stop.order_status === "in_transit"),
+    [route?.stops]
+  );
+
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
 
-  // ─── Card Y positions for auto-scroll ─────────────────────────
   const cardYPositions = useRef<Record<string, number>>({});
 
   useEffect(() => {
     bottomSheetRef.current?.present();
     fetchMyRoute();
     startGeofenceTracking();
-  }, []);
+  }, [fetchMyRoute, startGeofenceTracking]);
 
-  // ─── Auto-scroll when driver enters a geofence ─────────────────
   useEffect(() => {
     if (!nearStopId) return;
 
-    // auto-select the active stop when driver enters geofence
     setActiveStopId(nearStopId);
-
-    // expand the sheet so the card is visible
     bottomSheetRef.current?.snapToIndex(1);
 
-    // scroll to the card using measured y position
     const yOffset = cardYPositions.current[nearStopId];
     if (yOffset !== undefined && scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
     }
-  }, [nearStopId]);
+  }, [nearStopId, setActiveStopId]);
 
   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
 
@@ -114,18 +111,22 @@ export default function MapScreen() {
 
   const handleMarkDelivered = () => {
     if (!activeStop || !route) return;
+    if (!activeStop.order) return;
+
     bottomSheetRef.current?.dismiss();
     router.push({
       pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
       params: {
         routeId: route.id,
         stopId: activeStop.id,
-        orderId: activeStop.order ?? "",
+        orderId: activeStop.order,
       },
-    });
+    } as any);
   };
 
-  const completedCount = routeStops.filter((s) => s.id && false).length;
+  const completedCount = route?.stops?.filter(
+    (s) => s.order_status === "delivered"
+  ).length ?? 0;
 
   return (
     <>
@@ -138,7 +139,7 @@ export default function MapScreen() {
         <TripStatusBanner
           routeName={route?.name ?? "Today's Route"}
           completed={completedCount}
-          total={routeStops.length}
+          total={route?.stops?.length ?? 0}
           eta="1h 24m"
           isTripStarted={isTripStarted}
           loading={trackingLoading}
@@ -196,7 +197,7 @@ export default function MapScreen() {
               ]}
             />
 
-            {activeStop && (
+            {activeStop && activeStopIsDeliverable && (
               <NextStopCard
                 stopNumber={activeStop.sequence_number}
                 customerName={activeStop.customer_name}
@@ -220,9 +221,7 @@ export default function MapScreen() {
                   customerName={stop.customer_name}
                   address={stop.address}
                   items={[]}
-                  status={
-                    stop.id === activeStop?.id ? "current" : "pending"
-                  }
+                  status={stop.id === activeStop?.id ? "current" : "pending"}
                   isNear={stop.id === nearStopId}
                   isActive={stop.id === activeStop?.id}
                   onPress={() => setActiveStopId(stop.id)}

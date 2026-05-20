@@ -5,12 +5,13 @@ import { useAuthStore } from "./authStore";
 
 type RouteStop = {
     id: string;
-    latitude: number;
-    longitude: number;
+    sequence_number: number;
+    order: string;
     customer_name: string;
     address: string;
-    sequence_number: number;
-    order?: string;
+    latitude: number;
+    longitude: number;
+    order_status: "in_transit" | "delivered" | "cancelled" | string;
 };
 
 type RouteResponse = {
@@ -41,6 +42,7 @@ type GeofenceStore = {
     startGeofenceTracking: () => Promise<void>;
     stopGeofenceTracking: () => void;
     setActiveStopId: (id: string | null) => void;
+    markStopDelivered: (orderId: string) => void;
     getActiveStop: () => RouteStop | null;
     getNearStop: () => RouteStop | null;
     isNearActiveStop: () => boolean;
@@ -71,6 +73,7 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
 
         try {
             const data = (await httpClient.get(
+                // `http://${domain_name}:8888/api/erp/orders/driver/my-route`
                 `https://${domain_name}/api/erp/orders/driver/my-route`
             )) as RouteResponse;
 
@@ -78,7 +81,8 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
                 s.route = data;
                 s.routeLoading = false;
                 if (!s.activeStopId && data?.stops?.length) {
-                    s.activeStopId = data.stops[0].id;
+                    const first = data.stops.find((stop) => stop.order_status === "in_transit");
+                    s.activeStopId = first?.id ?? data.stops[0].id;
                 }
             });
         } catch (err: any) {
@@ -118,6 +122,8 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
                     let closestStop: { id: string; distance: number } | null = null;
 
                     for (const stop of route.stops) {
+                        if (stop.order_status !== "in_transit") continue;
+
                         const distance = getDistanceMeters(
                             location.lat,
                             location.lng,
@@ -156,6 +162,28 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
         });
     },
 
+    markStopDelivered: (orderId) => {
+        set((s) => {
+            if (!s.route) return;
+
+            const deliveredStop = s.route.stops.find((stop) => stop.order === orderId);
+
+            s.route = {
+                ...s.route,
+                stops: s.route.stops.map((stop) =>
+                    stop.order === orderId
+                        ? { ...stop, order_status: "delivered" }
+                        : stop
+                ),
+            };
+
+            if (deliveredStop && s.activeStopId === deliveredStop.id) {
+                s.activeStopId = null;
+                s.nearStopId = null;
+            }
+        });
+    },
+
     getActiveStop: () => {
         const state = get();
         return state.route?.stops?.find((s) => s.id === state.activeStopId) ?? null;
@@ -173,7 +201,12 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
 
     canMarkActiveStopDelivered: () => {
         const state = get();
-        return !!state.activeStopId && state.activeStopId === state.nearStopId;
+        const active = state.route?.stops?.find((s) => s.id === state.activeStopId);
+        return (
+            !!state.activeStopId &&
+            state.activeStopId === state.nearStopId &&
+            active?.order_status === "in_transit"
+        );
     },
 }));
 
