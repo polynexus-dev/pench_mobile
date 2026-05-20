@@ -1,22 +1,22 @@
-import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import {
+    Animated,
+    Easing,
+    View,
+    TouchableOpacity,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { Text } from "@/shared/ui/Text/Text";
 
-type StopStatus = "completed" | "current" | "pending";
-
-interface Props {
+type Props = {
     sequenceNumber: number;
     customerName: string;
     address: string;
     items: string[];
-    status: StopStatus;
+    status: "completed" | "current" | "pending";
+    isNear?: boolean;
+    isActive?: boolean;
     onPress: () => void;
-}
-
-const statusConfig: Record<StopStatus, { bg: string; icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
-    completed: { bg: "bg-success", icon: "checkmark", color: "white", label: "Done" },
-    current: { bg: "bg-warning", icon: "navigate", color: "white", label: "Active" },
-    pending: { bg: "bg-border-disable", icon: "ellipse-outline", color: "#9E9E9E", label: "Pending" },
 };
 
 export function StopListItem({
@@ -25,40 +25,109 @@ export function StopListItem({
     address,
     items,
     status,
+    isNear = false,
+    isActive = false,
     onPress,
 }: Props) {
-    const cfg = statusConfig[status];
+    const pulse = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        let anim: Animated.CompositeAnimation | null = null;
+
+        if (isNear) {
+            anim = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(pulse, {
+                        toValue: 1.02,
+                        duration: 700,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(pulse, {
+                        toValue: 1,
+                        duration: 700,
+                        easing: Easing.inOut(Easing.ease),
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            anim.start();
+        } else {
+            pulse.setValue(1);
+        }
+
+        return () => {
+            anim?.stop();
+        };
+    }, [isNear, pulse]);
+
+    const isCompleted = status === "completed";
 
     return (
-        <TouchableOpacity
-            onPress={onPress}
-            className="flex-row items-start gap-x-3 mb-4 bg-white rounded-card p-4 border border-border-disable"
+        <Animated.View
+            style={{ transform: [{ scale: isNear ? pulse : 1 }] }}
+            className={`mb-3 rounded-3xl border p-4 shadow-sm ${isNear
+                    ? "border-success bg-successLight"
+                    : isActive
+                        ? "border-brand-primary bg-brand-light"
+                        : isCompleted
+                            ? "border-border-default bg-bg-card opacity-70"
+                            : "border-border-default bg-bg-card"
+                }`}
         >
-            {/* Sequence badge */}
-            <View className={`w-9 h-9 rounded-full items-center justify-center mt-0.5 ${cfg.bg}`}>
-                <Ionicons name={cfg.icon} size={16} color={cfg.color} />
-            </View>
-
-            <View className="flex-1">
-                <View className="flex-row items-center justify-between">
-                    <Text className="text-label font-bold text-text-primary">{customerName}</Text>
-                    <View className={`px-2 py-0.5 rounded-badge ${status === "completed" ? "bg-success/10" : status === "current" ? "bg-warning/10" : "bg-border-disable"}`}>
-                        <Text className={`text-caption font-semibold ${status === "completed" ? "text-success" : status === "current" ? "text-warning" : "text-text-muted"}`}>
-                            #{sequenceNumber}
-                        </Text>
-                    </View>
-                </View>
-
-                <Text className="text-caption text-text-secondary mt-0.5" numberOfLines={1}>{address}</Text>
-
-                <View className="flex-row flex-wrap gap-1.5 mt-2">
-                    {items.map((item, i) => (
-                        <View key={i} className="bg-bg-screen rounded-badge px-2 py-0.5">
-                            <Text className="text-caption text-text-secondary">{item}</Text>
+            <TouchableOpacity onPress={onPress} activeOpacity={0.9}>
+                <View className="flex-row items-start justify-between">
+                    <View className="flex-row flex-1 items-center gap-x-3 pr-2">
+                        <View
+                            className={`h-10 w-10 items-center justify-center rounded-full ${isNear
+                                    ? "bg-success"
+                                    : isCompleted
+                                        ? "bg-border-default"
+                                        : "bg-brand-primary"
+                                }`}
+                        >
+                            {isCompleted ? (
+                                <Ionicons name="checkmark" size={16} color="#fff" />
+                            ) : (
+                                <Text className="text-caption text-text-inverse" fontWeight="bold">
+                                    {sequenceNumber}
+                                </Text>
+                            )}
                         </View>
-                    ))}
+
+                        <View className="flex-1">
+                            <Text
+                                className="text-body text-text-primary"
+                                fontWeight="semibold"
+                                numberOfLines={1}
+                            >
+                                {customerName}
+                            </Text>
+                            <Text className="mt-0.5 text-body-sm text-text-muted" numberOfLines={1}>
+                                {address}
+                            </Text>
+
+                            {items?.length > 0 && (
+                                <View className="mt-2 flex-row flex-wrap gap-1">
+                                    {items.map((item) => (
+                                        <View key={item} className="rounded-full bg-bg-input px-2 py-1">
+                                            <Text className="text-caption text-text-secondary">{item}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    </View>
+
+                    {isNear && (
+                        <View className="rounded-full bg-success px-3 py-1">
+                            <Text className="text-caption text-text-inverse" fontWeight="semibold">
+                                Nearby
+                            </Text>
+                        </View>
+                    )}
                 </View>
-            </View>
-        </TouchableOpacity>
+            </TouchableOpacity>
+        </Animated.View>
     );
 }

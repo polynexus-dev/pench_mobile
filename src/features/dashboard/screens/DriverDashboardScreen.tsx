@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useRef } from "react";
 import {
     ScrollView,
     View,
@@ -14,14 +14,24 @@ import { useTrackingStore } from "@/store/trackingStore";
 import { ROUTES } from "@/constants/route";
 import { Button } from "@/shared/ui/Button/Button";
 import { Text } from "@/shared/ui/Text/Text";
+import { useGeofenceStore } from "@/store/geofenceStore";
+import OSMMap, { OSMMapHandle } from "@/features/map/components/OSMMap";
 
 export function DriverDashboardScreen() {
     const router = useRouter();
     const user = useAuthStore((s) => s.user);
+
+    const mapRef = useRef<OSMMapHandle>(null);
+
     const isTripStarted = useTrackingStore((s) => s.isTripStarted);
     const { width } = useWindowDimensions();
     const isCompact = width < 380;
     const screenX = isCompact ? "px-screen-x" : "px-screen-x-md";
+
+    const activeStop = useGeofenceStore((s) => s.getActiveStop());
+    const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
+    // const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
+    const route = useGeofenceStore((s) => s.route);
 
     const handleTripToggle = async () => {
         const { accessToken, domain_name } = useAuthStore.getState();
@@ -33,8 +43,20 @@ export function DriverDashboardScreen() {
             await stopTrip(accessToken);
             return;
         }
-
         await startTrip(accessToken);
+    };
+
+    const handleMarkDelivered = () => {
+        if (!activeStop) return;
+
+        router.push({
+            pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
+            params: {
+                routeId: route?.id ?? "",
+                stopId: activeStop.id,
+                orderId: activeStop.order ?? "",
+            },
+        } as any);
     };
 
     return (
@@ -59,21 +81,18 @@ export function DriverDashboardScreen() {
 
                             <View className="flex-row items-center gap-x-3">
                                 <View
-                                    className={`flex-row items-center gap-x-1.5 px-3 py-1.5 rounded-badge border ${
-                                        isTripStarted
-                                            ? "bg-successLight border-success/30"
-                                            : "bg-bg-card border-border-default"
-                                    }`}
+                                    className={`flex-row items-center gap-x-1.5 px-3 py-1.5 rounded-badge border ${isTripStarted
+                                        ? "bg-successLight border-success/30"
+                                        : "bg-bg-card border-border-default"
+                                        }`}
                                 >
                                     <View
-                                        className={`w-2 h-2 rounded-full ${
-                                            isTripStarted ? "bg-success" : "bg-text-muted"
-                                        }`}
+                                        className={`w-2 h-2 rounded-full ${isTripStarted ? "bg-success" : "bg-text-muted"
+                                            }`}
                                     />
                                     <Text
-                                        className={`text-caption-sm ${
-                                            isTripStarted ? "text-success" : "text-text-muted"
-                                        }`}
+                                        className={`text-caption-sm ${isTripStarted ? "text-success" : "text-text-muted"
+                                            }`}
                                         fontWeight="bold"
                                     >
                                         {isTripStarted ? "LIVE" : "OFFLINE"}
@@ -103,9 +122,9 @@ export function DriverDashboardScreen() {
 
                                 <TouchableOpacity
                                     onPress={handleTripToggle}
-                                    className={`w-btn-lg h-btn-lg rounded-full items-center justify-center shadow-sm ${
-                                        isTripStarted ? "bg-error" : "bg-white"
-                                    }`}
+                                    // className={`w-btn-lg h-btn-lg p-2 rounded-full items-center justify-center shadow-sm ${isTripStarted ? "bg-error" : "bg-white"
+                                    className={`w-16 h-16  rounded-full items-center justify-center shadow-sm ${isTripStarted ? "bg-error" : "bg-white"
+                                        }`}
                                 >
                                     <Ionicons
                                         name={isTripStarted ? "stop" : "play"}
@@ -133,42 +152,72 @@ export function DriverDashboardScreen() {
                         </View>
 
                         {/* Next Stop Card */}
-                        <View className="mt-5 rounded-card bg-bg-card p-card-y px-card-x border border-border-default shadow-sm">
-                            <View className="flex-row items-center justify-between mb-3">
-                                <Text
-                                    className="text-caption tracking-widest text-brand-primary uppercase"
-                                    fontWeight="semibold"
-                                >
-                                    Next Stop
-                                </Text>
-                                <View className="bg-brand-light px-2.5 py-1 rounded-badge border border-brand/10">
-                                    <Text className="text-caption-sm text-brand-primary" fontWeight="bold">
-                                        Stop #4
+                        <View className="mt-5">
+                            {activeStop ? (
+                                <View className="rounded-card border border-border-default bg-bg-card p-card-y px-card-x shadow-sm">
+                                    <View className="mb-3 flex-row items-center justify-between">
+                                        <Text
+                                            className="text-caption uppercase tracking-widest text-brand-primary"
+                                            fontWeight="semibold"
+                                        >
+                                            Next Stop
+                                        </Text>
+
+                                        <View className="rounded-badge border border-brand/10 bg-brand-light px-2.5 py-1">
+                                            <Text className="text-caption-sm text-brand-primary" fontWeight="bold">
+                                                Stop #{activeStop.sequence_number}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    <Text className="text-title text-text-primary" fontWeight="bold">
+                                        {activeStop.customer_name}
                                     </Text>
+
+                                    <Text className="mt-1 text-body text-text-secondary">
+                                        {activeStop.address}
+                                    </Text>
+
+                                    <View className="mt-4 flex-row flex-wrap gap-2">
+                                        {activeStop.order ? <ItemBadge label={activeStop.order} /> : null}
+                                    </View>
+
+                                    <View className="mt-5">
+                                        <Button
+                                            label={canMark ? "Mark Delivered" : "Move Closer to Enable"}
+                                            intent="primary"
+                                            size="lg"
+                                            fullWidth
+                                            disabled={!canMark}
+                                            leftIcon={<Ionicons name="checkmark-circle-outline" size={20} color="#fff" />}
+                                            onPress={handleMarkDelivered}
+                                        />
+                                    </View>
                                 </View>
-                            </View>
+                            ) : (
+                                <View className="rounded-card border border-border-default bg-bg-card p-card-y px-card-x shadow-sm">
+                                    <Text className="text-title text-text-primary" fontWeight="bold">
+                                        No active stop
+                                    </Text>
 
-                            <Text className="text-title text-text-primary" fontWeight="bold">
-                                Mrs. Deshmukh
-                            </Text>
-                            <Text className="text-body text-text-secondary mt-1">
-                                Row House 9, Ramdaspeth, Nagpur
-                            </Text>
+                                    <Text className="mt-1 text-body text-text-secondary">
+                                        Go to your location and start approaching the next customer to see the highlighted card.
+                                    </Text>
 
-                            <View className="flex-row flex-wrap gap-2 mt-4">
-                                <ItemBadge label="2 Milk" />
-                                <ItemBadge label="1 Paneer" />
-                            </View>
-
-                            <View className="mt-5">
-                                <Button 
-                                    label="Mark Delivered" 
-                                    intent="primary" 
-                                    size="lg" 
-                                    fullWidth 
-                                    leftIcon={<Ionicons name="checkmark-circle-outline" size={20} color="#fff" />} 
-                                />
-                            </View>
+                                    <View className="mt-5">
+                                        <Button
+                                            label="Go to Location"
+                                            intent="primary"
+                                            size="lg"
+                                            fullWidth
+                                            leftIcon={<Ionicons name="locate-outline" size={20} color="#fff" />}
+                                            onPress={() => {
+                                                mapRef.current?.centerOnUser();
+                                            }}
+                                        />
+                                    </View>
+                                </View>
+                            )}
                         </View>
 
                         {/* Quick Actions - Configured to wrap exactly 3 per row gracefully */}

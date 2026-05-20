@@ -10,67 +10,67 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import OSMMap, { OSMMapHandle } from "../components/OSMMap";
-import { useAuthStore, useTrackingStore } from "@/store";
+import { useAuthStore } from "@store/authStore";
+import { useTrackingStore } from "@store/trackingStore";
+import { useGeofenceStore } from "@store/geofenceStore";
 import { TripStatusBanner } from "@/features/map/components/TripStatusBanner";
 import { TripStartPrompt } from "@/features/map/components/TripStartPrompt";
 import { RouteStatRow } from "@/features/map/components/RouteStatRow";
 import { NextStopCard } from "@/features/map/components/NextStopCard";
 import { StopListItem } from "@/features/map/components/StopListItem";
-import { StatusBar } from "expo-status-bar";
-
-const MOCK_STOPS = [
-  {
-    id: "1",
-    seq: 1,
-    name: "Kavita Deshmukh",
-    address: "Row House 9, Ramdaspeth, Nagpur",
-    items: ["2 Milk", "1 Curd"],
-    status: "completed" as const,
-    orderId: "order-1",
-  },
-  {
-    id: "2",
-    seq: 2,
-    name: "Amit Kumar",
-    address: "Plot 12, Dharampeth, Nagpur",
-    items: ["1 Milk"],
-    status: "current" as const,
-    orderId: "order-2",
-  },
-  {
-    id: "3",
-    seq: 3,
-    name: "Suresh Patel",
-    address: "Bungalow 7, Wardha Road, Nagpur",
-    items: ["3 Milk", "1 Paneer"],
-    status: "pending" as const,
-    orderId: "order-3",
-  },
-  {
-    id: "4",
-    seq: 4,
-    name: "Priya Mehta",
-    address: "Flat 5, Sitabuldi, Nagpur",
-    items: ["2 Milk"],
-    status: "pending" as const,
-    orderId: "order-4",
-  },
-];
+import { ROUTES } from "@/constants/route";
 
 export default function MapScreen() {
+  const router = useRouter();
   const bottomSheetRef = useRef<BottomSheetModal>(null);
+  const scrollViewRef = useRef<any>(null);
   const mapRef = useRef<OSMMapHandle>(null);
   const insets = useSafeAreaInsets();
 
+  // ─── Tracking Store ────────────────────────────────────────────
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
-  const loading = useTrackingStore((s) => s.loading);
+  const trackingLoading = useTrackingStore((s) => s.loading);
 
+  // ─── Geofence Store ────────────────────────────────────────────
+  const route = useGeofenceStore((s) => s.route);
+  const nearStopId = useGeofenceStore((s) => s.nearStopId);
+  const activeStop = useGeofenceStore((s) => s.getActiveStop());
+  const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
+  const fetchMyRoute = useGeofenceStore((s) => s.fetchMyRoute);
+  const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
+  const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
+
+  const routeStops = route?.stops ?? [];
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
+
+  // ─── Card Y positions for auto-scroll ─────────────────────────
+  const cardYPositions = useRef<Record<string, number>>({});
 
   useEffect(() => {
     bottomSheetRef.current?.present();
+    fetchMyRoute();
+    startGeofenceTracking();
   }, []);
+
+  // ─── Auto-scroll when driver enters a geofence ─────────────────
+  useEffect(() => {
+    if (!nearStopId) return;
+
+    // auto-select the active stop when driver enters geofence
+    setActiveStopId(nearStopId);
+
+    // expand the sheet so the card is visible
+    bottomSheetRef.current?.snapToIndex(1);
+
+    // scroll to the card using measured y position
+    const yOffset = cardYPositions.current[nearStopId];
+    if (yOffset !== undefined && scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
+    }
+  }, [nearStopId]);
 
   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
 
@@ -87,16 +87,17 @@ export default function MapScreen() {
   );
 
   const handleTripToggle = async () => {
-    const { accessToken, domain_name } = useAuthStore.getState();
+    const { accessToken } = useAuthStore.getState();
     const {
+      isTripStarted,
       startTrip,
       stopTrip,
       connectSocket,
       startTracking,
-      isTripStarted,
+      loading,
     } = useTrackingStore.getState();
 
-    if (!accessToken || !domain_name) return;
+    if (!accessToken || loading) return;
 
     if (isTripStarted) {
       await stopTrip(accessToken);
@@ -105,15 +106,26 @@ export default function MapScreen() {
 
     const ok = await startTrip(accessToken);
     if (ok) {
-      connectSocket(domain_name, accessToken);
+      const { domain_name } = useAuthStore.getState();
+      if (domain_name) connectSocket(domain_name, accessToken);
       await startTracking();
     }
   };
 
-  const currentStop = MOCK_STOPS.find((s) => s.status === "current");
-  const completedCount = MOCK_STOPS.filter(
-    (s) => s.status === "completed"
-  ).length;
+  const handleMarkDelivered = () => {
+    if (!activeStop || !route) return;
+    bottomSheetRef.current?.dismiss();
+    router.push({
+      pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
+      params: {
+        routeId: route.id,
+        stopId: activeStop.id,
+        orderId: activeStop.order ?? "",
+      },
+    });
+  };
+
+  const completedCount = routeStops.filter((s) => s.id && false).length;
 
   return (
     <>
@@ -124,12 +136,12 @@ export default function MapScreen() {
         </View>
 
         <TripStatusBanner
-          routeName="Nagpur Express Delivery"
+          routeName={route?.name ?? "Today's Route"}
           completed={completedCount}
-          total={MOCK_STOPS.length}
+          total={routeStops.length}
           eta="1h 24m"
           isTripStarted={isTripStarted}
-          loading={loading}
+          loading={trackingLoading}
           onToggle={handleTripToggle}
         />
 
@@ -165,65 +177,57 @@ export default function MapScreen() {
           }}
         >
           <BottomSheetScrollView
+            ref={scrollViewRef}
             contentContainerStyle={{
               padding: 15,
               paddingBottom: 110 + insets.bottom,
             }}
           >
             {!isTripStarted && (
-              <TripStartPrompt loading={loading} onStart={handleTripToggle} />
+              <TripStartPrompt loading={trackingLoading} onStart={handleTripToggle} />
             )}
 
             <RouteStatRow
               stats={[
-                {
-                  icon: "water-outline",
-                  label: "Bottles",
-                  value: "128",
-                  color: "#1B5E37",
-                },
-                {
-                  icon: "restaurant-outline",
-                  label: "Special",
-                  value: "16",
-                  color: "#D4872A",
-                },
-                {
-                  icon: "return-down-back",
-                  label: "Returns",
-                  value: "52",
-                  color: "#4A4A4A",
-                },
-                {
-                  icon: "cash-outline",
-                  label: "COD",
-                  value: "₹640",
-                  color: "#1B5E37",
-                },
+                { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
+                { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
+                { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
+                { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
               ]}
             />
 
-            {currentStop && isTripStarted && (
+            {activeStop && (
               <NextStopCard
-                stopNumber={currentStop.seq}
-                customerName={currentStop.name}
-                address={currentStop.address}
-                items={currentStop.items}
-                orderId={currentStop.orderId}
-                onMarkDelivered={() => console.log("Delivered", currentStop.id)}
+                stopNumber={activeStop.sequence_number}
+                customerName={activeStop.customer_name}
+                address={activeStop.address}
+                items={[]}
+                orderId={activeStop.order ?? ""}
+                onMarkDelivered={handleMarkDelivered}
+                disabled={!canMark}
               />
             )}
 
-            {MOCK_STOPS.map((stop) => (
-              <StopListItem
+            {routeStops.map((stop) => (
+              <View
                 key={stop.id}
-                sequenceNumber={stop.seq}
-                customerName={stop.name}
-                address={stop.address}
-                items={stop.items}
-                status={stop.status}
-                onPress={() => console.log("Stop pressed", stop.id)}
-              />
+                onLayout={(e) => {
+                  cardYPositions.current[stop.id] = e.nativeEvent.layout.y;
+                }}
+              >
+                <StopListItem
+                  sequenceNumber={stop.sequence_number}
+                  customerName={stop.customer_name}
+                  address={stop.address}
+                  items={[]}
+                  status={
+                    stop.id === activeStop?.id ? "current" : "pending"
+                  }
+                  isNear={stop.id === nearStopId}
+                  isActive={stop.id === activeStop?.id}
+                  onPress={() => setActiveStopId(stop.id)}
+                />
+              </View>
             ))}
           </BottomSheetScrollView>
         </BottomSheetModal>

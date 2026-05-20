@@ -15,6 +15,7 @@ export const ROUTES = {
         DELIVERY: (id: string) => `/(driver)/deliveries/${id}` as const,
         PROFILE: "/(driver)/profile" as const,
         ATTENDANCE: "/(driver)/attendance" as const,
+        FINALIZE_DELIVERY: "/(driver)/finalize" as const,
     },
 
     CUSTOMER: {
