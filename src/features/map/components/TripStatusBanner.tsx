@@ -24,7 +24,7 @@ export function TripStatusBanner({
     const progress = total > 0 ? (completed / total) * 100 : 0;
 
     return (
-        <View className="absolute left-4 right-4 top-10 z-20 rounded-card bg-bg-card p-4 shadow-xl">
+        <View className="absolute left-4 right-4 top-12 z-20 rounded-card bg-bg-card p-4 shadow-xl">
             <View className="flex-row items-center justify-between">
                 <View className="flex-1 pr-3">
                     <Text className="text-caption tracking-widest text-text-muted uppercase">

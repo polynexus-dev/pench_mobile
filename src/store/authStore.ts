@@ -50,3 +50,70 @@ export const useAuthStore = createStore<AuthStore>("auth", (set) => ({
     state.route_id = route_id;
   }),
 }));
+
+// import type { AuthState } from "@/features/auth";
+// import { createPersistedStore } from "./devtools";
+
+// interface AuthStore extends AuthState {
+//   setUser: (user: AuthState["user"]) => void;
+//   setTokens: (access: string, refresh: string) => void;
+//   clearAuth: () => void;
+
+//   domain_name: string | null;
+//   route_id: string | null;
+//   setDomainAndRoute: (domain_name: string, route_id: string | null) => void;
+
+//   hasHydrated: boolean;
+//   setHasHydrated: (value: boolean) => void;
+// }
+
+// export const useAuthStore = createPersistedStore<AuthStore>(
+//   "auth",
+//   (set) => ({
+//     user: null,
+//     accessToken: null,
+//     refreshToken: null,
+//     domain_name: null,
+//     route_id: null,
+//     hasHydrated: false,
+
+//     setHasHydrated: (value) =>
+//       set((state) => {
+//         state.hasHydrated = value;
+//       }),
+
+//     setUser: (user) =>
+//       set((s) => {
+//         s.user = user;
+//       }),
+
+//     setTokens: (access, refresh) =>
+//       set((s) => {
+//         if (s.accessToken === access && s.refreshToken === refresh) return;
+//         s.accessToken = access;
+//         s.refreshToken = refresh;
+//       }),
+
+//     clearAuth: () =>
+//       set((s) => {
+//         s.user = null;
+//         s.accessToken = null;
+//         s.refreshToken = null;
+//         s.domain_name = null;
+//         s.route_id = null;
+//       }),
+
+//     setDomainAndRoute: (domain_name, route_id) =>
+//       set((state) => {
+//         state.domain_name = domain_name;
+//         state.route_id = route_id;
+//       }),
+//   }),
+//   (state) => ({
+//     user: state.user,
+//     accessToken: state.accessToken,
+//     refreshToken: state.refreshToken,
+//     domain_name: state.domain_name,
+//     route_id: state.route_id,
+//   })
+// );

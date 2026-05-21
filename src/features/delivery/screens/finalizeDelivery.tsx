@@ -12,30 +12,9 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { Button } from "@/shared/ui/Button/Button";
 import { Text } from "@/shared/ui/Text/Text";
 import { useAuthStore } from "@/store/authStore";
-import { httpClient } from "@services/api/httpClient";
 import { useGeofenceStore } from "@/store/geofenceStore";
-
-type SubmitDeliveryResponse = {
-    id: string;
-    customer: string;
-    customer_name: string;
-    status: string;
-    status_display: string;
-    scheduled_delivery_date: string;
-    total: string;
-    items: Array<{
-        id: string;
-        product: string;
-        product_name: string;
-        quantity: number;
-        unit_price: string;
-        line_total: number;
-    }>;
-    delivery_address: string;
-    latitude: number;
-    longitude: number;
-    expires_in_seconds: number;
-};
+import { useSubmitDelivery } from "../hooks/useSubmitDelivery";
+import { ROUTES } from "@/constants/route";
 
 export function FinalizeDeliveryScreen() {
     const router = useRouter();
@@ -48,9 +27,11 @@ export function FinalizeDeliveryScreen() {
     const { domain_name } = useAuthStore((s) => s);
     const [bottlesIssued, setBottlesIssued] = useState("1");
     const [bottlesReturned, setBottlesReturned] = useState("2");
-    const [loading, setLoading] = useState(false);
 
-    const submitDelivery = async () => {
+    const { mutateAsync: submitDelivery, isPending: isSubmitting } =
+        useSubmitDelivery();
+
+    const handleSubmit = async () => {
         if (!domain_name || !orderId) {
             Alert.alert("Error", "Missing city or order id");
             return;
@@ -65,29 +46,36 @@ export function FinalizeDeliveryScreen() {
         }
 
         try {
-            setLoading(true);
-
-            const data = (await httpClient.post(
-                // `http://${domain_name}:8888/api/erp/orders/driver/${orderId}/submit-delivery/`,
-                `https://${domain_name}/api/erp/orders/driver/${orderId}/submit-delivery/`,
-                {
-                    bottles_returned: returned,
+            await submitDelivery({
+                domainName: domain_name,
+                orderId,
+                payload: {
                     bottles_issued: issued,
-                }
-            )) as SubmitDeliveryResponse;
+                    bottles_returned: returned,
+                },
+            });
 
             useGeofenceStore.getState().markStopDelivered(orderId);
-            Alert.alert("Success", `Delivery submitted for ${data.customer_name}`);
             router.back();
-        } catch (e: any) {
-            Alert.alert("Error", e?.message ?? "Something went wrong");
-        } finally {
-            setLoading(false);
+        } catch {
+            // handled in hook
         }
     };
 
     const customerNotHome = () => {
-        Alert.alert("Not at home", "You can add your logic here later.");
+        if (!orderId || !routeId || !stopId) {
+            Alert.alert("Error", "Missing route params");
+            return;
+        }
+
+        router.push({
+            pathname: ROUTES.DRIVER.CAPTURE_POD,
+            params: {
+                orderId,
+                routeId,
+                stopId,
+            },
+        } as any);
     };
 
     return (
@@ -166,12 +154,12 @@ export function FinalizeDeliveryScreen() {
 
                 <View className="mt-6 gap-y-3">
                     <Button
-                        label={loading ? "Submitting..." : "Finalize Delivery"}
+                        label={isSubmitting ? "Submitting..." : "Finalize Delivery"}
                         intent="primary"
                         size="lg"
                         fullWidth
-                        disabled={loading}
-                        onPress={submitDelivery}
+                        disabled={isSubmitting}
+                        onPress={handleSubmit}
                     />
 
                     <Button
@@ -179,7 +167,7 @@ export function FinalizeDeliveryScreen() {
                         intent="secondary"
                         size="lg"
                         fullWidth
-                        disabled={loading}
+                        disabled={isSubmitting}
                         onPress={customerNotHome}
                     />
                 </View>

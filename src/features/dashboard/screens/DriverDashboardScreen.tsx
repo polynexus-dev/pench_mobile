@@ -69,7 +69,6 @@ export function DriverDashboardScreen() {
                     contentContainerStyle={{ paddingBottom: 120, paddingTop: 8 }}
                 >
                     <View className={screenX}>
-                        {/* Header */}
                         <View className="flex-row items-center justify-between pb-2">
                             <View className="flex-1 pr-3">
                                 <Text
@@ -81,7 +80,13 @@ export function DriverDashboardScreen() {
                                     Good Morning 👋
                                 </Text>
 
-                                <Text variant="title" weight="bold" color="primary" lines={1} className="mt-1">
+                                <Text
+                                    variant="title"
+                                    weight="bold"
+                                    color="primary"
+                                    lines={1}
+                                    className="mt-1"
+                                >
                                     {user?.first_name ?? "Driver"}
                                 </Text>
                             </View>
@@ -112,7 +117,6 @@ export function DriverDashboardScreen() {
                             </View>
                         </View>
 
-                        {/* Today's Route Card */}
                         <View className="mt-4 rounded-card bg-brand-primary p-card-y px-card-x shadow-md shadow-brand/40">
                             <View className="flex-row items-start justify-between gap-4">
                                 <View className="flex-1">
@@ -125,7 +129,13 @@ export function DriverDashboardScreen() {
                                         Today's Route
                                     </Text>
 
-                                    <Text variant="heading" weight="bold" color="inverse" lines={2} className="mt-1">
+                                    <Text
+                                        variant="heading"
+                                        weight="bold"
+                                        color="inverse"
+                                        lines={2}
+                                        className="mt-1"
+                                    >
                                         Nagpur Express Delivery
                                     </Text>
 
@@ -161,14 +171,12 @@ export function DriverDashboardScreen() {
                             </View>
                         </View>
 
-                        {/* Stat Cards */}
                         <View className="mt-5 flex-row justify-between gap-3">
                             <StatCard icon="water" label="Bottles" value="128" color="#1B5E37" />
                             <StatCard icon="restaurant" label="Special" value="16" color="#D4872A" />
                             <StatCard icon="return-down-back" label="Returns" value="52" color="#4A4A4A" />
                         </View>
 
-                        {/* Next Stop Card */}
                         <View className="mt-5">
                             {activeStop ? (
                                 <View className="rounded-card border border-border-default bg-bg-card p-card-y px-card-x shadow-sm">
@@ -242,7 +250,6 @@ export function DriverDashboardScreen() {
                             )}
                         </View>
 
-                        {/* Quick Actions */}
                         <Text
                             variant="label"
                             color="primary"
@@ -292,7 +299,6 @@ export function DriverDashboardScreen() {
                             />
                         </View>
 
-                        {/* Today's Summary */}
                         <View className="mt-2 rounded-card border border-border-default bg-bg-card p-card-y px-card-x shadow-sm">
                             <Text
                                 variant="caption"
@@ -311,14 +317,18 @@ export function DriverDashboardScreen() {
                             </View>
                         </View>
 
-                        {/* Special Instruction */}
                         <View className="mt-4 flex-row items-start gap-x-3 rounded-card border border-warning/30 bg-warningLight p-card-y px-card-x">
                             <Ionicons name="warning-outline" size={24} color="#D4872A" />
                             <View className="flex-1">
                                 <Text variant="label" color="warning" weight="bold">
                                     Special Instruction
                                 </Text>
-                                <Text variant="body-sm" color="warning" className="mt-1" style={{ opacity: 0.9 }}>
+                                <Text
+                                    variant="body-sm"
+                                    color="warning"
+                                    className="mt-1"
+                                    style={{ opacity: 0.9 }}
+                                >
                                     Customer Amit Kumar has requested early delivery before 8 AM.
                                 </Text>
                             </View>
@@ -391,7 +401,13 @@ function QuickAction({
             >
                 <Ionicons name={icon} size={20} color={color} />
             </View>
-            <Text variant="caption-sm" color="primary" weight="semibold" lines={1} className="text-center">
+            <Text
+                variant="caption-sm"
+                color="primary"
+                weight="semibold"
+                lines={1}
+                className="text-center"
+            >
                 {label}
             </Text>
         </TouchableOpacity>
