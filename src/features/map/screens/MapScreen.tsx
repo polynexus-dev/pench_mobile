@@ -315,6 +315,7 @@ export default function MapScreen() {
                         activeOpacity={0.85}
                         onPress={() => {
                           setSelectedStopId(stop.id);
+                          setActiveStopId(stop.id);
                           setSelectedGroupKey(activeGroup.groupKey);
                         }}
                       >
