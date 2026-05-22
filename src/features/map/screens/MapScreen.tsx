@@ -95,17 +95,15 @@ export default function MapScreen() {
     );
   }, [routeStops]);
 
-  const activeGroup = useMemo(() => {
-    if (!activeStopId) return null;
-    const stop = routeStops.find((s) => s.id === activeStopId);
-    if (!stop) return null;
-    const key = getLocationKey(stop.latitude, stop.longitude);
-    return groupedStops.find((g) => g.groupKey === key) ?? null;
-  }, [activeStopId, routeStops, groupedStops]);
-
   const activeStop = useMemo<RouteStop | null>(() => {
     return routeStops.find((s) => s.id === activeStopId) ?? null;
   }, [routeStops, activeStopId]);
+
+  const activeGroup = useMemo(() => {
+    if (!activeStop) return null;
+    const key = getLocationKey(activeStop.latitude, activeStop.longitude);
+    return groupedStops.find((g) => g.groupKey === key) ?? null;
+  }, [activeStop, groupedStops]);
 
   const selectedGroup = useMemo(() => {
     if (!selectedGroupKey) return null;
@@ -115,16 +113,29 @@ export default function MapScreen() {
   const selectedGroupStops =
     selectedGroup?.stops.filter((s) => s.order_status === "in_transit") ?? [];
 
-  const selectedStop =
-    selectedGroupStops.find((s) => s.id === selectedStopId) ??
-    selectedGroupStops[0] ??
-    activeStop ??
-    null;
+  // const selectedStop =
+  //   selectedGroupStops.find((s) => s.id === selectedStopId) ??
+  //   selectedGroupStops[0] ??
+  //   activeStop ??
+  //   null;
 
-  const showNextStopCard = !!activeStop && canMark;
+  const selectedStop = useMemo(() => {
+    if (!selectedGroupKey) return null;
+    const group = groupedStops.find((g) => g.groupKey === selectedGroupKey);
+    if (!group) return null;
+    return group.stops.find((s) => s.id === selectedStopId) ?? group.stops[0] ?? null;
+  }, [groupedStops, selectedGroupKey, selectedStopId]);
+
+  // const showNextStopCard = !!activeStop && canMark;
+  const showNextStopCard = !!activeGroup && !!activeStop;
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
+
+  const canActivateCard =
+    !!selectedStop &&
+    !!activeGroup &&
+    selectedGroupKey === activeGroup.groupKey;
 
   useEffect(() => {
     bottomSheetRef.current?.present();
@@ -315,7 +326,6 @@ export default function MapScreen() {
                         activeOpacity={0.85}
                         onPress={() => {
                           setSelectedStopId(stop.id);
-                          setActiveStopId(stop.id);
                           setSelectedGroupKey(activeGroup.groupKey);
                         }}
                       >
@@ -343,8 +353,9 @@ export default function MapScreen() {
                       items={[]}
                       orderId={selectedStop.order ?? ""}
                       onMarkDelivered={handleMarkDelivered}
-                      // disabled={!(selectedStop && activeGroup && activeGroup.groupKey === selectedGroupKey)}
-                      disabled={!selectedStop || !selectedGroup || selectedGroup.groupKey !== selectedGroupKey}
+                      disabled={!canActivateCard}
+                    // disabled={!(selectedStop.id === activeStopId && canMark)}
+                    // disabled={!(selectedStop && activeGroup && selectedGroupKey === activeGroup.groupKey)}
                     />
                   </View>
                 )}

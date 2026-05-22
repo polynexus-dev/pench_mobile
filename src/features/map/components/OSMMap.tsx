@@ -56,19 +56,19 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
   }, [routeData, webViewReady, activeStopId, selectedStopId]);
 
   ///new 
-  // useEffect(() => {
-  //   if (!webViewReady || !webRef.current) return;
-  //   if (!selectedStopId && !activeStopId) return;
+  useEffect(() => {
+    if (!webViewReady || !webRef.current) return;
+    if (!selectedStopId && !activeStopId) return;
 
-  //   webRef.current.injectJavaScript(`
-  //   (function() {
-  //     if (window.updateSelectedStop) {
-  //       window.updateSelectedStop("${selectedStopId ?? ""}", "${activeStopId ?? ""}");
-  //     }
-  //   })();
-  //   true;
-  // `);
-  // }, [selectedStopId, activeStopId, webViewReady]);
+    webRef.current.injectJavaScript(`
+    (function() {
+      if (window.updateSelectedStop) {
+        window.updateSelectedStop("${selectedStopId ?? ""}", "${activeStopId ?? ""}");
+      }
+    })();
+    true;
+  `);
+  }, [selectedStopId, activeStopId, webViewReady]);
 
   useEffect(() => {
     if (!location || !webViewReady || !webRef.current) return;
@@ -125,8 +125,16 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
     }
 
     var driverIcon = makeIcon('#ef4444');
-    var selectedIcon = makeIcon('#22c55e');
+    var activeIcon = makeIcon('#22c55e');
+    var selectedIcon = makeIcon('#f97316');
     var normalIcon = makeIcon('#3b82f6');
+
+    function getIcon(stopId, activeStopId, selectedStopId) {
+      var id = String(stopId);
+      if (id === String(activeStopId)) return activeIcon;
+      if (id === String(selectedStopId)) return selectedIcon;
+      return normalIcon;
+    }
 
     function clearCustomerMarkers() {
       customerMarkers.forEach(function(m) {
@@ -175,11 +183,8 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
       clearCustomerMarkers();
 
       stops.forEach(function(stop) {
-        var isSelected = String(stop.id) === String(selectedStopId);
-        var isActive = String(stop.id) === String(activeStopId);
-
         var marker = L.marker([stop.latitude, stop.longitude], {
-          icon: (isSelected || isActive) ? selectedIcon : normalIcon
+          icon: getIcon(stop.id, activeStopId, selectedStopId)
         })
           .addTo(map)
           .bindPopup("<b>" + stop.customer_name + "</b><br/>" + stop.address);
@@ -197,10 +202,7 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
 
     window.updateSelectedStop = function(selectedStopId, activeStopId) {
       customerMarkers.forEach(function(m) {
-        var id = String(m._stopId);
-        var isSelected = id === String(selectedStopId);
-        var isActive = id === String(activeStopId);
-        m.setIcon((isSelected || isActive) ? selectedIcon : normalIcon);
+        m.setIcon(getIcon(m._stopId, activeStopId, selectedStopId));
       });
     };
 
