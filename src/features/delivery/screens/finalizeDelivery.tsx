@@ -55,7 +55,11 @@ export function FinalizeDeliveryScreen() {
                 },
             });
 
-            useGeofenceStore.getState().markStopDelivered(orderId);
+            // useGeofenceStore.getState().markStopDelivered(orderId);
+            // router.back();
+            const store = useGeofenceStore.getState();
+            store.markStopDelivered(orderId);
+            store.setActiveStopId(null);
             router.back();
         } catch {
             // handled in hook

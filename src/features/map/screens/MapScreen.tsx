@@ -104,17 +104,31 @@ export default function MapScreen() {
     return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
   }, [groupedStops, selectedGroupKey]);
 
+  const selectedGroupStops =
+    selectedGroup?.stops.filter((s) => s.order_status === "in_transit") ?? [];
+
+  const selectedStop =
+    selectedGroupStops.find((s) => s.id === selectedStopId) ??
+    selectedGroupStops[0] ??
+    route?.stops?.find((s) => s.order_status === "in_transit") ??
+    null;
+
+  // const selectedGroup = useMemo(() => {
+  //   if (!selectedGroupKey) return null;
+  //   return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
+  // }, [groupedStops, selectedGroupKey]);
+
   const activeStop = useMemo(() => {
     return getActiveStop() ?? null;
   }, [getActiveStop, activeStopId, route?.stops]);
 
-  const selectedStop = useMemo(() => {
-    return (
-      route?.stops?.find((s) => s.id === selectedStopId) ??
-      activeStop ??
-      null
-    );
-  }, [route?.stops, selectedStopId, activeStop]);
+  // const selectedStop = useMemo(() => {
+  //   return (
+  //     route?.stops?.find((s) => s.id === selectedStopId) ??
+  //     activeStop ??
+  //     null
+  //   );
+  // }, [route?.stops, selectedStopId, activeStop]);
 
   const activeStopIsDeliverable =
     selectedStop?.order_status === "in_transit" ||
@@ -288,7 +302,7 @@ export default function MapScreen() {
               ]}
             />
 
-            {selectedStop && activeStopIsDeliverable && (
+            {selectedStop && (
               <NextStopCard
                 stopNumber={selectedStop.sequence_number}
                 customerName={selectedStop.customer_name}
