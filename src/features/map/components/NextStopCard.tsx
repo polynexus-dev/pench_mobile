@@ -10,8 +10,9 @@ type Props = {
     address: string;
     items: string[];
     orderId: string;
-    onMarkDelivered: () => void;
     disabled?: boolean;
+    onMarkDelivered: () => void;
+    onMarkUndelivered?: () => void;
 };
 
 export function NextStopCard({
@@ -19,9 +20,10 @@ export function NextStopCard({
     customerName,
     address,
     items,
-    orderId,
+    // orderId,
     onMarkDelivered,
     disabled = false,
+    onMarkUndelivered,
 }: Props) {
     return (
         <View className="rounded-card border border-border-default bg-bg-card p-4 mb-4">
@@ -54,11 +56,11 @@ export function NextStopCard({
                 ))}
             </View>
 
-            <View className="mt-4 flex-row items-center justify-between">
+            {/* <View className="mt-4 flex-row items-center justify-between">
                 <Text className="text-caption text-text-muted">Order ID: {orderId}</Text>
-            </View>
+            </View> */}
 
-            <View className="mt-4">
+            <View className="mt-4 gap-3">
                 <Button
                     label={disabled ? "Move Closer to Enable" : "Mark Delivered"}
                     intent="primary"
@@ -66,6 +68,15 @@ export function NextStopCard({
                     fullWidth
                     disabled={disabled}
                     onPress={onMarkDelivered}
+                />
+                <Button
+                    label="Customer Not at Home"
+                    intent="outline"
+                    size="lg"
+                    fullWidth
+                    disabled={disabled}
+                    onPress={onMarkUndelivered}
+                    className="border border-primary"
                 />
             </View>
         </View>

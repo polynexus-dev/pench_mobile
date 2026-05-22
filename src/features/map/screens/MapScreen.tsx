@@ -23,6 +23,7 @@ import { NextStopCard } from "@/features/map/components/NextStopCard";
 import { StopListItem } from "@/features/map/components/StopListItem";
 import { Text } from "@/shared/ui/Text/Text";
 import { ROUTES } from "@/constants/route";
+import { Button } from "@/shared/ui";
 
 type RouteStop = {
   id: string;
@@ -230,6 +231,19 @@ export default function MapScreen() {
     } as any);
   };
 
+  const handleMarkUndelivered = () => {
+    if (!selectedStop || !route) return;
+    if (!selectedStop.order) return;
+
+    bottomSheetRef.current?.dismiss();
+    router.push({
+      pathname: ROUTES.DRIVER.CAPTURE_POD,
+      params: {
+        orderId: selectedStop.order,
+      },
+    } as any);
+  };
+
   const completedCount =
     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
@@ -352,8 +366,10 @@ export default function MapScreen() {
                       address={selectedStop.address}
                       items={[]}
                       orderId={selectedStop.order ?? ""}
-                      onMarkDelivered={handleMarkDelivered}
                       disabled={!canActivateCard}
+                      onMarkDelivered={handleMarkDelivered}
+                      onMarkUndelivered={handleMarkUndelivered}
+
                     // disabled={!(selectedStop.id === activeStopId && canMark)}
                     // disabled={!(selectedStop && activeGroup && selectedGroupKey === activeGroup.groupKey)}
                     />
@@ -370,7 +386,7 @@ export default function MapScreen() {
                 </Text>
               </View>
             )}
-
+            {/* 
             <TouchableOpacity
               onPress={() => {
                 bottomSheetRef.current?.close();
@@ -384,10 +400,20 @@ export default function MapScreen() {
               <Text variant="body" color="brand" weight="semibold">
                 Show All Customers
               </Text>
-              <Text variant="body-sm" color="muted" className="mt-1">
-                View the full route list on a separate page.
-              </Text>
-            </TouchableOpacity>
+            </TouchableOpacity> */}
+
+            <Button
+              label="Show all Customers"
+              intent="secondary"
+              fullWidth
+              size="lg"
+              onPress={() => {
+                bottomSheetRef.current?.close();
+                setTimeout(() => {
+                  router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any);
+                }, 150);
+              }}
+            />
           </BottomSheetScrollView>
         </BottomSheetModal>
       </SafeAreaView>

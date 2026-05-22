@@ -165,7 +165,7 @@ export function FinalizeDeliveryScreen() {
                         disabled={isSubmitting}
                         onPress={handleSubmit}
                     />
-
+{/* 
                     <Button
                         label="Customer is Not at Home"
                         intent="secondary"
@@ -173,7 +173,7 @@ export function FinalizeDeliveryScreen() {
                         fullWidth
                         disabled={isSubmitting}
                         onPress={customerNotHome}
-                    />
+                    /> */}
                 </View>
             </ScrollView>
         </SafeAreaView>

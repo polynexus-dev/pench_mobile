@@ -17,6 +17,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useSubmitUndelivered } from "../hooks/useSubmitUndelivered";
 import * as ImageManipulator from "expo-image-manipulator";
 import { useGeofenceStore } from "@store/geofenceStore";
+import { ROUTES } from "@/constants/route";
 
 export default function CapturePodScreen() {
     const router = useRouter();
@@ -70,7 +71,7 @@ export default function CapturePodScreen() {
     const handleRetake = () => setPhotoUri(null);
 
 
-    const handleSubmit = async () => {
+    const handleSubmit = async () => { 
         if (!domain_name || !orderId) {
             Alert.alert("Error", "Missing city or order id");
             return;
@@ -95,7 +96,7 @@ export default function CapturePodScreen() {
 
             markStopUndelivered(orderId);
 
-            router.back();
+            router.push(ROUTES.DRIVER.MAP as any);
         } catch {
             // handled in hook
         }
