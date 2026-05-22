@@ -56,19 +56,19 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
   }, [routeData, webViewReady, activeStopId, selectedStopId]);
 
   ///new 
-  useEffect(() => {
-    if (!webViewReady || !webRef.current) return;
-    if (!selectedStopId && !activeStopId) return;
+  // useEffect(() => {
+  //   if (!webViewReady || !webRef.current) return;
+  //   if (!selectedStopId && !activeStopId) return;
 
-    webRef.current.injectJavaScript(`
-    (function() {
-      if (window.updateSelectedStop) {
-        window.updateSelectedStop("${selectedStopId ?? ""}", "${activeStopId ?? ""}");
-      }
-    })();
-    true;
-  `);
-  }, [selectedStopId, activeStopId, webViewReady]);
+  //   webRef.current.injectJavaScript(`
+  //   (function() {
+  //     if (window.updateSelectedStop) {
+  //       window.updateSelectedStop("${selectedStopId ?? ""}", "${activeStopId ?? ""}");
+  //     }
+  //   })();
+  //   true;
+  // `);
+  // }, [selectedStopId, activeStopId, webViewReady]);
 
   useEffect(() => {
     if (!location || !webViewReady || !webRef.current) return;
