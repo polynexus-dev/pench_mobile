@@ -17,9 +17,9 @@ interface TrackingStore {
     watcher: Location.LocationSubscription | null;
     loading: boolean;
     error: string | null;
-    startTrip: (token: string) => Promise<boolean>;
-    stopTrip: (token: string) => Promise<boolean>;
-    connectSocket: (domain: string, token: string) => void;
+    startTrip: (token: string | null) => Promise<boolean>;
+    stopTrip: (token: string | null) => Promise<boolean>;
+    connectSocket: (domain: string, token: string | null) => void;
     disconnectSocket: () => void;
     startTracking: () => Promise<void>;
     stopTracking: () => void;
@@ -35,7 +35,7 @@ export const useTrackingStore = createStore<TrackingStore>(
         loading: false,
         error: null,
 
-        startTrip: async (token: string) => {
+        startTrip: async (token: string | null) => {
             set((s) => {
                 s.loading = true;
                 s.error = null;
@@ -92,7 +92,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             }
         },
 
-        stopTrip: async (token: string) => {
+        stopTrip: async (token: string | null) => {
             set((s) => {
                 s.loading = true;
                 s.error = null;
@@ -162,7 +162,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             }
         },
 
-        connectSocket: (domain: string, token: string) => {
+        connectSocket: (domain: string, token: string | null) => {
             const existing = get().socket;
 
             if (existing) {

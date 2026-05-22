@@ -20,6 +20,7 @@ export interface AuthResponse {
 export interface AuthState {
   user: User | null;
   accessToken: string | null;
+  // accessToken: string;
   refreshToken: string | null;
 }
 

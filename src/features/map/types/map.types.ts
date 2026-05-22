@@ -1,12 +1,12 @@
 export type RouteStop = {
   id: string;
-  latitude: number;
-  longitude: number;
+  sequence_number: number;
+  order?: string | null;
   customer_name: string;
   address: string;
-  sequence_number: number;
-  order_status?: "in_transit" | "delivered" | "cancelled" | string;
-  order?: string | null;
+  latitude: number;
+  longitude: number;
+  order_status?: "in_transit" | "delivered" | "undelivered" | string;
 };
 
 export type RouteResponse = {

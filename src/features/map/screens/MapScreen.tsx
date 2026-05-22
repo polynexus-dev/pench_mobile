@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, TouchableOpacity } from "react-native";
 import {
   SafeAreaView,
@@ -21,7 +21,29 @@ import { TripStartPrompt } from "@/features/map/components/TripStartPrompt";
 import { RouteStatRow } from "@/features/map/components/RouteStatRow";
 import { NextStopCard } from "@/features/map/components/NextStopCard";
 import { StopListItem } from "@/features/map/components/StopListItem";
+
 import { ROUTES } from "@/constants/route";
+import { GroupedStopCard } from "../components/GroupedStopCard ";
+
+type RouteStop = {
+  id: string;
+  sequence_number: number;
+  order: string | null;
+  customer_name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  order_status?: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
+};
+
+type GroupedStop = {
+  groupKey: string;
+  address: string;
+  stops: RouteStop[];
+};
+
+const getLocationKey = (lat: number, lng: number) =>
+  `${lat.toFixed(5)}_${lng.toFixed(5)}`;
 
 export default function MapScreen() {
   const router = useRouter();
@@ -33,24 +55,76 @@ export default function MapScreen() {
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
   const trackingLoading = useTrackingStore((s) => s.loading);
 
-  // const nearStopId = useGeofenceStore((s) => s.nearStopId);
-  const activeStop = useGeofenceStore((s) => s.getActiveStop());
-  const activeStopIsDeliverable = activeStop?.order_status === "in_transit";
-  const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
-  const fetchMyRoute = useGeofenceStore((s) => s.fetchMyRoute);
-  const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
-  // const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
   const route = useGeofenceStore((s) => s.route);
   const nearStopId = useGeofenceStore((s) => s.nearStopId);
   const activeStopId = useGeofenceStore((s) => s.activeStopId);
   const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
-
-  const routeStops = (route?.stops ?? []).filter(
-    (stop) => stop.order_status === "in_transit"
+  const fetchMyRoute = useGeofenceStore((s) => s.fetchMyRoute);
+  const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
+  const getActiveStop = useGeofenceStore((s) => s.getActiveStop);
+  const canMarkActiveStopDelivered = useGeofenceStore(
+    (s) => s.canMarkActiveStopDelivered
   );
 
-  const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
+  const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
+  const [expandedGroupKey, setExpandedGroupKey] = useState<string | null>(null);
 
+  const routeStops = useMemo(() => {
+    return (route?.stops ?? []).filter(
+      (stop) => stop.order_status === "in_transit"
+    ) as RouteStop[];
+  }, [route?.stops]);
+
+  const groupedStops = useMemo(() => {
+    const groups = new Map<string, GroupedStop>();
+
+    for (const stop of routeStops) {
+      const key = getLocationKey(stop.latitude, stop.longitude);
+      const existing = groups.get(key);
+
+      if (!existing) {
+        groups.set(key, {
+          groupKey: key,
+          address: stop.address,
+          stops: [stop],
+        });
+      } else {
+        existing.stops.push(stop);
+      }
+    }
+
+    return Array.from(groups.values()).sort(
+      (a, b) => a.stops[0].sequence_number - b.stops[0].sequence_number
+    );
+  }, [routeStops]);
+
+  const selectedGroup = useMemo(() => {
+    if (!selectedGroupKey) return null;
+    return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
+  }, [groupedStops, selectedGroupKey]);
+
+  const activeStop = useMemo(() => {
+    return getActiveStop() ?? null;
+  }, [getActiveStop, activeStopId, route?.stops]);
+
+  const selectedStop = useMemo(() => {
+    return (
+      route?.stops?.find((s) => s.id === selectedStopId) ??
+      activeStop ??
+      null
+    );
+  }, [route?.stops, selectedStopId, activeStop]);
+
+  const activeStopIsDeliverable =
+    selectedStop?.order_status === "in_transit" ||
+    activeStop?.order_status === "in_transit";
+
+  const canMark = selectedGroup
+    ? selectedGroup.stops.some((s) => s.order_status === "in_transit")
+    : canMarkActiveStopDelivered();
+
+  const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
 
   useEffect(() => {
@@ -63,13 +137,26 @@ export default function MapScreen() {
     if (!nearStopId) return;
 
     setActiveStopId(nearStopId);
+    setSelectedStopId(nearStopId);
+
+    const stop = route?.stops?.find((s) => s.id === nearStopId);
+    if (stop) {
+      const key = getLocationKey(stop.latitude, stop.longitude);
+      setSelectedGroupKey(key);
+
+      const group = groupedStops.find((g) => g.groupKey === key);
+      if (group && group.stops.length > 1) {
+        setExpandedGroupKey(key);
+      }
+    }
+
     bottomSheetRef.current?.snapToIndex(1);
 
     const yOffset = cardYPositions.current[nearStopId];
     if (yOffset !== undefined && scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
     }
-  }, [nearStopId, setActiveStopId]);
+  }, [nearStopId, route?.stops, setActiveStopId, groupedStops]);
 
   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
 
@@ -112,23 +199,22 @@ export default function MapScreen() {
   };
 
   const handleMarkDelivered = () => {
-    if (!activeStop || !route) return;
-    if (!activeStop.order) return;
+    if (!selectedStop || !route) return;
+    if (!selectedStop.order) return;
 
     bottomSheetRef.current?.dismiss();
     router.push({
       pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
       params: {
         routeId: route.id,
-        stopId: activeStop.id,
-        orderId: activeStop.order,
+        stopId: selectedStop.id,
+        orderId: selectedStop.order,
       },
     } as any);
   };
 
-  const completedCount = route?.stops?.filter(
-    (s) => s.order_status === "delivered"
-  ).length ?? 0;
+  const completedCount =
+    route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
   return (
     <>
@@ -187,7 +273,10 @@ export default function MapScreen() {
             }}
           >
             {!isTripStarted && (
-              <TripStartPrompt loading={trackingLoading} onStart={handleTripToggle} />
+              <TripStartPrompt
+                loading={trackingLoading}
+                onStart={handleTripToggle}
+              />
             )}
 
             <RouteStatRow
@@ -199,37 +288,63 @@ export default function MapScreen() {
               ]}
             />
 
-            {activeStop && activeStopIsDeliverable && (
+            {selectedStop && activeStopIsDeliverable && (
               <NextStopCard
-                stopNumber={activeStop.sequence_number}
-                customerName={activeStop.customer_name}
-                address={activeStop.address}
+                stopNumber={selectedStop.sequence_number}
+                customerName={selectedStop.customer_name}
+                address={selectedStop.address}
                 items={[]}
-                orderId={activeStop.order ?? ""}
+                orderId={selectedStop.order ?? ""}
                 onMarkDelivered={handleMarkDelivered}
                 disabled={!canMark}
               />
             )}
 
-            {routeStops.map((stop) => (
-              <View
-                key={stop.id}
-                onLayout={(e) => {
-                  cardYPositions.current[stop.id] = e.nativeEvent.layout.y;
-                }}
-              >
-                <StopListItem
-                  sequenceNumber={stop.sequence_number}
-                  customerName={stop.customer_name}
-                  address={stop.address}
-                  items={[]}
-                  status={stop.id === activeStop?.id ? "current" : "pending"}
-                  isNear={stop.id === nearStopId}
-                  isActive={stop.id === activeStop?.id}
-                  onPress={() => setActiveStopId(stop.id)}
-                />
-              </View>
-            ))}
+            {groupedStops.map((group) => {
+              const shouldGroup = group.stops.length > 1;
+
+              if (shouldGroup) {
+                return (
+                  <GroupedStopCard
+                    key={group.groupKey}
+                    group={group}
+                    activeStopId={activeStopId}
+                    nearStopId={nearStopId}
+                    onSelectStop={(stopId, groupKey) => {
+                      setSelectedStopId(stopId);
+                      setSelectedGroupKey(groupKey);
+                      setActiveStopId(stopId);
+                    }}
+                  />
+                );
+              }
+
+              const stop = group.stops[0];
+
+              return (
+                <View
+                  key={stop.id}
+                  onLayout={(e) => {
+                    cardYPositions.current[stop.id] = e.nativeEvent.layout.y;
+                  }}
+                >
+                  <StopListItem
+                    sequenceNumber={stop.sequence_number}
+                    customerName={stop.customer_name}
+                    address={stop.address}
+                    items={[]}
+                    status={stop.id === activeStop?.id ? "current" : "pending"}
+                    isNear={stop.id === nearStopId}
+                    isActive={stop.id === activeStop?.id}
+                    onPress={() => {
+                      setSelectedStopId(stop.id);
+                      setSelectedGroupKey(null);
+                      setActiveStopId(stop.id);
+                    }}
+                  />
+                </View>
+              );
+            })}
           </BottomSheetScrollView>
         </BottomSheetModal>
       </SafeAreaView>
