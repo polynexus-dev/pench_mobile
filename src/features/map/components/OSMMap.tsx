@@ -47,35 +47,6 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
     },
   }));
 
-  // useEffect(() => {
-  //   if (!token || !domain_name) {
-  //     if (__DEV__) console.warn("❌ Token or domain_name not set in authStore");
-  //     return;
-  //   }
-
-  //   const fetchRoute = async () => {
-  //     try {
-  //       const data = (await httpClient.get(
-  //         `https://${domain_name}/api/erp/orders/driver/my-route/`
-  //         // `http://${domain_name}:8888/api/erp/orders/driver/my-route/`
-  //       )) as unknown as RouteResponse;
-
-  //       if (__DEV__) console.log("✅ Route data:", data);
-
-  //       setRouteData(data);
-
-  //       if (data?.id) {
-  //         await asyncStorage.setItem("route_id", String(data.id));
-  //         useAuthStore.getState().setDomainAndRoute(domain_name, String(data.id));
-  //       }
-  //     } catch (err) {
-  //       if (__DEV__) console.error("❌ Route fetch error:", err);
-  //     }
-  //   };
-
-  //   fetchRoute();
-  // }, [token, domain_name]);
-
   useEffect(() => {
     if (!routeData || !webViewReady || !webRef.current) return;
 

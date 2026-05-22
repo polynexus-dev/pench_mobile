@@ -17,6 +17,7 @@ export const ROUTES = {
         ATTENDANCE: "/(driver)/attendance" as const,
         FINALIZE_DELIVERY: "/(driver)/finalize" as const,
         CAPTURE_POD: "/(driver)/capture-pod" as const,
+        ALL_CUSTOMERS: "(driver)/customer_list" as const,
     },
 
     CUSTOMER: {

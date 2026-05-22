@@ -21,9 +21,8 @@ import { TripStartPrompt } from "@/features/map/components/TripStartPrompt";
 import { RouteStatRow } from "@/features/map/components/RouteStatRow";
 import { NextStopCard } from "@/features/map/components/NextStopCard";
 import { StopListItem } from "@/features/map/components/StopListItem";
-
+import { Text } from "@/shared/ui/Text/Text";
 import { ROUTES } from "@/constants/route";
-import { GroupedStopCard } from "../components/GroupedStopCard ";
 
 type RouteStop = {
   id: string;
@@ -61,10 +60,7 @@ export default function MapScreen() {
   const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
   const fetchMyRoute = useGeofenceStore((s) => s.fetchMyRoute);
   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
-  const getActiveStop = useGeofenceStore((s) => s.getActiveStop);
-  const canMarkActiveStopDelivered = useGeofenceStore(
-    (s) => s.canMarkActiveStopDelivered
-  );
+  const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
 
   const [selectedStopId, setSelectedStopId] = useState<string | null>(null);
   const [selectedGroupKey, setSelectedGroupKey] = useState<string | null>(null);
@@ -99,6 +95,18 @@ export default function MapScreen() {
     );
   }, [routeStops]);
 
+  const activeGroup = useMemo(() => {
+    if (!activeStopId) return null;
+    const stop = routeStops.find((s) => s.id === activeStopId);
+    if (!stop) return null;
+    const key = getLocationKey(stop.latitude, stop.longitude);
+    return groupedStops.find((g) => g.groupKey === key) ?? null;
+  }, [activeStopId, routeStops, groupedStops]);
+
+  const activeStop = useMemo<RouteStop | null>(() => {
+    return routeStops.find((s) => s.id === activeStopId) ?? null;
+  }, [routeStops, activeStopId]);
+
   const selectedGroup = useMemo(() => {
     if (!selectedGroupKey) return null;
     return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
@@ -110,33 +118,10 @@ export default function MapScreen() {
   const selectedStop =
     selectedGroupStops.find((s) => s.id === selectedStopId) ??
     selectedGroupStops[0] ??
-    route?.stops?.find((s) => s.order_status === "in_transit") ??
+    activeStop ??
     null;
 
-  // const selectedGroup = useMemo(() => {
-  //   if (!selectedGroupKey) return null;
-  //   return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
-  // }, [groupedStops, selectedGroupKey]);
-
-  const activeStop = useMemo(() => {
-    return getActiveStop() ?? null;
-  }, [getActiveStop, activeStopId, route?.stops]);
-
-  // const selectedStop = useMemo(() => {
-  //   return (
-  //     route?.stops?.find((s) => s.id === selectedStopId) ??
-  //     activeStop ??
-  //     null
-  //   );
-  // }, [route?.stops, selectedStopId, activeStop]);
-
-  const activeStopIsDeliverable =
-    selectedStop?.order_status === "in_transit" ||
-    activeStop?.order_status === "in_transit";
-
-  const canMark = selectedGroup
-    ? selectedGroup.stops.some((s) => s.order_status === "in_transit")
-    : canMarkActiveStopDelivered();
+  const showNextStopCard = !!activeStop && canMark;
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
@@ -148,7 +133,13 @@ export default function MapScreen() {
   }, [fetchMyRoute, startGeofenceTracking]);
 
   useEffect(() => {
-    if (!nearStopId) return;
+    if (!nearStopId) {
+      setActiveStopId(null);
+      setSelectedStopId(null);
+      setSelectedGroupKey(null);
+      setExpandedGroupKey(null);
+      return;
+    }
 
     setActiveStopId(nearStopId);
     setSelectedStopId(nearStopId);
@@ -215,6 +206,7 @@ export default function MapScreen() {
   const handleMarkDelivered = () => {
     if (!selectedStop || !route) return;
     if (!selectedStop.order) return;
+    if (!canMark) return;
 
     bottomSheetRef.current?.dismiss();
     router.push({
@@ -302,63 +294,88 @@ export default function MapScreen() {
               ]}
             />
 
-            {selectedStop && (
-              <NextStopCard
-                stopNumber={selectedStop.sequence_number}
-                customerName={selectedStop.customer_name}
-                address={selectedStop.address}
-                items={[]}
-                orderId={selectedStop.order ?? ""}
-                onMarkDelivered={handleMarkDelivered}
-                disabled={!canMark}
-              />
+            {showNextStopCard && activeGroup ? (
+              <>
+                <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+                  <Text variant="body" weight="semibold" color="primary">
+                    Active Customer Group
+                  </Text>
+                  <Text variant="body-sm" color="muted" className="mt-1">
+                    {activeGroup.stops.length} customer{activeGroup.stops.length > 1 ? "s" : ""} at the same location
+                  </Text>
+                </View>
+
+                <View className="mt-4 gap-y-3">
+                  {activeGroup.stops.map((stop) => {
+                    const isSelected = stop.id === selectedStopId;
+
+                    return (
+                      <TouchableOpacity
+                        key={stop.id}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                          setSelectedStopId(stop.id);
+                          setSelectedGroupKey(activeGroup.groupKey);
+                        }}
+                      >
+                        <StopListItem
+                          sequenceNumber={stop.sequence_number}
+                          customerName={stop.customer_name}
+                          address={stop.address}
+                          items={[]}
+                          status={isSelected ? "current" : "pending"}
+                          isActive={isSelected}
+                          pulse={isSelected}
+                          showNearbyTag={isSelected}
+                        />
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+
+                {selectedStop && (
+                  <View className="mt-4">
+                    <NextStopCard
+                      stopNumber={selectedStop.sequence_number}
+                      customerName={selectedStop.customer_name}
+                      address={selectedStop.address}
+                      items={[]}
+                      orderId={selectedStop.order ?? ""}
+                      onMarkDelivered={handleMarkDelivered}
+                      // disabled={!(selectedStop && activeGroup && activeGroup.groupKey === selectedGroupKey)}
+                      disabled={!selectedStop || !selectedGroup || selectedGroup.groupKey !== selectedGroupKey}
+                    />
+                  </View>
+                )}
+              </>
+            ) : (
+              <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+                <Text variant="body" color="muted" weight="medium">
+                  No active customer in geofence
+                </Text>
+                <Text variant="body-sm" color="muted" className="mt-1">
+                  Move closer to a stop to activate delivery actions.
+                </Text>
+              </View>
             )}
 
-            {groupedStops.map((group) => {
-              const shouldGroup = group.stops.length > 1;
-
-              if (shouldGroup) {
-                return (
-                  <GroupedStopCard
-                    key={group.groupKey}
-                    group={group}
-                    activeStopId={activeStopId}
-                    nearStopId={nearStopId}
-                    onSelectStop={(stopId, groupKey) => {
-                      setSelectedStopId(stopId);
-                      setSelectedGroupKey(groupKey);
-                      setActiveStopId(stopId);
-                    }}
-                  />
-                );
-              }
-
-              const stop = group.stops[0];
-
-              return (
-                <View
-                  key={stop.id}
-                  onLayout={(e) => {
-                    cardYPositions.current[stop.id] = e.nativeEvent.layout.y;
-                  }}
-                >
-                  <StopListItem
-                    sequenceNumber={stop.sequence_number}
-                    customerName={stop.customer_name}
-                    address={stop.address}
-                    items={[]}
-                    status={stop.id === activeStop?.id ? "current" : "pending"}
-                    isNear={stop.id === nearStopId}
-                    isActive={stop.id === activeStop?.id}
-                    onPress={() => {
-                      setSelectedStopId(stop.id);
-                      setSelectedGroupKey(null);
-                      setActiveStopId(stop.id);
-                    }}
-                  />
-                </View>
-              );
-            })}
+            <TouchableOpacity
+              onPress={() => {
+                bottomSheetRef.current?.close();
+                setTimeout(() => {
+                  router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any);
+                }, 150);
+              }}
+              className="mt-4 rounded-3xl border border-border-default bg-white px-4 py-4"
+              activeOpacity={0.9}
+            >
+              <Text variant="body" color="brand" weight="semibold">
+                Show All Customers
+              </Text>
+              <Text variant="body-sm" color="muted" className="mt-1">
+                View the full route list on a separate page.
+              </Text>
+            </TouchableOpacity>
           </BottomSheetScrollView>
         </BottomSheetModal>
       </SafeAreaView>

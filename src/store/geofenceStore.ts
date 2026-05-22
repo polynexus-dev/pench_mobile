@@ -144,6 +144,12 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
                 set((s) => {
                     s.location = location;
                     s.nearStopId = nearStopId;
+
+                    if (nearStopId) {
+                        s.activeStopId = nearStopId;
+                    } else {
+                        s.activeStopId = null;
+                    }
                 });
             }
         );
