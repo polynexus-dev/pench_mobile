@@ -1,21 +1,21 @@
-import React, { useRef } from "react";
-import {
-    ScrollView,
-    View,
-    TouchableOpacity,
-    useWindowDimensions,
-} from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ROUTES } from "@/constants/route";
+import { OSMMapHandle } from "@/features/map/components/OSMMap";
+import { Button } from "@/shared/ui/Button/Button";
+import { Text } from "@/shared/ui/Text/Text";
+import { useAuthStore } from "@/store/authStore";
+import { useGeofenceStore } from "@/store/geofenceStore";
+import { useTrackingStore } from "@/store/trackingStore";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { useAuthStore } from "@/store/authStore";
-import { useTrackingStore } from "@/store/trackingStore";
-import { ROUTES } from "@/constants/route";
-import { Button } from "@/shared/ui/Button/Button";
-import { Text } from "@/shared/ui/Text/Text";
-import { useGeofenceStore } from "@/store/geofenceStore";
-import OSMMap, { OSMMapHandle } from "@/features/map/components/OSMMap";
+import React, { useRef } from "react";
+import {
+    ScrollView,
+    TouchableOpacity,
+    useWindowDimensions,
+    View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export function DriverDashboardScreen() {
     const router = useRouter();
@@ -94,8 +94,8 @@ export function DriverDashboardScreen() {
                             <View className="flex-row items-center gap-x-3">
                                 <View
                                     className={`flex-row items-center gap-x-1.5 rounded-badge border px-3 py-1.5 ${isTripStarted
-                                            ? "border-success/30 bg-successLight"
-                                            : "border-border-default bg-bg-card"
+                                        ? "border-success/30 bg-successLight"
+                                        : "border-border-default bg-bg-card"
                                         }`}
                                 >
                                     <View

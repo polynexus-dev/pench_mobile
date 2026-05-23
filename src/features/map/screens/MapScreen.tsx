@@ -114,12 +114,6 @@ export default function MapScreen() {
   const selectedGroupStops =
     selectedGroup?.stops.filter((s) => s.order_status === "in_transit") ?? [];
 
-  // const selectedStop =
-  //   selectedGroupStops.find((s) => s.id === selectedStopId) ??
-  //   selectedGroupStops[0] ??
-  //   activeStop ??
-  //   null;
-
   const selectedStop = useMemo(() => {
     if (!selectedGroupKey) return null;
     const group = groupedStops.find((g) => g.groupKey === selectedGroupKey);
