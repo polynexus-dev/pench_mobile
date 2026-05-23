@@ -18,6 +18,7 @@ export function useFetchMyRoute() {
                 });
                 throw new Error("domain_name not set");
             }
+            console.log("fetching route for domain:", domainName);
 
             const data = await mapApi.fetchMyRoute(domainName);
 

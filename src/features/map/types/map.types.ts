@@ -20,3 +20,9 @@ export type MapLocation = {
   lat: number;
   lng: number;
 };
+
+export type TripCompleteResponse = {
+  detail: string;
+  completed_at: string;
+  expires_in_seconds: number;
+};

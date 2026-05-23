@@ -2,11 +2,11 @@ import * as Location from "expo-location";
 import { Alert } from "react-native";
 import { createStore } from "./devtools";
 import { useAuthStore } from "./authStore";
+import { mapApi } from "@/features/map/api/mapApi";
 import {
     startBackgroundTracking,
     stopBackgroundTracking,
 } from "@/services/location/trackingService";
-import { deliveryApi } from "@/features/delivery/api/deliveryApi";
 
 type LocationState = {
     lat: number;
@@ -28,9 +28,9 @@ interface TrackingStore {
     setActiveStopId: (id: string | null) => void;
     setSelectedStopId: (id: string | null) => void;
 
-    startTrip: (token: string | null) => Promise<boolean>;
-    stopTrip: (token: string | null) => Promise<boolean>;
-    connectSocket: (domain: string, token: string | null) => void;
+    startTrip: () => Promise<boolean>;
+    stopTrip: () => Promise<boolean>;
+    connectSocket: (domain: string) => void;
     disconnectSocket: () => void;
     startTracking: () => Promise<void>;
     stopTracking: () => void;
@@ -61,41 +61,24 @@ export const useTrackingStore = createStore<TrackingStore>(
             });
         },
 
-        startTrip: async (token: string | null) => {
-            set((s) => { s.loading = true; s.error = null; });
+        startTrip: async () => {
+            set((s) => {
+                s.loading = true;
+                s.error = null;
+            });
 
             try {
                 const { domain_name, route_id } = useAuthStore.getState();
-                console.log("tracking STORE", route_id);
 
                 if (!domain_name) throw new Error("domain_name not set in authStore");
                 if (!route_id) throw new Error("route_id not set in authStore");
-                if (!token) throw new Error("token is null");
 
                 if (__DEV__) console.log("tracking STORE", route_id);
                 if (__DEV__) console.log(route_id, domain_name);
 
-                // const url = `https://${domain_name}/api/erp/orders/driver/${route_id}/start-trip/`;
-                // if (__DEV__) console.log("🚀 Starting trip at:", url);
+                await mapApi.startTrip(domain_name, route_id);
 
-                // const res = await fetch(url, {
-                //     method: "POST",
-                //     headers: {
-                //         Authorization: `Bearer ${token}`,
-                //         "Content-Type": "application/json",
-                //     },
-                // });
-
-                // if (__DEV__) {
-                //     const text = await res.text();
-                //     console.log("📡 Start trip status:", res.status);
-                //     console.log("📦 Start trip response:", text.slice(0, 200));
-                // }
-
-                // if (!res.ok) throw new Error(`Start trip failed: ${res.status}`);
-                await deliveryApi.startTrip(domain_name, route_id);
-
-                get().connectSocket(domain_name, token);
+                get().connectSocket(domain_name);
                 await get().startTracking();
                 await startBackgroundTracking();
 
@@ -117,7 +100,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             }
         },
 
-        stopTrip: async (token: string | null) => {
+        stopTrip: async () => {
             set((s) => {
                 s.loading = true;
                 s.error = null;
@@ -131,42 +114,7 @@ export const useTrackingStore = createStore<TrackingStore>(
 
                 if (__DEV__) console.log("🛑 Completing trip for:", route_id);
 
-                await deliveryApi.completeTrip(domain_name, route_id);
-
-                // const url = `https://${domain_name}/api/erp/orders/driver/${route_id}/complete-trip/`;
-                // if (__DEV__) console.log("🛑 Completing trip at:", url);
-
-                // const res = await fetch(url, {
-                //     method: "POST",
-                //     headers: {
-                //         Authorization: `Bearer ${token}`,
-                //         "Content-Type": "application/json",
-                //     },
-                //     body: JSON.stringify({}),
-                // });
-
-                // const rawText = await res.text();
-
-                // if (__DEV__) {
-                //     console.log("📡 Complete trip status:", res.status);
-                //     console.log("📦 Complete trip response:", rawText.slice(0, 300));
-                // }
-
-                // if (!res.ok) {
-                //     throw new Error(`Complete trip failed: ${res.status}`);
-                // }
-
-                // const data = JSON.parse(rawText) as {
-                //     detail: string;
-                //     completed_at: string;
-                //     expires_in_seconds: number;
-                // };
-
-                // if (__DEV__) {
-                //     console.log("✅", data.detail);
-                //     console.log("🕒 completed_at:", data.completed_at);
-                //     console.log("⏳ expires_in_seconds:", data.expires_in_seconds);
-                // }
+                await mapApi.completeTrip(domain_name, route_id);
 
                 get().stopTracking();
                 await stopBackgroundTracking();
@@ -192,7 +140,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             }
         },
 
-        connectSocket: (domain: string, token: string | null) => {
+        connectSocket: (domain: string) => {
             const existing = get().socket;
 
             if (existing) {
@@ -200,6 +148,7 @@ export const useTrackingStore = createStore<TrackingStore>(
                 existing.close();
             }
 
+            const token = useAuthStore.getState().accessToken;
             const ws = new WebSocket(`wss://${domain}/ws/tracking/?token=${token}`);
 
             ws.onopen = () => {
@@ -209,7 +158,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             ws.onclose = () => {
                 if (!get().isTripStarted) return;
                 if (__DEV__) console.log("🔄 WebSocket closed, Reconnecting...");
-                setTimeout(() => get().connectSocket(domain, token), 3000);
+                setTimeout(() => get().connectSocket(domain), 3000);
             };
 
             ws.onerror = (e: any) => {

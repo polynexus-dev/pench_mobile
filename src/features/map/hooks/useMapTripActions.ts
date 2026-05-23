@@ -20,11 +20,11 @@ export function useMapTripActions() {
         if (loading) return;
 
         if (isTripStarted) {
-            await stopTrip(accessToken);
+            await stopTrip();
             return;
         }
 
-        await startTrip(accessToken);
+        await startTrip();
     };
 
     return {
