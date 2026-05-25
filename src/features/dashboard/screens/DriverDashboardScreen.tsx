@@ -450,7 +450,6 @@ import { useTrackingStore } from "@/store/trackingStore";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import React, { useRef } from "react";
 import {
     ScrollView,
     TouchableOpacity,
@@ -458,11 +457,13 @@ import {
     View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useEffect, useState, useRef } from "react";
+import { asyncStorage } from "@services/storage/asyncStorage";
 
 export function DriverDashboardScreen() {
     const router = useRouter();
     const user = useAuthStore((s) => s.user);
-    const routeId = useAuthStore((s) => s.route_id);
+    // const routeId = useAuthStore((s) => s.route_id);
 
     const mapRef = useRef<OSMMapHandle>(null);
 
@@ -474,6 +475,30 @@ export function DriverDashboardScreen() {
     const activeStop = useGeofenceStore((s) => s.getActiveStop());
     const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
     const route = useGeofenceStore((s) => s.route);
+
+    const [persistedRouteId, setPersistedRouteId] = useState<string | null>(null);
+
+    useEffect(() => {
+        let mounted = true;
+
+        const loadRouteId = async () => {
+            try {
+                const storedRouteId = await asyncStorage.getItem("route_id");
+                if (mounted) setPersistedRouteId(storedRouteId ?? null);
+            } catch {
+                if (mounted) setPersistedRouteId(null);
+            }
+        };
+
+        loadRouteId();
+
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const authRouteId = useAuthStore((s) => s.route_id);
+    const routeId = persistedRouteId ?? authRouteId;
 
     const handleTripToggle = async () => {
         const { accessToken, route_id } = useAuthStore.getState();
