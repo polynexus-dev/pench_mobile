@@ -21,6 +21,11 @@ export function useSubmitDelivery() {
             deliveryApi.submitDelivery(domainName, orderId, payload),
 
         onSuccess: (res) => {
+            // for redundancy, we can invalidate my-route query here as well, but it should ideally be handled in trackingStore's startTrip and stopTrip functions where route_id is set and unset respectively.
+            // if (domainName) {
+            //     queryClient.invalidateQueries({ queryKey: ["my-route", domainName] });
+            // }
+
             show({
                 message: `Delivery submitted for ${res.customer_name}`,
                 type: "success",

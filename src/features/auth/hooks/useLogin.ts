@@ -23,14 +23,21 @@ export function useLogin() {
       setTokens(access, refresh);
       setUser(user);
 
-      // const domain = res.domain_name ?? res.tenant_domain ?? "";
       const domain = res.domain_name ?? "null_null";
       console.log(typeof domain, domain);
 
       if (__DEV__) console.log("login", domain);
       if (domain) {
-        asyncStorage.setItem("domain_name", domain);
+        await asyncStorage.setItem("domain_name", domain);
         if (__DEV__) console.log("domain saved to async store");
+      }
+
+      const routeId = active_route_id ?? "";
+      if (routeId) {
+        await asyncStorage.setItem("route_id", routeId);
+        if (__DEV__) console.log("route_id saved to async store");
+      } else {
+        await asyncStorage.removeItem("route_id");
       }
 
       setDomainAndRoute(domain, active_route_id ?? null);

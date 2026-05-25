@@ -46,7 +46,7 @@ export function FinalizeDeliveryScreen() {
         }
 
         try {
-            await submitDelivery({
+            const result = await submitDelivery({
                 domainName: domain_name,
                 orderId,
                 payload: {
@@ -55,8 +55,13 @@ export function FinalizeDeliveryScreen() {
                 },
             });
 
-            // useGeofenceStore.getState().markStopDelivered(orderId);
-            // router.back();
+            if (!result) return;
+            if (__DEV__) console.log("Delivery submission result", result);
+            if (typeof orderId !== "string" || !orderId.trim()) {
+                Alert.alert("Error", "Invalid order id");
+                return;
+            }
+
             const store = useGeofenceStore.getState();
             store.markStopDelivered(orderId);
             store.setActiveStopId(null);
@@ -64,22 +69,6 @@ export function FinalizeDeliveryScreen() {
         } catch {
             // handled in hook
         }
-    };
-
-    const customerNotHome = () => {
-        if (!orderId || !routeId || !stopId) {
-            Alert.alert("Error", "Missing route params");
-            return;
-        }
-
-        router.push({
-            pathname: ROUTES.DRIVER.CAPTURE_POD,
-            params: {
-                orderId,
-                routeId,
-                stopId,
-            },
-        } as any);
     };
 
     return (
@@ -165,15 +154,6 @@ export function FinalizeDeliveryScreen() {
                         disabled={isSubmitting}
                         onPress={handleSubmit}
                     />
-{/* 
-                    <Button
-                        label="Customer is Not at Home"
-                        intent="secondary"
-                        size="lg"
-                        fullWidth
-                        disabled={isSubmitting}
-                        onPress={customerNotHome}
-                    /> */}
                 </View>
             </ScrollView>
         </SafeAreaView>

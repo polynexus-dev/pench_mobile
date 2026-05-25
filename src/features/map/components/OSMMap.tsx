@@ -136,16 +136,22 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
       });
     }
 
-    var driverIcon = makeIcon('#ef4444');
-    var activeIcon = makeIcon('#22c55e');
+    var driverIcon = makeIcon('#f97316');
+    var activeIcon = makeIcon('#3b82f6');
     var selectedIcon = makeIcon('#f97316');
-    var normalIcon = makeIcon('#3b82f6');
+    var inTransitIcon = makeIcon('#ffbf00');
+    var deliveredIcon = makeIcon('#22c55e');
+    var undeliveredIcon = makeIcon('#ef4444');
 
-    function getIcon(stopId, activeStopId, selectedStopId) {
+    function getIcon(stopId, activeStopId, selectedStopId, orderStatus) {
       var id = String(stopId);
       if (id === String(activeStopId)) return activeIcon;
       if (id === String(selectedStopId)) return selectedIcon;
-      return normalIcon;
+
+      var status = String(orderStatus || '').toLowerCase();
+      if (status === 'delivered') return deliveredIcon;
+      if (status === 'undelivered') return undeliveredIcon;
+      return inTransitIcon;
     }
 
     function clearCustomerMarkers() {
@@ -196,12 +202,13 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
 
       stops.forEach(function(stop) {
         var marker = L.marker([stop.latitude, stop.longitude], {
-          icon: getIcon(stop.id, activeStopId, selectedStopId)
+          icon: getIcon(stop.id, activeStopId, selectedStopId, stop.order_status)
         })
           .addTo(map)
           .bindPopup("<b>" + stop.customer_name + "</b><br/>" + stop.address);
 
         marker._stopId = String(stop.id);
+        marker._orderStatus = String(stop.order_status || '');
         customerMarkers.push(marker);
       });
 
@@ -214,7 +221,7 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
 
     window.updateSelectedStop = function(selectedStopId, activeStopId) {
       customerMarkers.forEach(function(m) {
-        m.setIcon(getIcon(m._stopId, activeStopId, selectedStopId));
+        m.setIcon(getIcon(m._stopId, activeStopId, selectedStopId, m._orderStatus));
       });
     };
 

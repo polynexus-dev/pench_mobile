@@ -258,9 +258,12 @@ export default function MapScreen() {
     if (!selectedStop.order) return;
 
     bottomSheetRef.current?.dismiss();
+
     router.push({
       pathname: ROUTES.DRIVER.CAPTURE_POD,
       params: {
+        routeId: route.id,
+        stopId: selectedStop.id,
         orderId: selectedStop.order,
       },
     } as any);
