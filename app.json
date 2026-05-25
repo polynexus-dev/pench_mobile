@@ -21,7 +21,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.pench_new"
+      "package": "com.polynexus.pench"
     },
     "web": {
       "bundler": "metro",

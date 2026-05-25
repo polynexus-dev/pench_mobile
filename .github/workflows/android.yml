@@ -30,6 +30,9 @@ jobs:
       - name: Install Dependencies
         run: npm install --legacy-peer-deps
 
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --no-install
+
       - name: Grant Permission
         run: chmod +x android/gradlew
 
@@ -42,4 +45,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: debug-apk
-          path: android/app/build/outputs/apk/debug/pench.apk
+          path: android/app/build/outputs/apk/debug/*.apk
