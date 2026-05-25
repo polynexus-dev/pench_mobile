@@ -16,9 +16,6 @@ export function TripStartPrompt({ loading, onStart }: Props) {
             <Text className="text-body-lg font-bold text-text-primary text-center">
                 Ready to Start?
             </Text>
-            {/* <Text className="text-caption text-text-secondary text-center mt-1 mb-4">
-                Tap below to begin your trip. GPS tracking will start automatically.
-            </Text> */}
             <TouchableOpacity
                 onPress={onStart}
                 disabled={loading}

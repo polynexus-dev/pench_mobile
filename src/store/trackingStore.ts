@@ -3,10 +3,7 @@ import { Alert } from "react-native";
 import { createStore } from "./devtools";
 import { useAuthStore } from "./authStore";
 import { mapApi } from "@/features/map/api/mapApi";
-import {
-    startBackgroundTracking,
-    stopBackgroundTracking,
-} from "@/services/location/trackingService";
+import { startBackgroundTracking, stopBackgroundTracking } from "@/services/location/trackingService";
 import { useToast } from "@/hooks/useToast";
 
 const { show } = useToast();
@@ -21,7 +18,7 @@ interface TrackingStore {
     isTripStarted: boolean;
     location: LocationState | null;
     socket: WebSocket | null;
-watcher: Location.LocationSubscription | null;
+    watcher: Location.LocationSubscription | null;
     loading: boolean;
     error: string | null;
 

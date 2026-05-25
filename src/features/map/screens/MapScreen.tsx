@@ -117,8 +117,7 @@ export default function MapScreen() {
     return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
   }, [groupedStops, selectedGroupKey]);
 
-  const selectedGroupStops =
-    selectedGroup?.stops.filter((s) => s.order_status === "in_transit") ?? [];
+  // const selectedGroupStops = selectedGroup?.stops.filter((s) => s.order_status === "in_transit") ?? [];
 
   const selectedStop = useMemo(() => {
     if (!selectedGroupKey) return null;
@@ -134,10 +133,6 @@ export default function MapScreen() {
 
   const canActivateCard = !!selectedStop && !!activeGroup && selectedGroupKey === activeGroup.groupKey;
 
-  // useEffect(() => {
-  //   bottomSheetRef.current?.present();
-  //   startGeofenceTracking();
-  // }, [startGeofenceTracking]);
   /////////// cleaning up the location subscription and geofence tracking when component unmounts
   useEffect(() => {
     let mounted = true;

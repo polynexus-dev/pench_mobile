@@ -93,9 +93,7 @@ export default function CapturePodScreen() {
 
         try {
             await submitUndelivered({ lastOrderId: orderId, payload: formData });
-
             markStopUndelivered(orderId);
-
             router.push(ROUTES.DRIVER.MAP as any);
         } catch {
             // handled in hook

@@ -83,7 +83,7 @@ export function LocationSetupSheet({ visible, onClose, onConfirm, onSkip }: Prop
                 <View className="px-screen-x-md pb-4">
                     <View className="flex-row items-center justify-between">
                         <View className="flex-1 pr-3">
-                            <Text className="text-heading text-text-primary" fontWeight="bold">
+                            <Text className="text-heading text-text-primary">
                                 Set Delivery Location
                             </Text>
                             <Text className="text-body-sm text-text-muted">
@@ -108,7 +108,7 @@ export function LocationSetupSheet({ visible, onClose, onConfirm, onSkip }: Prop
                         ) : (
                             <>
                                 <Ionicons name="locate" size={18} color="#fff" />
-                                <Text className="ml-2 text-text-inverse" fontWeight="semibold">
+                                <Text className="ml-2 text-text-inverse">
                                     Detect Location
                                 </Text>
                             </>
@@ -139,7 +139,7 @@ export function LocationSetupSheet({ visible, onClose, onConfirm, onSkip }: Prop
                             onPress={onSkip}
                             className="flex-1 items-center justify-center rounded-btn border border-border-default bg-bg-card px-btn-x py-btn-y"
                         >
-                            <Text className="text-text-secondary" fontWeight="medium">
+                            <Text className="text-text-secondary" >
                                 Skip
                             </Text>
                         </TouchableOpacity>

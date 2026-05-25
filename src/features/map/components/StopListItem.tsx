@@ -25,7 +25,7 @@ export function StopListItem({
   address,
   items = [],
   status,
-  isNear = false,
+  // isNear = false,
   isActive = false,
   isHighlighted = false,
   pulse = false,

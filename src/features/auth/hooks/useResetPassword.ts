@@ -14,8 +14,7 @@ export function useResetPassword() {
     const { show } = useToast();
 
     return useMutation<ResetPasswordResponse, Error, ResetPasswordPayload>({
-        mutationFn: (payload: ResetPasswordPayload) =>
-            authApi.resetPassword(payload),
+        mutationFn: (payload: ResetPasswordPayload) => authApi.resetPassword(payload),
 
         onSuccess: (res) => {
             show({

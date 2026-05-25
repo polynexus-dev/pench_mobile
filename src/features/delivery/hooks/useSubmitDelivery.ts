@@ -17,8 +17,7 @@ export function useSubmitDelivery() {
     const { show } = useToast();
 
     return useMutation<SubmitDeliveryResponse, Error, SubmitDeliveryVars>({
-        mutationFn: ({ domainName, orderId, payload }) =>
-            deliveryApi.submitDelivery(domainName, orderId, payload),
+        mutationFn: ({ domainName, orderId, payload }) => deliveryApi.submitDelivery(domainName, orderId, payload),
 
         onSuccess: (res) => {
             // for redundancy, we can invalidate my-route query here as well, but it should ideally be handled in trackingStore's startTrip and stopTrip functions where route_id is set and unset respectively.
