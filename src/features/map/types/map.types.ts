@@ -1,7 +1,8 @@
 export type RouteStop = {
   id: string;
   sequence_number: number;
-  order?: string | null;
+  // order?: string | null;
+  order: string | null;
   customer_name: string;
   address: string;
   latitude: number;
@@ -10,10 +11,19 @@ export type RouteStop = {
 };
 
 export type RouteResponse = {
+  // id: string;
+  // name?: string;
+  // stops: RouteStop[];
+  // route_geometry?: unknown;
   id: string;
   name?: string;
+  driver?: number;
+  driver_name?: string;
+  delivery_date?: string;
+  is_completed?: boolean;
+  route_geometry?: any;
   stops: RouteStop[];
-  route_geometry?: unknown;
+  expires_in_seconds?: number;
 };
 
 export type MapLocation = {

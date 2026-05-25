@@ -8,24 +8,38 @@ import React, {
 import { StatusBar, View, Text } from "react-native";
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useAuthStore } from "@store/authStore";
 import { useTrackingStore } from "@store/trackingStore";
-import { useFetchMyRoute } from "../hooks/useFetchMyRoute";
 
 export type OSMMapHandle = {
   centerOnUser: () => void;
 };
 
-const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
-  const { data: routeData } = useFetchMyRoute();
+type RouteStop = {
+  id: string;
+  sequence_number: number;
+  order: string | null;
+  customer_name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  order_status?: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
+};
+
+type OSMMapProps = {
+  stops?: RouteStop[];
+  activeStopId?: string | null;
+  selectedStopId?: string | null;
+};
+
+const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
+  { stops = [], activeStopId, selectedStopId },
+  ref
+) {
   const webRef = useRef<WebView>(null);
   const [webViewReady, setWebViewReady] = useState(false);
 
   const location = useTrackingStore((s) => s.location);
   const error = useTrackingStore((s) => s.error);
-  const activeStopId = useTrackingStore((s) => s.activeStopId as any);
-  const selectedStopId = useTrackingStore((s) => s.selectedStopId as any);
-
 
   useImperativeHandle(ref, () => ({
     centerOnUser: () => {
@@ -42,9 +56,8 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
   }));
 
   useEffect(() => {
-    if (!routeData || !webViewReady || !webRef.current) return;
+    if (!webViewReady || !webRef.current) return;
 
-    const stops = routeData.stops || [];
     webRef.current.injectJavaScript(`
     (function() {
       if (window.loadStops) {
@@ -53,9 +66,8 @@ const OSMMap = forwardRef<OSMMapHandle>(function OSMMap(_, ref) {
     })();
     true;
   `);
-  }, [routeData, webViewReady, activeStopId, selectedStopId]);
+  }, [stops, webViewReady, activeStopId, selectedStopId]);
 
-  ///new 
   useEffect(() => {
     if (!webViewReady || !webRef.current) return;
     if (!selectedStopId && !activeStopId) return;

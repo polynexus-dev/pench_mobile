@@ -7,6 +7,9 @@ import {
     startBackgroundTracking,
     stopBackgroundTracking,
 } from "@/services/location/trackingService";
+import { useToast } from "@/hooks/useToast";
+
+const { show } = useToast();
 
 type LocationState = {
     lat: number;
@@ -18,15 +21,9 @@ interface TrackingStore {
     isTripStarted: boolean;
     location: LocationState | null;
     socket: WebSocket | null;
-    watcher: Location.LocationSubscription | null;
+watcher: Location.LocationSubscription | null;
     loading: boolean;
     error: string | null;
-
-    activeStopId: string | null;
-    selectedStopId: string | null;
-
-    setActiveStopId: (id: string | null) => void;
-    setSelectedStopId: (id: string | null) => void;
 
     startTrip: () => Promise<boolean>;
     stopTrip: () => Promise<boolean>;
@@ -45,21 +42,6 @@ export const useTrackingStore = createStore<TrackingStore>(
         watcher: null,
         loading: false,
         error: null,
-
-        activeStopId: null,
-        selectedStopId: null,
-
-        setActiveStopId: (id) => {
-            set((s) => {
-                s.activeStopId = id;
-            });
-        },
-
-        setSelectedStopId: (id) => {
-            set((s) => {
-                s.selectedStopId = id;
-            });
-        },
 
         startTrip: async () => {
             set((s) => {
@@ -123,8 +105,6 @@ export const useTrackingStore = createStore<TrackingStore>(
                 set((s) => {
                     s.isTripStarted = false;
                     s.loading = false;
-                    s.activeStopId = null;
-                    s.selectedStopId = null;
                 });
 
                 return true;
