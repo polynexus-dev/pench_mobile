@@ -254,9 +254,10 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
 
           routePolyline = L.polyline(route, {
             color: '#2563eb',
-            weight: 5,
+            weight: 6,
             opacity: 0.9,
-            dashArray: '8, 10'
+            lineCap: 'round',
+            lineJoin: 'round'
           }).addTo(map);
         }
       } catch (err) {

@@ -5,24 +5,31 @@ import { Ionicons } from "@expo/vector-icons";
 interface Props {
     loading: boolean;
     onStart: () => void;
+    disabled?: boolean;
 }
 
-export function TripStartPrompt({ loading, onStart }: Props) {
+export function TripStartPrompt({ loading, onStart, disabled = false }: Props) {
+    const isDisabled = loading || disabled;
+
     return (
-        <View className="mb-5 rounded-card border border-brand-primary/20 bg-brand-light p-5 items-center">
-            <View className="w-14 h-14 rounded-full bg-brand-primary items-center justify-center mb-">
+        <View className="mb-5 items-center rounded-card border border-brand-primary/20 bg-brand-light p-5">
+            <View className="mb-3 h-14 w-14 items-center justify-center rounded-full bg-brand-primary">
                 <Ionicons name="rocket-outline" size={24} color="white" />
             </View>
-            <Text className="text-body-lg font-bold text-text-primary text-center">
+
+            <Text className="text-body-lg text-center font-bold text-text-primary">
                 Ready to Start?
             </Text>
+
             <TouchableOpacity
-                onPress={onStart}
-                disabled={loading}
-                className="w-full bg-brand-primary rounded-btn py-3.5 items-center"
+                onPress={isDisabled ? undefined : onStart}
+                disabled={isDisabled}
+                activeOpacity={0.85}
+                className={`mt-4 w-full rounded-btn py-3.5 items-center ${isDisabled ? "bg-gray-400" : "bg-brand-primary"
+                    }`}
             >
                 <Text className="text-label font-bold text-white">
-                    {loading ? "Starting Trip..." : "Start Trip 🚀"}
+                    {loading ? "Starting Trip..." : disabled ? "No Route Assigned" : "Start Trip 🚀"}
                 </Text>
             </TouchableOpacity>
         </View>

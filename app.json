@@ -51,7 +51,7 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isIosBackgroundLocationEnabled": true
         }
-      ],
+      ]
     ],
     "ios": {
       "infoPlist": {

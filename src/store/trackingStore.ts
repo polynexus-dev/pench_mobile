@@ -21,7 +21,9 @@ interface TrackingStore {
     watcher: Location.LocationSubscription | null;
     loading: boolean;
     error: string | null;
+    canStopTrip: boolean;
 
+    setCanStopTrip: (value: boolean) => void;
     startTrip: () => Promise<boolean>;
     stopTrip: () => Promise<boolean>;
     connectSocket: (domain: string) => void;
@@ -39,7 +41,13 @@ export const useTrackingStore = createStore<TrackingStore>(
         watcher: null,
         loading: false,
         error: null,
+        canStopTrip: false,
 
+        setCanStopTrip: (value: boolean) => {
+            set((s) => {
+                s.canStopTrip = value;
+            });
+        },
         startTrip: async () => {
             set((s) => {
                 s.loading = true;

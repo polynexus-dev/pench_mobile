@@ -36,3 +36,8 @@ export type TripCompleteResponse = {
   completed_at: string;
   expires_in_seconds: number;
 };
+
+export type TripStatusResponse = {
+  on_trip: boolean;
+  active_route: string | null;
+};

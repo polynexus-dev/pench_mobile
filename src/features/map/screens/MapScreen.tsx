@@ -67,8 +67,10 @@ export default function MapScreen() {
   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
 
-  const { data } = useFetchMyRoute();
-  useSyncRouteToGeofence({ data });
+  const { data, isLoading } = useFetchMyRoute();
+  const routeData = data ?? undefined;
+  const routeAvailable = !!routeData;
+  useSyncRouteToGeofence({ data: routeData });
 
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
   const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(null);
@@ -78,6 +80,12 @@ export default function MapScreen() {
       (stop) => stop.order_status === "in_transit"
     ) as RouteStop[];
   }, [route?.stops]);
+
+  const hasActiveStops = (route?.stops ?? []).some(
+    (stop) => stop.order_status === "in_transit"
+  );
+
+  const canStopTrip = useTrackingStore((s) => s.canStopTrip);
 
   const groupedStops = useMemo(() => {
     const groups = new Map<string, GroupedStop>();
@@ -111,13 +119,6 @@ export default function MapScreen() {
     const key = getLocationKey(activeStop.latitude, activeStop.longitude);
     return groupedStops.find((g) => g.groupKey === key) ?? null;
   }, [activeStop, groupedStops]);
-
-  const selectedGroup = useMemo(() => {
-    if (!selectedGroupKey) return null;
-    return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
-  }, [groupedStops, selectedGroupKey]);
-
-  // const selectedGroupStops = selectedGroup?.stops.filter((s) => s.order_status === "in_transit") ?? [];
 
   const selectedStop = useMemo(() => {
     if (!selectedGroupKey) return null;
@@ -214,12 +215,16 @@ export default function MapScreen() {
       stopTrip,
       connectSocket,
       startTracking,
+      canStopTrip,
       loading,
     } = useTrackingStore.getState();
 
     if (!accessToken || loading) return;
+    if (!routeAvailable) return;
+    // if (isTripStarted && !canStopTrip) return;
 
     if (isTripStarted) {
+      if (!canStopTrip) return;
       await stopTrip();
       return;
     }
@@ -288,6 +293,7 @@ export default function MapScreen() {
           isTripStarted={isTripStarted}
           loading={trackingLoading}
           onToggle={handleTripToggle}
+          disabled={isTripStarted ? !canStopTrip : !routeAvailable}
         />
 
         <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
@@ -331,6 +337,7 @@ export default function MapScreen() {
             {!isTripStarted && (
               <TripStartPrompt
                 loading={trackingLoading}
+                disabled={!routeAvailable}
                 onStart={handleTripToggle}
               />
             )}
@@ -391,7 +398,7 @@ export default function MapScreen() {
                       address={selectedStop.address}
                       items={[]}
                       orderId={selectedStop.order ?? ""}
-                      disabled={!canActivateCard}
+                      disabled={!canActivateCard || !routeAvailable}
                       onMarkDelivered={handleMarkDelivered}
                       onMarkUndelivered={handleMarkUndelivered}
                     />
@@ -401,20 +408,25 @@ export default function MapScreen() {
             ) : (
               <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
                 <Text variant="body" color="muted" weight="medium">
-                  No active customer in geofence
+                  {routeAvailable ? "No active customer in geofence" : "No route assigned for today"}
                 </Text>
                 <Text variant="body-sm" color="muted" className="mt-1">
-                  Move closer to a stop to activate delivery actions.
+                  {routeAvailable
+                    ? "Move closer to a stop to activate delivery actions."
+                    : "Trip toggle and customer actions are disabled until a route is assigned."}
                 </Text>
               </View>
             )}
 
             <Button
+              className="mt-6"
               label="Show all Customers"
               intent="secondary"
               fullWidth
               size="lg"
+              disabled={!routeAvailable}
               onPress={() => {
+                if (!routeAvailable) return;
                 bottomSheetRef.current?.close();
                 setTimeout(() => {
                   router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any);
