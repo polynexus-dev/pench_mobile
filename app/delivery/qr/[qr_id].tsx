@@ -22,11 +22,8 @@ export default function DeepLinkDeliveryQR() {
       }
 
       if (!user.is_driver) {
-        Alert.alert(
-          "Access Denied",
-          "Only drivers can access this delivery page.",
-        );
-        router.replace("/");
+        // Silently route customers directly to their personal dashboard
+        router.replace(ROUTES.CUSTOMER.DASHBOARD as any);
         return;
       }
 
