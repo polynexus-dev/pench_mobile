@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "penchnew",
+    "scheme": "pench-foods",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
@@ -51,7 +51,7 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isIosBackgroundLocationEnabled": true
         }
-      ],
+      ]
     ],
     "ios": {
       "infoPlist": {

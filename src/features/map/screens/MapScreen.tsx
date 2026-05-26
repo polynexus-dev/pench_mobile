@@ -35,7 +35,12 @@ type RouteStop = {
   address: string;
   latitude: number;
   longitude: number;
-  order_status?: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
+  order_status?:
+    | "in_transit"
+    | "delivered"
+    | "cancelled"
+    | "undelivered"
+    | string;
 };
 
 type GroupedStop = {
@@ -64,18 +69,24 @@ export default function MapScreen() {
   const setRoute = useGeofenceStore((s) => s.setRoute);
   const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
   const setSelectedStopId = useGeofenceStore((s) => s.setSelectedStopId);
-  const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
+  const startGeofenceTracking = useGeofenceStore(
+    (s) => s.startGeofenceTracking,
+  );
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
 
   const { data } = useFetchMyRoute();
   useSyncRouteToGeofence({ data });
 
-  const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
-  const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(null);
+  const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(
+    null,
+  );
+  const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(
+    null,
+  );
 
   const routeStops = useMemo(() => {
     return (route?.stops ?? []).filter(
-      (stop) => stop.order_status === "in_transit"
+      (stop) => stop.order_status === "in_transit",
     ) as RouteStop[];
   }, [route?.stops]);
 
@@ -98,7 +109,7 @@ export default function MapScreen() {
     }
 
     return Array.from(groups.values()).sort(
-      (a, b) => a.stops[0].sequence_number - b.stops[0].sequence_number
+      (a, b) => a.stops[0].sequence_number - b.stops[0].sequence_number,
     );
   }, [routeStops]);
 
@@ -123,7 +134,9 @@ export default function MapScreen() {
     if (!selectedGroupKey) return null;
     const group = groupedStops.find((g) => g.groupKey === selectedGroupKey);
     if (!group) return null;
-    return group.stops.find((s) => s.id === selectedStopId) ?? group.stops[0] ?? null;
+    return (
+      group.stops.find((s) => s.id === selectedStopId) ?? group.stops[0] ?? null
+    );
   }, [groupedStops, selectedGroupKey, selectedStopId]);
 
   const showNextStopCard = !!activeGroup && !!activeStop;
@@ -131,7 +144,10 @@ export default function MapScreen() {
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
 
-  const canActivateCard = !!selectedStop && !!activeGroup && selectedGroupKey === activeGroup.groupKey;
+  const canActivateCard =
+    !!selectedStop &&
+    !!activeGroup &&
+    selectedGroupKey === activeGroup.groupKey;
 
   /////////// cleaning up the location subscription and geofence tracking when component unmounts
   useEffect(() => {
@@ -153,7 +169,8 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (!route) return;
-    const firstTransit = route.stops?.find((s) => s.order_status === "in_transit") ?? null;
+    const firstTransit =
+      route.stops?.find((s) => s.order_status === "in_transit") ?? null;
     if (firstTransit) {
       const key = getLocationKey(firstTransit.latitude, firstTransit.longitude);
       setRoute(route);
@@ -190,7 +207,13 @@ export default function MapScreen() {
     if (yOffset !== undefined && scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
     }
-  }, [nearStopId, route?.stops, setActiveStopId, setSelectedStopId, groupedStops]);
+  }, [
+    nearStopId,
+    route?.stops,
+    setActiveStopId,
+    setSelectedStopId,
+    groupedStops,
+  ]);
 
   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
 
@@ -203,7 +226,7 @@ export default function MapScreen() {
         opacity={0.3}
       />
     ),
-    []
+    [],
   );
 
   const handleTripToggle = async () => {
@@ -244,6 +267,8 @@ export default function MapScreen() {
         routeId: route.id,
         stopId: selectedStop.id,
         orderId: selectedStop.order,
+        customerName: selectedStop.customer_name || "Unknown",
+        deliveryDate: route.delivery_date || "Today",
       },
     } as any);
   };
@@ -337,10 +362,30 @@ export default function MapScreen() {
 
             <RouteStatRow
               stats={[
-                { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
-                { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
-                { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
-                { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
+                {
+                  icon: "water-outline",
+                  label: "Bottles",
+                  value: "128",
+                  color: "#1B5E37",
+                },
+                {
+                  icon: "restaurant-outline",
+                  label: "Special",
+                  value: "16",
+                  color: "#D4872A",
+                },
+                {
+                  icon: "return-down-back",
+                  label: "Returns",
+                  value: "52",
+                  color: "#4A4A4A",
+                },
+                {
+                  icon: "cash-outline",
+                  label: "COD",
+                  value: "₹640",
+                  color: "#1B5E37",
+                },
               ]}
             />
 
@@ -351,7 +396,9 @@ export default function MapScreen() {
                     Active Customer Group
                   </Text>
                   <Text variant="body-sm" color="muted" className="mt-1">
-                    {activeGroup.stops.length} customer{activeGroup.stops.length > 1 ? "s" : ""} at the same location
+                    {activeGroup.stops.length} customer
+                    {activeGroup.stops.length > 1 ? "s" : ""} at the same
+                    location
                   </Text>
                 </View>
 

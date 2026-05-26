@@ -10,6 +10,13 @@ type RouteStop = {
     latitude: number;
     longitude: number;
     order_status: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
+    product_list?: Array<{
+        product_id: string;
+        product_name: string;
+        quantity: number;
+        unit: string;
+        unit_price: number;
+    }>;
 };
 
 type RouteResponse = {
