@@ -7,6 +7,7 @@ export interface CustomerDashboard {
 
 export interface User {
   id: number;
+  customer_uuid?: string;
   username: string;
   email?: string;
   first_name?: string;

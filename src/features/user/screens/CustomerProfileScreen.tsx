@@ -130,11 +130,13 @@ export function CustomerProfileScreen() {
     );
   }
 
-  const initials = user?.username
-    ? user.username
-      .slice(0, 2)
-      .toUpperCase()
-    : "CU";
+  const firstName = user?.first_name?.trim();
+  const lastName = user?.last_name?.trim();
+  const fullName = firstName || lastName ? `${firstName || ""} ${lastName || ""}`.trim() : user?.username ?? "Customer";
+
+  const initials = firstName && lastName 
+    ? `${firstName[0]}${lastName[0]}`.toUpperCase() 
+    : user?.username ? user.username.slice(0, 2).toUpperCase() : "CU";
 
   const dashboard =
     user?.customer_dashboard;
@@ -187,7 +189,7 @@ export function CustomerProfileScreen() {
                   maxFontSizeMultiplier={1.3}
                   className="text-3xl font-bold text-white"
                 >
-                  {user?.username ?? "Customer"}
+                  {fullName}
                 </Text>
 
                 <Text className="mt-2 text-base text-white/80">
