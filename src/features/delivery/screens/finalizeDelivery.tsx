@@ -25,11 +25,11 @@ export function FinalizeDeliveryScreen() {
 
     const { domain_name } = useAuthStore((s) => s);
     const route = useGeofenceStore((s) => s.route);
+    const { markStopDelivered } = useGeofenceStore((s) => s);
 
     const [issued, setIssued] = useState("0");
     const [returned, setReturned] = useState("0");
-    const { mutateAsync: submitDelivery, isPending: isSubmitting } =
-        useSubmitDelivery();
+    const { mutateAsync: submitDelivery, isPending: isSubmitting } = useSubmitDelivery();
 
     const currentStop = useMemo(() => {
         if (!route?.stops?.length || !orderId) return null;
@@ -70,7 +70,7 @@ export function FinalizeDeliveryScreen() {
                     bottles_returned: Number(returned),
                 },
             });
-
+            markStopDelivered(orderId);
             router.back();
         } catch {
             // handled in hook
@@ -189,7 +189,7 @@ export function FinalizeDeliveryScreen() {
                                 color="muted"
                                 className="mb-2 text-[10px] uppercase text-center"
                             >
-                               Bottles Issued
+                                Bottles Issued
                             </Text>
 
                             <View className="flex-row items-center justify-between px-1">
