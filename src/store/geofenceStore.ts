@@ -1,16 +1,6 @@
 import { createStore } from "./devtools";
 import * as Location from "expo-location";
-
-type RouteStop = {
-    id: string;
-    sequence_number: number;
-    order: string | null;
-    customer_name: string;
-    address: string;
-    latitude: number;
-    longitude: number;
-    order_status: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
-};
+import { RouteStop } from "@/features/map/types/map.types";
 
 type RouteResponse = {
     id: string;
@@ -60,7 +50,8 @@ export const useGeofenceStore = createStore<GeofenceStore>("geofence", (set, get
     nearStopId: null,
     activeStopId: null,
     selectedStopId: null,
-    geofenceMeters: 30,
+    geofenceMeters: 75,  // production value
+    // geofenceMeters: 1000, // testing value
     loading: false,
     error: null,
 

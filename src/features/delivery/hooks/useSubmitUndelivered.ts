@@ -12,7 +12,7 @@ type SubmitUndeliveredVars = {
 
 export function useSubmitUndelivered() {
     const { show } = useToast();
-    const queryClient = useQueryClient();
+    // const queryClient = useQueryClient();
     const domainName = useAuthStore((s) => s.domain_name);
 
     return useMutation<SubmitUndeliveredResponse, Error, SubmitUndeliveredVars>({

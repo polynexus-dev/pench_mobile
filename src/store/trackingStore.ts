@@ -5,6 +5,7 @@ import { useAuthStore } from "./authStore";
 import { mapApi } from "@/features/map/api/mapApi";
 import { startBackgroundTracking, stopBackgroundTracking } from "@/services/location/trackingService";
 import { useToast } from "@/hooks/useToast";
+import { cleanupTripSession } from "@/features/map/hooks/stopTripCleanup";
 
 const { show } = useToast();
 
@@ -107,6 +108,9 @@ export const useTrackingStore = createStore<TrackingStore>(
                 await stopBackgroundTracking();
                 get().disconnectSocket();
 
+                // full cleanup after successful stop
+                await cleanupTripSession();
+
                 set((s) => {
                     s.isTripStarted = false;
                     s.loading = false;
@@ -133,8 +137,20 @@ export const useTrackingStore = createStore<TrackingStore>(
                 existing.close();
             }
 
+            const cleanDomain = domain
+                .replace(/^https?:\/\//, "")
+                .replace(/^www\./, "")
+                .replace(/\/+$/, "");
+
             const token = useAuthStore.getState().accessToken;
-            const ws = new WebSocket(`wss://${domain}/ws/tracking/?token=${token}`);
+            const ws = new WebSocket(`wss://${cleanDomain}/ws/tracking/?token=${token}`);
+
+            console.log(
+                "Connecting to WebSocket at wss://",
+                cleanDomain,
+                "with token:",
+                token
+            );
 
             ws.onopen = () => {
                 if (__DEV__) console.log("✅ WebSocket connected");
@@ -143,7 +159,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             ws.onclose = () => {
                 if (!get().isTripStarted) return;
                 if (__DEV__) console.log("🔄 WebSocket closed, Reconnecting...");
-                setTimeout(() => get().connectSocket(domain), 3000);
+                setTimeout(() => get().connectSocket(cleanDomain), 3000);
             };
 
             ws.onerror = (e: any) => {

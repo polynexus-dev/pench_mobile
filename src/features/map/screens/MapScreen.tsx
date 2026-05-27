@@ -16,16 +16,14 @@ import OSMMap, { OSMMapHandle } from "../components/OSMMap";
 import { useAuthStore } from "@store/authStore";
 import { useTrackingStore } from "@store/trackingStore";
 import { useGeofenceStore } from "@store/geofenceStore";
-import { TripStatusBanner } from "@/features/map/components/TripStatusBanner";
-import { TripStartPrompt } from "@/features/map/components/TripStartPrompt";
-import { RouteStatRow } from "@/features/map/components/RouteStatRow";
-import { NextStopCard } from "@/features/map/components/NextStopCard";
-import { StopListItem } from "@/features/map/components/StopListItem";
+import TripStatusBanner from "@/features/map/components/TripStatusBanner";
+import TripStartPrompt from "@/features/map/components/TripStartPrompt";
+import RouteStatRow from "@/features/map/components/RouteStatRow";
+import NextStopCard from "@/features/map/components/NextStopCard";
+import StopListItem from "@/features/map/components/StopListItem";
 import { Text } from "@/shared/ui/Text/Text";
 import { ROUTES } from "@/constants/route";
 import { Button } from "@/shared/ui";
-import { useFetchMyRoute } from "../hooks/useFetchMyRoute";
-import { useSyncRouteToGeofence } from "../hooks/useSyncRouteToGeofence";
 
 type RouteStop = {
   id: string;
@@ -56,22 +54,18 @@ export default function MapScreen() {
 
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
   const trackingLoading = useTrackingStore((s) => s.loading);
+  const canStopTrip = useTrackingStore((s) => s.canStopTrip);
 
   const route = useGeofenceStore((s) => s.route);
   const nearStopId = useGeofenceStore((s) => s.nearStopId);
   const activeStopId = useGeofenceStore((s) => s.activeStopId);
   const selectedStopId = useGeofenceStore((s) => s.selectedStopId);
-  const setRoute = useGeofenceStore((s) => s.setRoute);
   const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
   const setSelectedStopId = useGeofenceStore((s) => s.setSelectedStopId);
   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
 
-  const { data, isLoading } = useFetchMyRoute();
-  const routeData = data ?? undefined;
-  const routeAvailable = !!routeData;
-  useSyncRouteToGeofence({ data: routeData });
-
+  const routeAvailable = !!route;
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
   const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(null);
 
@@ -80,12 +74,6 @@ export default function MapScreen() {
       (stop) => stop.order_status === "in_transit"
     ) as RouteStop[];
   }, [route?.stops]);
-
-  const hasActiveStops = (route?.stops ?? []).some(
-    (stop) => stop.order_status === "in_transit"
-  );
-
-  const canStopTrip = useTrackingStore((s) => s.canStopTrip);
 
   const groupedStops = useMemo(() => {
     const groups = new Map<string, GroupedStop>();
@@ -134,7 +122,6 @@ export default function MapScreen() {
 
   const canActivateCard = !!selectedStop && !!activeGroup && selectedGroupKey === activeGroup.groupKey;
 
-  /////////// cleaning up the location subscription and geofence tracking when component unmounts
   useEffect(() => {
     let mounted = true;
 
@@ -147,7 +134,6 @@ export default function MapScreen() {
 
     return () => {
       mounted = false;
-      // stopGeofenceTracking();
       useGeofenceStore.getState().stopGeofenceTracking();
     };
   }, [startGeofenceTracking]);
@@ -157,10 +143,9 @@ export default function MapScreen() {
     const firstTransit = route.stops?.find((s) => s.order_status === "in_transit") ?? null;
     if (firstTransit) {
       const key = getLocationKey(firstTransit.latitude, firstTransit.longitude);
-      setRoute(route);
       if (!selectedGroupKey) setSelectedGroupKey(key);
     }
-  }, [route, setRoute]);
+  }, [route, selectedGroupKey]);
 
   useEffect(() => {
     if (!nearStopId) {
@@ -221,7 +206,6 @@ export default function MapScreen() {
 
     if (!accessToken || loading) return;
     if (!routeAvailable) return;
-    // if (isTripStarted && !canStopTrip) return;
 
     if (isTripStarted) {
       if (!canStopTrip) return;
@@ -246,9 +230,9 @@ export default function MapScreen() {
     router.push({
       pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
       params: {
-        routeId: route.id,
-        stopId: selectedStop.id,
         orderId: selectedStop.order,
+        customerName: selectedStop.customer_name,
+        deliveryDate: route.delivery_date ?? "",
       },
     } as any);
   };

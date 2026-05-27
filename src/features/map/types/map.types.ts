@@ -1,13 +1,42 @@
 export type RouteStop = {
   id: string;
   sequence_number: number;
-  // order?: string | null;
   order: string | null;
   customer_name: string;
+  customer_phone?: string;
+  customer_email?: string;
+  customer_company?: string;
+  customer_zone_name?: string;
   address: string;
   latitude: number;
   longitude: number;
-  order_status?: "in_transit" | "delivered" | "undelivered" | string;
+  order_status: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
+  order_notes?: string;
+  order_total?: number;
+  delivered_at?: string | null;
+  pod_image?: string | null;
+  pod_latitude?: number | null;
+  pod_longitude?: number | null;
+
+  product_list?: {
+    product_id: string;
+    product_name: string;
+    quantity: number;
+    unit: string;
+    unit_price: number;
+  }[];
+
+  subscription_details?: {
+    id: string;
+    frequency?: string;
+    is_paused?: boolean;
+    special_instructions?: string;
+    items?: {
+      product_name: string;
+      quantity: number;
+      unit: string;
+    }[];
+  };
 };
 
 export type RouteResponse = {

@@ -19,7 +19,7 @@ type Props = {
   onPress?: () => void;
 };
 
-export function StopListItem({
+export default function StopListItem({
   sequenceNumber,
   customerName,
   address,

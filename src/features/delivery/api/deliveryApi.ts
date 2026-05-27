@@ -1,11 +1,11 @@
 import { httpClient } from "@services/api/httpClient";
 import { buildUrl } from "@services/api/buildUrl";
 import type {
+  ResolveQrResponse,
   SubmitDeliveryPayload,
   SubmitDeliveryResponse,
   SubmitUndeliveredResponse,
 } from "../types/delivery.types";
-
 
 export const deliveryApi = {
   submitDelivery: (
@@ -14,7 +14,6 @@ export const deliveryApi = {
     payload: SubmitDeliveryPayload
   ): Promise<SubmitDeliveryResponse> =>
     httpClient.post(
-      // `https://${domainName}/api/erp/orders/driver/${orderId}/submit-delivery/`,
       buildUrl(domainName, `/api/erp/orders/driver/${orderId}/submit-delivery/`),
       payload
     ),
@@ -25,7 +24,6 @@ export const deliveryApi = {
     payload: FormData
   ): Promise<SubmitUndeliveredResponse> =>
     httpClient.post(
-      // `https://${domainName}/api/erp/orders/driver/${lastOrderId}/submit-undelivered/`,
       buildUrl(domainName, `/api/erp/orders/driver/${lastOrderId}/submit-undelivered/`),
       payload,
       {
@@ -33,5 +31,13 @@ export const deliveryApi = {
           "Content-Type": "multipart/form-data",
         },
       }
+    ),
+
+  resolveDriverQr: (
+    domainName: string,
+    qrId: string
+  ): Promise<ResolveQrResponse> =>
+    httpClient.get(
+      buildUrl(domainName, `/api/erp/orders/driver/resolve-qr/${qrId}`)
     ),
 };

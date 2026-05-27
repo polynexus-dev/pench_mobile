@@ -8,7 +8,7 @@ interface Props {
     disabled?: boolean;
 }
 
-export function TripStartPrompt({ loading, onStart, disabled = false }: Props) {
+export default function TripStartPrompt({ loading, onStart, disabled = false }: Props) {
     const isDisabled = loading || disabled;
 
     return (

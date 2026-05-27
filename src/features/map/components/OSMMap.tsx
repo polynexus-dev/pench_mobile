@@ -237,7 +237,7 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
         return c.join(',');
       }).join(';');
 
-      var url = 'https://router.project-osrm.org/route/v1/driving/' + coordString + '?overview=full&geometries=geojson';
+      var url = 'https://osrm.polynexus.in/route/v1/driving/' + coordString + '?overview=full&geometries=geojson';
 
       try {
         var res = await fetch(url);

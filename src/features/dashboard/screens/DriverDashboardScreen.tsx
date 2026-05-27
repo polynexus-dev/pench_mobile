@@ -21,11 +21,14 @@ import { asyncStorage } from "@services/storage/asyncStorage";
 export function DriverDashboardScreen() {
     const router = useRouter();
     const user = useAuthStore((s) => s.user);
-    // const routeId = useAuthStore((s) => s.route_id);
+    const accessToken = useAuthStore((s) => s.accessToken);
+    const authRouteId = useAuthStore((s) => s.route_id);
 
     const mapRef = useRef<OSMMapHandle>(null);
 
     const isTripStarted = useTrackingStore((s) => s.isTripStarted);
+    const canStopTrip = useTrackingStore((s) => s.canStopTrip);
+
     const { width } = useWindowDimensions();
     const isCompact = width < 380;
     const screenX = isCompact ? "px-screen-x" : "px-screen-x-md";
@@ -35,15 +38,10 @@ export function DriverDashboardScreen() {
     const route = useGeofenceStore((s) => s.route);
 
     const [persistedRouteId, setPersistedRouteId] = useState<string | null>(null);
-
-    const authRouteId = useAuthStore((s) => s.route_id);
     const routeId = persistedRouteId ?? authRouteId;
 
-    const activeStops = (route?.stops ?? []).filter(
-        (stop) => stop.order_status === "in_transit"
-    );
-    const canStartTrip = !!routeId && !!useAuthStore.getState().accessToken;
-    const canStopTrip = useTrackingStore((s) => s.canStopTrip);
+    const canStartTrip = !!routeId && !!accessToken;
+    const isStopDisabled = isTripStarted && !canStopTrip;
 
     useEffect(() => {
         let mounted = true;
@@ -65,8 +63,8 @@ export function DriverDashboardScreen() {
     }, []);
 
     const handleTripToggle = async () => {
-        const { accessToken, route_id } = useAuthStore.getState();
         const { startTrip, stopTrip, isTripStarted, canStopTrip } = useTrackingStore.getState();
+        const { accessToken, route_id } = useAuthStore.getState();
 
         if (!accessToken || !route_id) return;
 
@@ -97,7 +95,6 @@ export function DriverDashboardScreen() {
     const deliveredStops =
         route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
-    // const deliveryProgress = totalStops > 0 ? Math.round((deliveredStops / totalStops) * 100) : 0;
     const deliveryProgress =
         totalStops > 0
             ? Math.min(100, Math.round((deliveredStops / totalStops) * 100))
@@ -154,9 +151,18 @@ export function DriverDashboardScreen() {
                                     </Text>
                                 </View>
 
-                                <View className="h-avatar-md w-avatar-md items-center justify-center rounded-avatar border border-brand/20 bg-brand-light">
-                                    <Ionicons name="person" size={20} color="#1B5E37" />
-                                </View>
+                                {/* <TouchableOpacity
+                                    onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+                                    className="h-avatar-md w-avatar-md items-center justify-center rounded-full border border-brand/20 bg-brand-light"
+                                >
+                                    <Ionicons name="qr-code-outline" size={20} color="#1B5E37" />
+                                </TouchableOpacity> */}
+                                <TouchableOpacity
+                                    onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+                                    className="h-avatar-md w-avatar-md items-center justify-center rounded-full bg-brand-primary shadow-sm"
+                                >
+                                    <Ionicons name="qr-code-outline" size={20} color="#fff" />
+                                </TouchableOpacity>
                             </View>
                         </View>
 
@@ -190,9 +196,9 @@ export function DriverDashboardScreen() {
 
                                     <TouchableOpacity
                                         onPress={handleTripToggle}
-                                        disabled={isTripStarted ? !canStopTrip : false}
+                                        disabled={isStopDisabled}
                                         className={`h-16 w-16 items-center justify-center rounded-full shadow-sm ${isTripStarted ? "bg-error" : "bg-white"
-                                            } ${isTripStarted && !canStopTrip ? "opacity-50" : ""}`}
+                                            } ${isStopDisabled ? "opacity-50" : ""}`}
                                     >
                                         <Ionicons
                                             name={isTripStarted ? "stop" : "play"}

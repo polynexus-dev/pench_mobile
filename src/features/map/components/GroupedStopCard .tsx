@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Animated, View, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { StopListItem } from "@/features/map/components/StopListItem";
+import StopListItem  from "@/features/map/components/StopListItem";
 
 type RouteStop = {
   id: string;

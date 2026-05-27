@@ -13,7 +13,7 @@ interface Props {
     disabled?: boolean;
 }
 
-export function TripStatusBanner({
+export default function TripStatusBanner({
     routeName,
     completed,
     total,
