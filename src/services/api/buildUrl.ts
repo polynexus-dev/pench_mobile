@@ -1,9 +1,19 @@
 import { env } from "@/config/env";
 
 export const buildUrl = (domainName: string, path: string): string => {
-  // If the domainName is already a full URL, use it
+  if (__DEV__) console.log(`[buildUrl] domainName="${domainName}", baseURL="${env.EXPO_PUBLIC_API_BASE_URL}"`);
+
+  // If domainName is a stale full URL (e.g. from AsyncStorage), extract the subdomain
+  // and fall through to rebuild it with the current env base URL
   if (domainName.startsWith("http://") || domainName.startsWith("https://")) {
-    return `${domainName}${path}`;
+    const hostMatch = domainName.match(/^https?:\/\/([^/:]+)/);
+    if (hostMatch) {
+      const host = hostMatch[1]; // e.g. "pench-nagpur.localhost" or "pench-nagpur.192.168.1.7.nip.io"
+      const subdomain = host.split(".")[0]; // e.g. "pench-nagpur"
+      if (__DEV__) console.log(`[buildUrl] Extracted subdomain "${subdomain}" from stale full URL`);
+      // Reconstruct a clean domain name so it gets rebuilt with the current env
+      domainName = subdomain;
+    }
   }
 
   // Parse the env API base URL
@@ -33,12 +43,19 @@ export const buildUrl = (domainName: string, path: string): string => {
       if (hostIpOrLocal === "localhost" || hostIpOrLocal === "127.0.0.1") {
         localDomain = `${tenantSubdomain}.localhost${port}`;
       } else {
-        // For local IP, use nip.io to route subdomains properly to the local IP
-        localDomain = `${tenantSubdomain}.${hostIpOrLocal}.nip.io${port}`;
+        // For local IP, use nip.io wildcard DNS (e.g. nagpur.192.168.1.7.nip.io:8888)
+        // so that django-tenants can automatically resolve the subdomain schema context.
+        const isIp = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}/.test(hostIpOrLocal);
+        if (isIp && tenantSubdomain && tenantSubdomain !== "public") {
+          localDomain = `${tenantSubdomain}.${hostIpOrLocal}.nip.io${port}`;
+        } else {
+          localDomain = `${hostIpOrLocal}${port}`;
+        }
       }
 
       return `${protocol}://${localDomain}${path}`;
     }
+
   }
 
   // Fallback to standard remote URL building

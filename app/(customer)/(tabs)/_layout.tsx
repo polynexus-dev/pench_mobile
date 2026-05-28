@@ -1,7 +1,11 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
+import { useCartStore } from "@/store/useCartStore";
 
 export default function CustomerTabsLayout() {
+    const cartItems = useCartStore((s) => s.items);
+    const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+
     return (
         <Tabs screenOptions={{ headerShown: false, tabBarActiveTintColor: "#1B5E37" }}>
             <Tabs.Screen
@@ -20,6 +24,8 @@ export default function CustomerTabsLayout() {
                     tabBarIcon: ({ color, size }) => (
                         <Ionicons name="receipt-outline" size={size} color={color} />
                     ),
+                    tabBarBadge: cartCount > 0 ? cartCount : undefined,
+                    tabBarBadgeStyle: { backgroundColor: "#1B5E37", color: "white" },
                 }}
             />
             <Tabs.Screen

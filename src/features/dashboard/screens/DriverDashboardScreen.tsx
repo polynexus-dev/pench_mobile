@@ -15,7 +15,7 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { asyncStorage } from "@services/storage/asyncStorage";
 
 export function DriverDashboardScreen() {
@@ -33,6 +33,63 @@ export function DriverDashboardScreen() {
   const activeStop = useGeofenceStore((s) => s.getActiveStop());
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
   const route = useGeofenceStore((s) => s.route);
+
+  const nextUpcomingStop = useMemo(() => {
+    const stops = route?.stops ?? [];
+    return [...stops]
+      .filter((stop) => stop.order_status === "in_transit")
+      .sort((a, b) => a.sequence_number - b.sequence_number)[0] ?? null;
+  }, [route?.stops]);
+
+  const displayStop = activeStop ?? nextUpcomingStop;
+
+  const routeStats = useMemo(() => {
+    let bottles = 0;
+    let special = 0;
+    let returns = 0;
+
+    const stops = route?.stops ?? [];
+    stops.forEach((stop) => {
+      if (stop.order_status === "cancelled") return;
+
+      const items = stop.product_list ?? stop.subscription_details?.items ?? [];
+      items.forEach((item: any) => {
+        const nameLower = (item.product_name || "").toLowerCase();
+        const qty = Number(item.quantity || 0);
+
+        const isBottle =
+          nameLower.includes("1l") ||
+          nameLower.includes("1 l") ||
+          nameLower.includes("1litre") ||
+          nameLower.includes("1 litre") ||
+          nameLower.includes("1 ltr") ||
+          nameLower.includes("1ltr") ||
+          nameLower.includes("500") ||
+          nameLower.includes("half") ||
+          nameLower.includes("500ml") ||
+          nameLower.includes("500g") ||
+          nameLower.includes("glass") ||
+          nameLower.includes("bottle") ||
+          nameLower.includes("milk") ||
+          nameLower.includes("curd");
+
+        if (isBottle) {
+          bottles += qty;
+          if (nameLower.includes("milk") || nameLower.includes("glass") || nameLower.includes("bottle")) {
+            returns += qty;
+          }
+        } else {
+          special += qty;
+        }
+      });
+    });
+
+    if (returns === 0 && bottles > 0) {
+      returns = bottles;
+    }
+
+    return { bottles, special, returns };
+  }, [route?.stops]);
 
   const [persistedRouteId, setPersistedRouteId] = useState<string | null>(null);
 
@@ -150,9 +207,12 @@ export function DriverDashboardScreen() {
                   <Ionicons name="qr-code-outline" size={20} color="#1B5E37" />
                 </TouchableOpacity>
 
-                <View className="h-avatar-md w-avatar-md items-center justify-center rounded-avatar border border-brand/20 bg-brand-light">
+                <TouchableOpacity
+                  onPress={() => router.push(ROUTES.DRIVER.PROFILE as any)}
+                  className="h-avatar-md w-avatar-md items-center justify-center rounded-avatar border border-brand/20 bg-brand-light"
+                >
                   <Ionicons name="person" size={20} color="#1B5E37" />
-                </View>
+                </TouchableOpacity>
               </View>
             </View>
 
@@ -237,25 +297,25 @@ export function DriverDashboardScreen() {
               <StatCard
                 icon="water"
                 label="Bottles"
-                value="128"
+                value={String(routeStats.bottles)}
                 color="#1B5E37"
               />
               <StatCard
                 icon="restaurant"
                 label="Special"
-                value="16"
+                value={String(routeStats.special)}
                 color="#D4872A"
               />
               <StatCard
                 icon="return-down-back"
                 label="Returns"
-                value="52"
+                value={String(routeStats.returns)}
                 color="#4A4A4A"
               />
             </View>
 
             <View className="mt-5">
-              {activeStop ? (
+              {displayStop ? (
                 <View className="rounded-card border border-border-default bg-bg-card p-card-y px-card-x shadow-sm">
                   <View className="mb-3 flex-row items-center justify-between">
                     <Text
@@ -265,28 +325,44 @@ export function DriverDashboardScreen() {
                       transform="uppercase"
                       className="tracking-widest"
                     >
-                      Next Stop
+                      {activeStop ? "Active Stop (Near)" : "Next Stop"}
                     </Text>
 
                     <View className="rounded-badge border border-brand/10 bg-brand-light px-2.5 py-1">
                       <Text variant="caption-sm" color="brand" weight="bold">
-                        Stop #{activeStop.sequence_number}
+                        Stop #{displayStop.sequence_number}
                       </Text>
                     </View>
                   </View>
 
                   <Text variant="title" weight="bold" color="primary">
-                    {activeStop.customer_name}
+                    {displayStop.customer_name}
                   </Text>
 
                   <Text variant="body" color="secondary" className="mt-1">
-                    {activeStop.address}
+                    {displayStop.address}
                   </Text>
 
                   <View className="mt-4 flex-row flex-wrap gap-2">
-                    {activeStop.order ? (
-                      <ItemBadge label={activeStop.order} />
-                    ) : null}
+                    {displayStop.product_list && displayStop.product_list.length > 0 ? (
+                      displayStop.product_list.map((item, idx) => (
+                        <ItemBadge
+                          key={item.product_id || idx}
+                          label={`${item.product_name} x ${item.quantity}`}
+                        />
+                      ))
+                    ) : displayStop.subscription_details?.items && displayStop.subscription_details.items.length > 0 ? (
+                      displayStop.subscription_details.items.map((item, idx) => (
+                        <ItemBadge
+                          key={idx}
+                          label={`${item.product_name} x ${item.quantity}`}
+                        />
+                      ))
+                    ) : displayStop.order ? (
+                      <ItemBadge label={`Order #${displayStop.order.slice(0, 8)}`} />
+                    ) : (
+                      <ItemBadge label="No products listed" />
+                    )}
                   </View>
 
                   <View className="mt-5">
@@ -312,29 +388,28 @@ export function DriverDashboardScreen() {
               ) : (
                 <View className="rounded-card border border-border-default bg-bg-card p-card-y px-card-x shadow-sm">
                   <Text variant="title" weight="bold" color="primary">
-                    No active stop
+                    No stops remaining
                   </Text>
 
                   <Text variant="body" color="secondary" className="mt-1">
-                    Go to your location and start approaching the next customer
-                    to see the highlighted card.
+                    {routeId ? "You have completed all deliveries on your route!" : "No route has been assigned to you today."}
                   </Text>
 
                   <View className="mt-5">
                     <Button
-                      label="Go to Location"
+                      label="Go to Map"
                       intent="primary"
                       size="lg"
                       fullWidth
                       leftIcon={
                         <Ionicons
-                          name="locate-outline"
+                          name="map-outline"
                           size={20}
                           color="#fff"
                         />
                       }
                       onPress={() => {
-                        mapRef.current?.centerOnUser();
+                        router.push(ROUTES.DRIVER.MAP as any);
                       }}
                     />
                   </View>

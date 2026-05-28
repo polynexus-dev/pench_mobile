@@ -27,21 +27,7 @@ import { Button } from "@/shared/ui";
 import { useFetchMyRoute } from "../hooks/useFetchMyRoute";
 import { useSyncRouteToGeofence } from "../hooks/useSyncRouteToGeofence";
 
-type RouteStop = {
-  id: string;
-  sequence_number: number;
-  order: string | null;
-  customer_name: string;
-  address: string;
-  latitude: number;
-  longitude: number;
-  order_status?:
-    | "in_transit"
-    | "delivered"
-    | "cancelled"
-    | "undelivered"
-    | string;
-};
+import { RouteStop } from "../types/map.types";
 
 type GroupedStop = {
   groupKey: string;
@@ -140,6 +126,58 @@ export default function MapScreen() {
   }, [groupedStops, selectedGroupKey, selectedStopId]);
 
   const showNextStopCard = !!activeGroup && !!activeStop;
+
+  const nextUpcomingStop = useMemo(() => {
+    return [...routeStops].sort((a, b) => a.sequence_number - b.sequence_number)[0] ?? null;
+  }, [routeStops]);
+
+  const routeStats = useMemo(() => {
+    let bottles = 0;
+    let special = 0;
+    let returns = 0;
+
+    const stops = route?.stops ?? [];
+    stops.forEach((stop) => {
+      if (stop.order_status === "cancelled") return;
+
+      const items = stop.product_list ?? stop.subscription_details?.items ?? [];
+      items.forEach((item: any) => {
+        const nameLower = (item.product_name || "").toLowerCase();
+        const qty = Number(item.quantity || 0);
+
+        const isBottle =
+          nameLower.includes("1l") ||
+          nameLower.includes("1 l") ||
+          nameLower.includes("1litre") ||
+          nameLower.includes("1 litre") ||
+          nameLower.includes("1 ltr") ||
+          nameLower.includes("1ltr") ||
+          nameLower.includes("500") ||
+          nameLower.includes("half") ||
+          nameLower.includes("500ml") ||
+          nameLower.includes("500g") ||
+          nameLower.includes("glass") ||
+          nameLower.includes("bottle") ||
+          nameLower.includes("milk") ||
+          nameLower.includes("curd");
+
+        if (isBottle) {
+          bottles += qty;
+          if (nameLower.includes("milk") || nameLower.includes("glass") || nameLower.includes("bottle")) {
+            returns += qty;
+          }
+        } else {
+          special += qty;
+        }
+      });
+    });
+
+    if (returns === 0 && bottles > 0) {
+      returns = bottles;
+    }
+
+    return { bottles, special, returns };
+  }, [route?.stops]);
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
@@ -289,6 +327,16 @@ export default function MapScreen() {
     } as any);
   };
 
+  const getStopItems = (stop: RouteStop): string[] => {
+    if (stop.product_list && stop.product_list.length > 0) {
+      return stop.product_list.map((item: any) => `${item.product_name} x ${item.quantity}`);
+    }
+    if (stop.subscription_details?.items && stop.subscription_details.items.length > 0) {
+      return stop.subscription_details.items.map((item: any) => `${item.product_name} x ${item.quantity}`);
+    }
+    return stop.order ? [`Order #${stop.order.slice(0, 8)}`] : [];
+  };
+
   const completedCount =
     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
@@ -321,6 +369,13 @@ export default function MapScreen() {
             className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
           >
             <Ionicons name="list" size={22} color="white" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+            className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
+          >
+            <Ionicons name="qr-code-outline" size={22} color="#1B5E37" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -365,19 +420,19 @@ export default function MapScreen() {
                 {
                   icon: "water-outline",
                   label: "Bottles",
-                  value: "128",
+                  value: String(routeStats.bottles),
                   color: "#1B5E37",
                 },
                 {
                   icon: "restaurant-outline",
                   label: "Special",
-                  value: "16",
+                  value: String(routeStats.special),
                   color: "#D4872A",
                 },
                 {
                   icon: "return-down-back",
                   label: "Returns",
-                  value: "52",
+                  value: String(routeStats.returns),
                   color: "#4A4A4A",
                 },
                 {
@@ -436,7 +491,7 @@ export default function MapScreen() {
                       stopNumber={selectedStop.sequence_number}
                       customerName={selectedStop.customer_name}
                       address={selectedStop.address}
-                      items={[]}
+                      items={getStopItems(selectedStop)}
                       orderId={selectedStop.order ?? ""}
                       disabled={!canActivateCard}
                       onMarkDelivered={handleMarkDelivered}
@@ -444,6 +499,30 @@ export default function MapScreen() {
                     />
                   </View>
                 )}
+              </>
+            ) : nextUpcomingStop ? (
+              <>
+                <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+                  <Text variant="body" weight="semibold" color="primary">
+                    Next Stop
+                  </Text>
+                  <Text variant="body-sm" color="muted" className="mt-1">
+                    Arrive at this location to activate delivery actions.
+                  </Text>
+                </View>
+
+                <View className="mt-4">
+                  <NextStopCard
+                    stopNumber={nextUpcomingStop.sequence_number}
+                    customerName={nextUpcomingStop.customer_name}
+                    address={nextUpcomingStop.address}
+                    items={getStopItems(nextUpcomingStop)}
+                    orderId={nextUpcomingStop.order ?? ""}
+                    disabled={true}
+                    onMarkDelivered={handleMarkDelivered}
+                    onMarkUndelivered={handleMarkUndelivered}
+                  />
+                </View>
               </>
             ) : (
               <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">

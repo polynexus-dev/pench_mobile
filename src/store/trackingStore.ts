@@ -5,6 +5,8 @@ import { useAuthStore } from "./authStore";
 import { mapApi } from "@/features/map/api/mapApi";
 import { startBackgroundTracking, stopBackgroundTracking } from "@/services/location/trackingService";
 import { useToast } from "@/hooks/useToast";
+import { cleanupTripSession } from "@/features/map/hooks/stopTripCleanup";
+import { env } from "@/config/env";
 
 const { show } = useToast();
 
@@ -59,7 +61,17 @@ export const useTrackingStore = createStore<TrackingStore>(
 
                 get().connectSocket(domain_name);
                 await get().startTracking();
-                await startBackgroundTracking();
+
+                try {
+                    await startBackgroundTracking();
+                } catch (backgroundErr: any) {
+                    if (__DEV__) {
+                        console.warn(
+                            "⚠️ Background location tracking not started (expected in Expo Go):",
+                            backgroundErr.message
+                        );
+                    }
+                }
 
                 set((s) => {
                     s.isTripStarted = true;
@@ -96,7 +108,18 @@ export const useTrackingStore = createStore<TrackingStore>(
                 await mapApi.completeTrip(domain_name, route_id);
 
                 get().stopTracking();
-                await stopBackgroundTracking();
+
+                try {
+                    await stopBackgroundTracking();
+                } catch (backgroundErr: any) {
+                    if (__DEV__) {
+                        console.warn(
+                            "⚠️ Background location tracking failed to stop:",
+                            backgroundErr.message
+                        );
+                    }
+                }
+
                 get().disconnectSocket();
 
                 set((s) => {
@@ -125,8 +148,47 @@ export const useTrackingStore = createStore<TrackingStore>(
                 existing.close();
             }
 
+            // Extract tenant subdomain from potentially stale domain values
+            let tenantSubdomain = domain
+                .replace(/^https?:\/\//, "")
+                .replace(/^www\./, "")
+                .replace(/\/+$/, "")
+                .split(".")[0]; // e.g. "pench-nagpur"
+
+            // Build WebSocket host using current env base URL
+            const apiBaseUrl = env.EXPO_PUBLIC_API_BASE_URL;
+            const match = apiBaseUrl.match(/^https?:\/\/([^/]+)/);
+            let wsHost = `${tenantSubdomain}.localhost`;
+            let wsProtocol = "wss";
+
+            if (match) {
+                const hostWithPort = match[1];
+                const hostParts = hostWithPort.split(":");
+                const hostIp = hostParts[0];
+                const port = hostParts[1] ? `:${hostParts[1]}` : "";
+
+                if (hostIp === "localhost" || hostIp === "127.0.0.1") {
+                    wsHost = `${tenantSubdomain}.localhost${port}`;
+                    wsProtocol = "ws";
+                } else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostIp)) {
+                    // For local IP, connect directly to the IP to bypass local DNS/rebinding issues on mobile,
+                    // and pass the tenant subdomain as a query parameter for the backend middleware.
+                    wsHost = `${hostIp}${port}`;
+                    wsProtocol = "ws";
+                } else {
+                    // Remote/production domain
+                    wsHost = `${tenantSubdomain}.${hostIp}${port}`;
+                }
+            }
+
             const token = useAuthStore.getState().accessToken;
-            const ws = new WebSocket(`wss://${domain}/ws/tracking/?token=${token}`);
+            const wsUrl = `${wsProtocol}://${wsHost}/ws/tracking/?token=${token}&tenant=${tenantSubdomain}`;
+            const ws = new WebSocket(wsUrl);
+
+            console.log(
+                "Connecting to WebSocket at",
+                wsUrl
+            );
 
             ws.onopen = () => {
                 if (__DEV__) console.log("✅ WebSocket connected");

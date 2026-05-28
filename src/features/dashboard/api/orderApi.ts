@@ -6,18 +6,19 @@ export interface OrderItem {
   product_name: string;
   quantity: number;
   unit_price: string;
-  total_price: string;
+  line_total: string;
 }
 
 export interface Order {
   id: string;
   status: string;
   status_display: string;
-  total_amount: string;
+  total: string;
   scheduled_delivery_date: string;
   delivered_at: string | null;
   items: OrderItem[];
 }
+
 
 export const orderApi = {
   getOrders: (domainName: string, customerId?: string): Promise<Order[]> => {
@@ -26,5 +27,18 @@ export const orderApi = {
       url += `?customer=${customerId}`;
     }
     return httpClient.get(buildUrl(domainName, url));
+  },
+  createOrder: (
+    domainName: string,
+    orderData: {
+      scheduled_delivery_date: string;
+      items: Array<{ product: string | number; quantity: number }>;
+      delivery_address?: string;
+    }
+  ): Promise<Order> => {
+    return httpClient.post(buildUrl(domainName, `/api/erp/orders/`), orderData);
+  },
+  deleteOrder: (domainName: string, orderId: string): Promise<void> => {
+    return httpClient.delete(buildUrl(domainName, `/api/erp/orders/${orderId}/`));
   },
 };

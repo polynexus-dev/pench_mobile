@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { RefreshControl, ScrollView, View, Text } from "react-native";
+import { RefreshControl, ScrollView, View, Text, TouchableOpacity } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { router } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/useCartStore";
 import { productApi, Product } from "../api/productApi";
@@ -112,6 +114,36 @@ export function CustomerDashboardScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {cartItems.length > 0 && (
+        <TouchableOpacity
+          activeOpacity={0.85}
+          onPress={() => {
+            router.push({
+              pathname: "/(customer)/(tabs)/orders",
+              params: { openModal: "true" },
+            });
+          }}
+          className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-[#1B5E37] shadow-lg z-50"
+          style={{
+            shadowColor: "#1B5E37",
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.3,
+            shadowRadius: 6,
+            elevation: 6,
+          }}
+        >
+          <Ionicons name="cart" size={26} color="white" />
+          <View
+            className="absolute -top-1.5 -right-1.5 h-6 w-6 items-center justify-center rounded-full bg-red-500 border border-white"
+            style={{ elevation: 2 }}
+          >
+            <Text className="text-[10px] font-black text-white">
+              {cartItems.reduce((acc, i) => acc + i.quantity, 0)}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }

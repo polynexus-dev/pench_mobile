@@ -22,6 +22,11 @@ export interface User {
   role?: "Driver" | "Customer";
   customer_dashboard?: CustomerDashboard; // ← new
   city_name?: string;
+  vehicle_plate?: string;
+  vehicle_type?: string;
+  warehouse_name?: string;
+  zone_name?: string;
+  has_password?: boolean;
 }
 
 export type UserRole = "driver" | "customer";

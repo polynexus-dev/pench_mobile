@@ -2,6 +2,7 @@ import { Text } from "@/shared/ui/Text/Text";
 import { Ionicons } from "@expo/vector-icons";
 import { useLogout } from "@features/auth/hooks/useLogout";
 import { useAuthStore } from "@store/authStore";
+import { useGeofenceStore } from "@store/geofenceStore";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React from "react";
@@ -10,8 +11,13 @@ import {
   ScrollView,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { Modal, Input, Button } from "@/shared/ui";
+import { httpClient } from "@/services/api/httpClient";
+import { buildUrl } from "@/services/api/buildUrl";
+import { useToast } from "@/hooks/useToast";
 
 interface ActionItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -57,9 +63,13 @@ function ProfileActionItem({
         </View>
       </View>
 
-      <View className="flex-row items-center">
+      <View className="flex-row items-center flex-shrink max-w-[50%]">
         {value ? (
-          <Text className="text-[14px] text-text-secondary mr-2 font-medium">
+          <Text
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            className="text-[14px] text-text-secondary mr-2 font-medium flex-shrink"
+          >
             {value}
           </Text>
         ) : null}
@@ -144,6 +154,124 @@ export function DriverProfileScreen() {
   const { logout } = useLogout();
   const insets = useSafeAreaInsets();
   const router = useRouter();
+  const route = useGeofenceStore((s) => s.route);
+  const { height: screenHeight } = useWindowDimensions();
+
+  const setUser = useAuthStore((s) => s.setUser);
+  const domain_name = useAuthStore((s) => s.domain_name);
+  const { show } = useToast();
+
+  // Active view state: 'view' | 'edit_profile' | 'change_password'
+  const [activeView, setActiveView] = React.useState<'view' | 'edit_profile' | 'change_password'>('view');
+  
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+
+  const profileStats = React.useMemo(() => {
+    const stops = route?.stops ?? [];
+    const completed = stops.filter((s) => s.order_status === "delivered").length;
+    const pending = stops.filter((s) => s.order_status === "in_transit" || s.order_status === "pending" || s.order_status === "in_progress").length;
+    const cashCollected = stops
+      .filter((s) => s.order_status === "delivered")
+      .reduce((sum, s) => sum + (s.order_total ?? 0), 0);
+    return { completed, pending, cashCollected };
+  }, [route?.stops]);
+
+  const openEditProfile = () => {
+    setFirstName(user?.first_name ?? "");
+    setLastName(user?.last_name ?? "");
+    setEmail(user?.email ?? "");
+    setPhone(user?.phone ?? "");
+    setActiveView("edit_profile");
+  };
+
+  const openChangePassword = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setActiveView("change_password");
+  };
+
+  const handleSaveProfile = async () => {
+    if (!domain_name) {
+      show({ message: "No active session domain configured.", type: "error" });
+      return;
+    }
+    if (!firstName.trim() || !lastName.trim()) {
+      show({ message: "First name and last name cannot be empty.", type: "error" });
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      const url = buildUrl(domain_name, "/api/accounts/me/");
+      const response = await httpClient.patch(url, {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone: phone,
+      });
+      setUser(response as any);
+      show({ message: "Profile updated successfully.", type: "success" });
+      setActiveView("view");
+    } catch (error: any) {
+      show({
+        message: error?.message || "Failed to update profile.",
+        type: "error",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleSavePassword = async () => {
+    if (!domain_name) {
+      show({ message: "No active session domain configured.", type: "error" });
+      return;
+    }
+    if (user?.has_password && !currentPassword) {
+      show({ message: "Current password is required.", type: "error" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      show({ message: "New password must be at least 8 characters long.", type: "error" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      show({ message: "Passwords do not match.", type: "error" });
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      const url = buildUrl(domain_name, "/api/accounts/set-password/");
+      const response: any = await httpClient.post(url, {
+        current_password: currentPassword,
+        password: newPassword,
+      });
+      if (response?.user) {
+        setUser(response.user);
+      }
+      show({ message: "Password changed successfully.", type: "success" });
+      setActiveView("view");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      show({
+        message: error?.message || "Failed to change password.",
+        type: "error",
+      });
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
 
   function handleLogout() {
     Alert.alert("Logout", "Are you sure you want to logout?", [
@@ -151,6 +279,16 @@ export function DriverProfileScreen() {
       { text: "Logout", style: "destructive", onPress: logout },
     ]);
   }
+
+  const handleBackPress = () => {
+    if (activeView !== "view") {
+      setActiveView("view");
+    } else {
+      if (router.canGoBack()) {
+        router.back();
+      }
+    }
+  };
 
   const cityDisplay = user?.tenant_schema
     ? user.tenant_schema.charAt(0).toUpperCase() + user.tenant_schema.slice(1)
@@ -184,7 +322,7 @@ export function DriverProfileScreen() {
           {/* Back button */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => (router.canGoBack() ? router.back() : null)}
+            onPress={handleBackPress}
             className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-100"
           >
             <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
@@ -193,7 +331,7 @@ export function DriverProfileScreen() {
           {/* Title */}
           <View className="pb-2" style={{ position: "absolute", left: 0, right: 0, alignItems: "center", zIndex: -1 }}>
             <Text className="text-lg font-bold text-white">
-              Profile
+              {activeView === "view" ? "Profile" : activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
             </Text>
           </View>
 
@@ -218,152 +356,273 @@ export function DriverProfileScreen() {
             {/* Back Button overlay */}
             <TouchableOpacity
               activeOpacity={0.8}
-              onPress={() => (router.canGoBack() ? router.back() : null)}
+              onPress={handleBackPress}
               className="absolute left-4 top-6 z-10 h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-100"
             >
               <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
             </TouchableOpacity>
 
-            {/* Profile Avatar & Name */}
-            <View className="items-center mt-2">
-              <View className="h-20 w-20 items-center justify-center rounded-full bg-white border border-neutral-100 shadow-md">
-                <Ionicons name="person" size={48} color="#4A4A4A" />
-              </View>
-              <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
-                {user?.username ?? "Your account"}
-              </Text>
-              <Text className="mt-1 text-sm font-medium text-text-muted text-center">
-                {user?.phone ?? "8010276379"}
-              </Text>
-            </View>
-
-            {/* Active Shift/Hub Info Banner */}
-            <TouchableOpacity
-              activeOpacity={0.9}
-              className="mt-4 p-4 rounded-2xl bg-[#FFF9E6] border border-[#FBE8C5] flex-row items-center justify-between shadow-xs overflow-hidden"
-            >
-              <View className="flex-1 pr-4">
-                <Text className="text-[15px] font-bold text-text-primary">
-                  Active Delivery Driver
-                </Text>
-                <View className="flex-row items-center mt-1">
-                  <Text className="text-[13px] font-bold text-brand-primary">
-                    LIVE · {cityDisplay} Hub
+            {activeView === "view" ? (
+              <>
+                {/* Profile Avatar & Name */}
+                <View className="items-center mt-2">
+                  <View className="h-20 w-20 items-center justify-center rounded-full bg-white border border-neutral-100 shadow-md">
+                    <Ionicons name="person" size={48} color="#4A4A4A" />
+                  </View>
+                  <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
+                    {user?.username ?? "Your account"}
                   </Text>
-                  <Ionicons name="chevron-forward" size={12} color="#1B5E37" className="ml-1" />
+                  <Text className="mt-1 text-sm font-medium text-text-muted text-center">
+                    {user?.phone ?? "8010276379"}
+                  </Text>
                 </View>
-              </View>
 
-              {/* Bike Icon container */}
-              <View className="h-12 w-12 items-center justify-center rounded-xl bg-white/60">
-                <Ionicons name="bicycle-outline" size={28} color="#1B5E37" />
-              </View>
-            </TouchableOpacity>
+                {/* Active Shift/Hub Info Banner */}
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  className="mt-4 p-4 rounded-2xl bg-[#FFF9E6] border border-[#FBE8C5] flex-row items-center justify-between shadow-xs overflow-hidden"
+                >
+                  <View className="flex-1 pr-4">
+                    <Text className="text-[15px] font-bold text-text-primary">
+                      Active Delivery Driver
+                    </Text>
+                    <View className="flex-row items-center mt-1">
+                      <Text className="text-[13px] font-bold text-brand-primary">
+                        LIVE · {cityDisplay} Hub
+                      </Text>
+                      <Ionicons name="chevron-forward" size={12} color="#1B5E37" className="ml-1" />
+                    </View>
+                  </View>
 
-            {/* Metric Action Cards */}
-            <View className="mt-4 flex-row gap-3">
-              <MetricCard label="Today" value="38" icon="checkmark-done-outline" />
-              <MetricCard label="Stops Left" value="24" icon="location-outline" />
-              <MetricCard label="Cash" value="₹1,240" icon="cash-outline" />
-            </View>
+                  {/* Bike Icon container */}
+                  <View className="h-12 w-12 items-center justify-center rounded-xl bg-white/60">
+                    <Ionicons name="bicycle-outline" size={28} color="#1B5E37" />
+                  </View>
+                </TouchableOpacity>
+
+                {/* Metric Action Cards */}
+                <View className="mt-4 flex-row gap-3">
+                  <MetricCard label="Today" value={String(profileStats.completed)} icon="checkmark-done-outline" />
+                  <MetricCard label="Stops Left" value={String(profileStats.pending)} icon="location-outline" />
+                  <MetricCard label="Cash" value={`₹${profileStats.cashCollected}`} icon="cash-outline" />
+                </View>
+              </>
+            ) : (
+              <View className="items-center mt-2 pb-4">
+                <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
+                  {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
+                </Text>
+                <Text className="mt-1 text-sm font-medium text-text-muted text-center">
+                  {activeView === "edit_profile" ? "Update your personal details" : "Update account security"}
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Main Content Area */}
           <View className="px-4 mt-1">
-            <SectionTitle title="Contact Information" />
-            <CardShell>
-              <ProfileActionItem
-                icon="call-outline"
-                label="Phone"
-                value={user?.phone ?? "—"}
-              // helper="Primary contact number"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="mail-outline"
-                label="Email"
-                value={user?.email ?? "—"}
-              // helper="Login and notifications"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="location-outline"
-                label="City"
-                value={cityDisplay}
-              // helper="Current operational hub"
-              />
-            </CardShell>
+            {activeView === "view" && (
+              <>
+                <SectionTitle title="Contact Information" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="call-outline"
+                    label="Phone"
+                    value={user?.phone ?? "—"}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="mail-outline"
+                    label="Email"
+                    value={user?.email ?? "—"}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="location-outline"
+                    label="City"
+                    value={cityDisplay}
+                  />
+                </CardShell>
 
-            <SectionTitle title="Shift Information" />
-            <CardShell>
-              <ProfileActionItem
-                icon="time-outline"
-                label="Shift Timing"
-                value="06:00 AM - 02:00 PM"
-                helper="Today’s active schedule"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="map-outline"
-                label="Assigned Route"
-                value="Nagpur Express Delivery"
-                helper="Current route allocation"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="car-outline"
-                label="Vehicle"
-                value="MH 31 AB 1234"
-                helper="Assigned delivery vehicle"
-              />
-            </CardShell>
+                <SectionTitle title="Shift Information" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="time-outline"
+                    label="Shift Timing"
+                    value="06:00 AM - 02:00 PM"
+                    helper="Today’s active schedule"
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="map-outline"
+                    label="Assigned Route"
+                    value={route?.name ?? "No Route Assigned"}
+                    helper="Current route allocation"
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="car-outline"
+                    label="Vehicle"
+                    value={user?.vehicle_plate ?? "Not Assigned"}
+                    helper="Assigned delivery vehicle"
+                  />
+                </CardShell>
 
-            <SectionTitle title="App Settings" />
-            <CardShell>
-              <ProfileActionItem
-                icon="notifications-outline"
-                label="Notifications"
-                helper="Manage route and delivery alerts"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="shield-checkmark-outline"
-                label="Privacy Policy"
-                helper="View app privacy details"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="help-circle-outline"
-                label="Support"
-                helper="Get help from operations team"
-              />
-            </CardShell>
+                <SectionTitle title="App Settings" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="notifications-outline"
+                    label="Notifications"
+                    helper="Manage route and delivery alerts"
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="shield-checkmark-outline"
+                    label="Privacy Policy"
+                    helper="View app privacy details"
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="help-circle-outline"
+                    label="Support"
+                    helper="Get help from operations team"
+                  />
+                </CardShell>
 
-            <SectionTitle title="Account" />
-            <CardShell>
-              <ProfileActionItem
-                icon="person-outline"
-                label="Edit Profile"
-                helper="Update your personal details"
-              />
-              <View className="h-px bg-neutral-100/80 ml-14" />
-              <ProfileActionItem
-                icon="lock-closed-outline"
-                label="Change Password"
-                helper="Update account security"
-              />
-            </CardShell>
+                <SectionTitle title="Account" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="person-outline"
+                    label="Edit Profile"
+                    helper="Update your personal details"
+                    onPress={openEditProfile}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="lock-closed-outline"
+                    label="Change Password"
+                    helper="Update account security"
+                    onPress={openChangePassword}
+                  />
+                </CardShell>
 
-            <SectionTitle title="Logout" />
-            <CardShell>
-              <ProfileActionItem
-                icon="log-out-outline"
-                label="Logout"
-                helper="Sign out from this device"
-                onPress={handleLogout}
-                danger
-              />
-            </CardShell>
+                <SectionTitle title="Logout" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="log-out-outline"
+                    label="Logout"
+                    helper="Sign out from this device"
+                    onPress={handleLogout}
+                    danger
+                  />
+                </CardShell>
+              </>
+            )}
+
+            {activeView === "edit_profile" && (
+              <View className="mt-4 gap-y-4">
+                <CardShell>
+                  <View className="p-4 gap-y-4">
+                    <Input
+                      label="First Name"
+                      placeholder="Enter first name"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                    />
+                    <Input
+                      label="Last Name"
+                      placeholder="Enter last name"
+                      value={lastName}
+                      onChangeText={setLastName}
+                    />
+                    <Input
+                      label="Email"
+                      placeholder="Enter email address"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                    <Input
+                      label="Phone Number"
+                      placeholder="Enter phone number"
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                </CardShell>
+
+                <View className="flex-row gap-x-3 mt-4 pb-10">
+                  <Button
+                    intent="outline"
+                    label="Cancel"
+                    onPress={() => setActiveView("view")}
+                    className="flex-1"
+                    disabled={isSavingProfile}
+                  />
+                  <Button
+                    intent="primary"
+                    label="Save"
+                    onPress={handleSaveProfile}
+                    className="flex-1 bg-[#1B5E37]"
+                    loading={isSavingProfile}
+                  />
+                </View>
+              </View>
+            )}
+
+            {activeView === "change_password" && (
+              <View className="mt-4 gap-y-4">
+                <CardShell>
+                  <View className="p-4 gap-y-4">
+                    {user?.has_password && (
+                      <Input
+                        label="Current Password"
+                        placeholder="Enter current password"
+                        value={currentPassword}
+                        onChangeText={setCurrentPassword}
+                        isPassword
+                        autoCapitalize="none"
+                      />
+                    )}
+                    <Input
+                      label="New Password"
+                      placeholder="Min 8 characters"
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      isPassword
+                      autoCapitalize="none"
+                    />
+                    <Input
+                      label="Confirm Password"
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      isPassword
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </CardShell>
+
+                <View className="flex-row gap-x-3 mt-4 pb-10">
+                  <Button
+                    intent="outline"
+                    label="Cancel"
+                    onPress={() => setActiveView("view")}
+                    className="flex-1"
+                    disabled={isSavingPassword}
+                  />
+                  <Button
+                    intent="primary"
+                    label="Save"
+                    onPress={handleSavePassword}
+                    className="flex-1 bg-[#1B5E37]"
+                    loading={isSavingPassword}
+                  />
+                </View>
+              </View>
+            )}
 
             <Text className="pb-5 pt-6 text-center text-xs text-text-muted">
               © 2026 Pench Foods

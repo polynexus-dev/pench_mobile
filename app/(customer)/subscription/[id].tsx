@@ -171,7 +171,16 @@ export default function SubscriptionDetailsScreen() {
           </View>
         ) : (
           <View className="p-4">
-            <View className="mb-4 rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+            <View
+              className="mb-4 rounded-2xl bg-white p-4 border border-gray-100"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 2,
+              }}
+            >
               <Calendar
                 current={`${year}-${month?.toString().padStart(2, "0")}-01`}
                 markingType={isSelectingVacation ? "period" : "dot"}
@@ -186,7 +195,16 @@ export default function SubscriptionDetailsScreen() {
               />
             </View>
 
-            <View className="mb-6 rounded-2xl bg-white p-4 shadow-sm border border-gray-100">
+            <View
+              className="mb-6 rounded-2xl bg-white p-4 border border-gray-100"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 2,
+                elevation: 2,
+              }}
+            >
               <Text className="mb-3 text-[14px] font-bold text-gray-900">
                 Legend
               </Text>
@@ -215,7 +233,14 @@ export default function SubscriptionDetailsScreen() {
             {!isSelectingVacation ? (
               <TouchableOpacity
                 onPress={() => setIsSelectingVacation(true)}
-                className="rounded-xl bg-[#1B5E37] py-3.5 items-center shadow-sm"
+                className="rounded-xl bg-[#1B5E37] py-3.5 items-center"
+                style={{
+                  shadowColor: "#000",
+                  shadowOffset: { width: 0, height: 1 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 1,
+                  elevation: 1,
+                }}
               >
                 <Text className="text-[15px] font-bold text-white">
                   Pause Delivery (Vacation Gap)

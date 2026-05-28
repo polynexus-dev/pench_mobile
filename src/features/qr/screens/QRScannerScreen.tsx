@@ -254,7 +254,7 @@ export function QRScannerScreen() {
         facing="back"
         enableTorch={enableTorch}
         onBarcodeScanned={scanned || loading ? undefined : handleBarcodeScanned}
-        barcodeSettings={{
+        barcodeScannerSettings={{
           barcodeTypes: ["qr"],
         }}
       />
