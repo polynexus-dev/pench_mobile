@@ -24,6 +24,7 @@ import StopListItem from "@/features/map/components/StopListItem";
 import { Text } from "@/shared/ui/Text/Text";
 import { ROUTES } from "@/constants/route";
 import { Button } from "@/shared/ui";
+import * as Location from "expo-location";
 
 type RouteStop = {
   id: string;
@@ -64,6 +65,12 @@ export default function MapScreen() {
   const setSelectedStopId = useGeofenceStore((s) => s.setSelectedStopId);
   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
+
+  //June 1 
+  const navigationStopId = useGeofenceStore((s) => s.navigationStopId);
+  const navigationPolyline = useGeofenceStore((s) => s.navigationPolyline);
+  const fetchNavigationPolyline = useGeofenceStore((s) => s.fetchNavigationPolyline);
+  //////////////
 
   const routeAvailable = !!route;
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
@@ -178,6 +185,33 @@ export default function MapScreen() {
     }
   }, [nearStopId, route?.stops, setActiveStopId, setSelectedStopId, groupedStops]);
 
+  // June 1: Watch heading changes to rotate the map accordingly (optional enhancement)
+  // useEffect(() => {
+  //   let headingSub: Location.LocationHeadingSubscription | null = null;
+
+  //   const startHeading = async () => {
+  //     const { status } = await Location.requestForegroundPermissionsAsync();
+  //     if (status !== "granted") return;
+
+  //     headingSub = await Location.watchHeadingAsync((headingData) => {
+  //       const heading =
+  //         headingData.trueHeading >= 0
+  //           ? headingData.trueHeading
+  //           : headingData.magHeading;
+
+  //       if (mapRef.current && typeof heading === "number") {
+  //         // expose a new imperative method or inject directly via OSMMap internals
+  //       }
+  //     });
+  //   };
+
+  //   startHeading();
+
+  //   return () => {
+  //     headingSub?.remove();
+  //   };
+  // }, []);
+
   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
 
   const backDrop = useCallback(
@@ -218,6 +252,11 @@ export default function MapScreen() {
       const { domain_name } = useAuthStore.getState();
       if (domain_name) connectSocket(domain_name);
       await startTracking();
+
+      //June 1 ← NEW: fetch polyline to first stop immediately when trip starts
+      // await fetchNavigationPolyline();
+      // ── Wait for GPS location to be available, then fetch polyline ──
+      waitForLocationAndFetchRoute();
     }
   };
 
@@ -256,6 +295,51 @@ export default function MapScreen() {
   const completedCount =
     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
+  {/* June 1 */ }
+  const waitForLocationAndFetchRoute = useCallback(() => {
+    const MAX_ATTEMPTS = 20;   // 10 seconds max (20 × 500ms)
+    let attempts = 0;
+
+    const interval = setInterval(() => {
+      attempts++;
+      const location = useGeofenceStore.getState().location;
+
+      if (location) {
+        clearInterval(interval);
+
+        // Re-set navigationStopId based on now-available location
+        const { route } = useGeofenceStore.getState();
+        if (route?.stops?.length) {
+          const inTransit = route.stops.filter((s) => s.order_status === "in_transit");
+          if (inTransit.length) {
+            let closest = inTransit[0];
+            let minDist = Infinity;
+            for (const stop of inTransit) {
+              const d = Math.sqrt(
+                Math.pow(stop.latitude - location.lat, 2) +
+                Math.pow(stop.longitude - location.lng, 2)
+              );
+              if (d < minDist) { minDist = d; closest = stop; }
+            }
+            useGeofenceStore.getState().setActiveStopId(closest.id);
+            // Trigger polyline fetch via store
+            useGeofenceStore.setState((s) => ({
+              ...s,
+              navigationStopId: closest.id,
+            }));
+            useGeofenceStore.getState().fetchNavigationPolyline();
+          }
+        }
+      }
+
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(interval);
+        // Fallback: fetch anyway even without location
+        fetchNavigationPolyline();
+      }
+    }, 500);
+  }, [fetchNavigationPolyline]);
+
   return (
     <>
       <StatusBar style="light" />
@@ -266,9 +350,23 @@ export default function MapScreen() {
             stops={route?.stops ?? []}
             activeStopId={activeStopId}
             selectedStopId={selectedStopId}
+            navigationStopId={navigationStopId}          // ← NEW
+            navigationPolyline={navigationPolyline}     // ← NEW
           />
         </View>
 
+        {/* <TripStatusBanner
+          routeName={route?.name ?? "Today's Route"}
+          completed={completedCount}
+          total={route?.stops?.length ?? 0}
+          eta="1h 24m"
+          isTripStarted={isTripStarted}
+          loading={trackingLoading}
+          onToggle={handleTripToggle}
+          disabled={isTripStarted ? !canStopTrip : !routeAvailable}
+        /> */}
+
+      // June 1
         <TripStatusBanner
           routeName={route?.name ?? "Today's Route"}
           completed={completedCount}
@@ -278,7 +376,51 @@ export default function MapScreen() {
           loading={trackingLoading}
           onToggle={handleTripToggle}
           disabled={isTripStarted ? !canStopTrip : !routeAvailable}
+          navigationStopName={
+            navigationStopId
+              ? (route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null)
+              : null
+          }
+          navigationStopAddress={
+            navigationStopId
+              ? (route?.stops?.find((s) => s.id === navigationStopId)?.address ?? null)
+              : null
+          }
+          onRefreshRoute={fetchNavigationPolyline}
         />
+
+        {/* ── 2. ✅ ADD NAVIGATION BANNER HERE ── */}
+        {/* {isTripStarted && navigationStopId && (() => {
+          const navStop = route?.stops?.find((s) => s.id === navigationStopId);
+          if (!navStop) return null;
+          return (
+            <View className="absolute bottom-72 left-4 right-4 z-20">
+              <View className="flex-row items-center gap-x-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
+                <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-primary">
+                  <Ionicons name="navigate" size={18} color="white" />
+                </View>
+                <View className="flex-1">
+                  <Text variant="caption" color="muted" className="uppercase tracking-wide">
+                    Navigating to
+                  </Text>
+                  <Text variant="body" weight="bold" color="primary" numberOfLines={1}>
+                    {navStop.customer_name}
+                  </Text>
+                  <Text variant="body-sm" color="muted" numberOfLines={1}>
+                    {navStop.address}
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => fetchNavigationPolyline()}
+                  className="h-9 w-9 items-center justify-center rounded-full bg-bg-screen"
+                >
+                  <Ionicons name="refresh" size={16} color="#1B5E37" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          );
+        })()} */}
+
 
         <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
           <TouchableOpacity

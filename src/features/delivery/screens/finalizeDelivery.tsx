@@ -26,6 +26,8 @@ export function FinalizeDeliveryScreen() {
     const { domain_name } = useAuthStore((s) => s);
     const route = useGeofenceStore((s) => s.route);
     const { markStopDelivered } = useGeofenceStore((s) => s);
+    const advanceNavigation = useGeofenceStore((s) => s.advanceNavigation);
+
 
     const [issued, setIssued] = useState("0");
     const [returned, setReturned] = useState("0");
@@ -71,6 +73,7 @@ export function FinalizeDeliveryScreen() {
                 },
             });
             markStopDelivered(orderId);
+            advanceNavigation(); // June 1 ← already called inside markStopDelivered, but safe if called again
             router.back();
         } catch {
             // handled in hook
