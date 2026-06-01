@@ -1,3 +1,203 @@
+//   const html = `
+// <!DOCTYPE html>
+// <html>
+// <head>
+//   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+//   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+//   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+//   <style>
+//     html, body, #map {
+//       height: 100%;
+//       margin: 0;
+//       padding: 0;
+//     }
+//   </style>
+// </head>
+// <body>
+//   <div id="map"></div>
+//   <script>
+//     var map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 13);
+
+//     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+//       maxZoom: 19
+//     }).addTo(map);
+
+//     var userMarker = null;
+//     var customerMarkers = [];
+//     var routePolyline = null;
+//     var autoCenter = true;
+
+//     function makeIcon(color) {
+//       return L.divIcon({
+//         className: '',
+//         html: '<div style="width:24px;height:24px;border-radius:999px;border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.25);background:' + color + ';"></div>',
+//         iconSize: [24, 24],
+//         iconAnchor: [12, 12]
+//       });
+//     }
+
+//     var driverIcon = makeIcon('#f97316');
+//     var activeIcon = makeIcon('#3b82f6');
+//     var selectedIcon = makeIcon('#f97316');
+//     var inTransitIcon = makeIcon('#ffbf00');
+//     var deliveredIcon = makeIcon('#22c55e');
+//     var undeliveredIcon = makeIcon('#ef4444');
+
+//     function getIcon(stopId, activeStopId, selectedStopId, orderStatus) {
+//       var id = String(stopId);
+//       if (id === String(activeStopId)) return activeIcon;
+//       if (id === String(selectedStopId)) return selectedIcon;
+
+//       var status = String(orderStatus || '').toLowerCase();
+//       if (status === 'delivered') return deliveredIcon;
+//       if (status === 'undelivered') return undeliveredIcon;
+//       return inTransitIcon;
+//     }
+
+//     function clearCustomerMarkers() {
+//       customerMarkers.forEach(function(m) {
+//         map.removeLayer(m);
+//       });
+//       customerMarkers = [];
+//     }
+
+//     window.centerOnUser = function(lat, lng) {
+//       autoCenter = true;
+
+//       if (!userMarker) {
+//         userMarker = L.marker([lat, lng], { icon: driverIcon })
+//           .addTo(map)
+//           .bindPopup("📍 Driver");
+//       } else {
+//         userMarker.setLatLng([lat, lng]);
+//       }
+
+//       map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
+//     };
+
+//     map.on('dragstart', function() {
+//       autoCenter = false;
+//     });
+
+//     window.updateUserLocation = function(latlng) {
+//       if (!userMarker) {
+//         userMarker = L.marker([latlng.lat, latlng.lng], { icon: driverIcon })
+//           .addTo(map)
+//           .bindPopup("📍 Driver");
+//         map.setView([latlng.lat, latlng.lng], 15);
+//       } else {
+//         userMarker.setLatLng([latlng.lat, latlng.lng]);
+//         if (autoCenter) {
+//           map.panTo([latlng.lat, latlng.lng], { animate: true, duration: 1 });
+//         }
+//       }
+
+//       if (customerMarkers.length) {
+//         drawRouteToCustomers(latlng);
+//       }
+//     };
+
+//     window.loadStops = function(stops, activeStopId, selectedStopId) {
+//       clearCustomerMarkers();
+
+//       stops.forEach(function(stop) {
+//         var marker = L.marker([stop.latitude, stop.longitude], {
+//           icon: getIcon(stop.id, activeStopId, selectedStopId, stop.order_status)
+//         })
+//           .addTo(map)
+//           .bindPopup("<b>" + stop.customer_name + "</b><br/>" + stop.address);
+
+//         marker._stopId = String(stop.id);
+//         marker._orderStatus = String(stop.order_status || '');
+//         customerMarkers.push(marker);
+//       });
+
+//       if (userMarker && customerMarkers.length) {
+//         var allPoints = customerMarkers.map(function(m) { return m.getLatLng(); });
+//         allPoints.push(userMarker.getLatLng());
+//         map.fitBounds(allPoints, { padding: [50, 50] });
+//       }
+//     };
+
+//     window.updateSelectedStop = function(selectedStopId, activeStopId) {
+//       customerMarkers.forEach(function(m) {
+//         m.setIcon(getIcon(m._stopId, activeStopId, selectedStopId, m._orderStatus));
+//       });
+//     };
+
+//     async function drawRouteToCustomers(user) {
+//       if (!customerMarkers.length) return;
+
+//       var coords = [[user.lng, user.lat]];
+//       customerMarkers.forEach(function(m) {
+//         coords.push([m.getLatLng().lng, m.getLatLng().lat]);
+//       });
+
+//       var coordString = coords.map(function(c) {
+//         return c.join(',');
+//       }).join(';');
+
+//       var url = 'https://osrm.polynexus.in/route/v1/driving/' + coordString + '?overview=full&geometries=geojson';
+
+//       try {
+//         var res = await fetch(url);
+//         var json = await res.json();
+
+//         if (json.code === "Ok") {
+//           var route = json.routes[0].geometry.coordinates.map(function(c) {
+//             return [c[1], c[0]];
+//           });
+
+//           if (routePolyline) {
+//             map.removeLayer(routePolyline);
+//           }
+
+//           routePolyline = L.polyline(route, {
+//             color: '#2563eb',
+//             weight: 6,
+//             opacity: 0.9,
+//             lineCap: 'round',
+//             lineJoin: 'round'
+//           }).addTo(map);
+//         }
+//       } catch (err) {
+//         console.error("OSRM routing failed:", err);
+//       }
+//     }
+//   </script>
+// </body>
+// </html>`;
+
+//   return (
+//     <SafeAreaView style={{ flex: 1, backgroundColor: "#0f172a" }}>
+//       <StatusBar barStyle="light-content" />
+//       <View style={{ flex: 1 }}>
+//         <WebView
+//           ref={webRef}
+//           originWhitelist={["*"]}
+//           source={{ html }}
+//           javaScriptEnabled
+//           domStorageEnabled
+//           onLoad={() => {
+//             if (__DEV__) console.log("🗺️ WebView ready");
+//             setWebViewReady(true);
+//           }}
+//         />
+
+//         {error ? (
+//           <Text style={{ color: "#fca5a5", position: "absolute", bottom: 140, alignSelf: "center" }}>
+//             {error}
+//           </Text>
+//         ) : null}
+//       </View>
+//     </SafeAreaView>
+//   );
+// });
+
+// export default OSMMap;
+
+
+// June 1
   const html = `
 <!DOCTYPE html>
 <html>
@@ -10,6 +210,36 @@
       height: 100%;
       margin: 0;
       padding: 0;
+    }
+
+    .driver-arrow-wrap {
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .driver-arrow {
+      position: relative;
+      width: 0;
+      height: 0;
+      border-left: 10px solid transparent;
+      border-right: 10px solid transparent;
+      border-bottom: 24px solid #f97316;
+      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.28));
+      transform-origin: 50% 70%;
+    }
+
+    .driver-arrow::after {
+      content: '';
+      position: absolute;
+      left: -3px;
+      top: 16px;
+      width: 6px;
+      height: 10px;
+      background: #f97316;
+      border-radius: 0 0 4px 4px;
     }
   </style>
 </head>
@@ -26,6 +256,7 @@
     var customerMarkers = [];
     var navPolyline = null;
     var autoCenter = true;
+    var currentHeading = 0;
 
     function makeIcon(color) {
       return L.divIcon({
@@ -36,7 +267,18 @@
       });
     }
 
-    var driverIcon      = makeIcon('#f97316');
+    function makeDriverArrowIcon(heading) {
+      return L.divIcon({
+        className: '',
+        html:
+          '<div class="driver-arrow-wrap">' +
+            '<div class="driver-arrow" style="transform: rotate(' + Number(heading || 0) + 'deg);"><\/div>' +
+          '<\/div>',
+        iconSize: [42, 42],
+        iconAnchor: [21, 21]
+      });
+    }
+
     var activeIcon      = makeIcon('#3b82f6');
     var selectedIcon    = makeIcon('#f97316');
     var inTransitIcon   = makeIcon('#ffbf00');
@@ -47,6 +289,7 @@
       var id = String(stopId);
       if (id === String(activeStopId)) return activeIcon;
       if (id === String(selectedStopId)) return selectedIcon;
+
       var status = String(orderStatus || '').toLowerCase();
       if (status === 'delivered') return deliveredIcon;
       if (status === 'undelivered') return undeliveredIcon;
@@ -60,26 +303,41 @@
 
     window.centerOnUser = function(lat, lng) {
       autoCenter = true;
+
       if (!userMarker) {
-        userMarker = L.marker([lat, lng], { icon: driverIcon })
+        userMarker = L.marker([lat, lng], { icon: makeDriverArrowIcon(currentHeading) })
           .addTo(map)
-          .bindPopup("📍 Driver");
+          .bindPopup("Driver");
       } else {
         userMarker.setLatLng([lat, lng]);
+        userMarker.setIcon(makeDriverArrowIcon(currentHeading));
       }
+
       map.flyTo([lat, lng], 16, { animate: true, duration: 1.5 });
     };
 
-    map.on('dragstart', function() { autoCenter = false; });
+    window.updateDriverHeading = function(heading) {
+      currentHeading = Number(heading || 0);
+      if (userMarker) {
+        userMarker.setIcon(makeDriverArrowIcon(currentHeading));
+      }
+    };
+
+    map.on('dragstart', function() {
+      autoCenter = false;
+    });
 
     window.updateUserLocation = function(latlng) {
       if (!userMarker) {
-        userMarker = L.marker([latlng.lat, latlng.lng], { icon: driverIcon })
+        userMarker = L.marker([latlng.lat, latlng.lng], {
+          icon: makeDriverArrowIcon(currentHeading)
+        })
           .addTo(map)
-          .bindPopup("📍 Driver");
+          .bindPopup("Driver");
         map.setView([latlng.lat, latlng.lng], 15);
       } else {
         userMarker.setLatLng([latlng.lat, latlng.lng]);
+        userMarker.setIcon(makeDriverArrowIcon(currentHeading));
         if (autoCenter) {
           map.panTo([latlng.lat, latlng.lng], { animate: true, duration: 1 });
         }
@@ -88,12 +346,14 @@
 
     window.loadStops = function(stops, activeStopId, selectedStopId) {
       clearCustomerMarkers();
+
       stops.forEach(function(stop) {
         var marker = L.marker([stop.latitude, stop.longitude], {
           icon: getIcon(stop.id, activeStopId, selectedStopId, stop.order_status)
         })
           .addTo(map)
-          .bindPopup("<b>" + stop.customer_name + "</b><br/>" + stop.address);
+          .bindPopup("<b>" + stop.customer_name + "<\/b><br/>" + stop.address);
+
         marker._stopId = String(stop.id);
         marker._orderStatus = String(stop.order_status || '');
         customerMarkers.push(marker);
@@ -117,6 +377,7 @@
         map.removeLayer(navPolyline);
         navPolyline = null;
       }
+
       navPolyline = L.polyline(coords, {
         color: '#1B5E37',
         weight: 5,

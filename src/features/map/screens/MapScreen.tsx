@@ -186,31 +186,33 @@ export default function MapScreen() {
   }, [nearStopId, route?.stops, setActiveStopId, setSelectedStopId, groupedStops]);
 
   // June 1: Watch heading changes to rotate the map accordingly (optional enhancement)
-  // useEffect(() => {
-  //   let headingSub: Location.LocationHeadingSubscription | null = null;
+  useEffect(() => {
+    let headingSub: Location.LocationSubscription | null = null;
+    let mounted = true;
 
-  //   const startHeading = async () => {
-  //     const { status } = await Location.requestForegroundPermissionsAsync();
-  //     if (status !== "granted") return;
+    const startHeadingTracking = async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted" || !mounted) return;
 
-  //     headingSub = await Location.watchHeadingAsync((headingData) => {
-  //       const heading =
-  //         headingData.trueHeading >= 0
-  //           ? headingData.trueHeading
-  //           : headingData.magHeading;
+      headingSub = await Location.watchHeadingAsync((headingData) => {
+        const heading =
+          typeof headingData.trueHeading === "number" && headingData.trueHeading >= 0
+            ? headingData.trueHeading
+            : headingData.magHeading;
 
-  //       if (mapRef.current && typeof heading === "number") {
-  //         // expose a new imperative method or inject directly via OSMMap internals
-  //       }
-  //     });
-  //   };
+        if (typeof heading === "number") {
+          mapRef.current?.updateDriverHeading(heading);
+        }
+      });
+    };
 
-  //   startHeading();
+    startHeadingTracking();
 
-  //   return () => {
-  //     headingSub?.remove();
-  //   };
-  // }, []);
+    return () => {
+      mounted = false;
+      headingSub?.remove();
+    };
+  }, []);
 
   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
 
