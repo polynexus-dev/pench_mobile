@@ -1,3 +1,603 @@
+// import React, { useCallback, useEffect, useMemo, useRef } from "react";
+// import { View, TouchableOpacity } from "react-native";
+// import {
+//   SafeAreaView,
+//   useSafeAreaInsets,
+// } from "react-native-safe-area-context";
+// import {
+//   BottomSheetBackdrop,
+//   BottomSheetModal,
+//   BottomSheetScrollView,
+// } from "@gorhom/bottom-sheet";
+// import { Ionicons } from "@expo/vector-icons";
+// import { useRouter } from "expo-router";
+// import { StatusBar } from "expo-status-bar";
+// import OSMMap, { OSMMapHandle } from "../components/OSMMap";
+// import { useAuthStore } from "@store/authStore";
+// import { useTrackingStore } from "@store/trackingStore";
+// import { useGeofenceStore } from "@store/geofenceStore";
+// import TripStatusBanner from "@/features/map/components/TripStatusBanner";
+// import TripStartPrompt from "@/features/map/components/TripStartPrompt";
+// import RouteStatRow from "@/features/map/components/RouteStatRow";
+// import NextStopCard from "@/features/map/components/NextStopCard";
+// import StopListItem from "@/features/map/components/StopListItem";
+// import { Text } from "@/shared/ui/Text/Text";
+// import { ROUTES } from "@/constants/route";
+// import { Button } from "@/shared/ui";
+// import * as Location from "expo-location";
+// // Add this import at the top
+// import { useFocusEffect } from "expo-router";
+
+// type RouteStop = {
+//   id: string;
+//   sequence_number: number;
+//   order: string | null;
+//   customer_name: string;
+//   address: string;
+//   latitude: number;
+//   longitude: number;
+//   order_status?: "in_transit" | "delivered" | "cancelled" | "undelivered" | string;
+// };
+
+// type GroupedStop = {
+//   groupKey: string;
+//   address: string;
+//   stops: RouteStop[];
+// };
+
+// const getLocationKey = (lat: number, lng: number) =>
+//   `${lat.toFixed(5)}_${lng.toFixed(5)}`;
+
+// export default function MapScreen() {
+//   const router = useRouter();
+//   const bottomSheetRef = useRef<BottomSheetModal>(null);
+//   const scrollViewRef = useRef<any>(null);
+//   const mapRef = useRef<OSMMapHandle>(null);
+//   const insets = useSafeAreaInsets();
+
+//   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
+//   const trackingLoading = useTrackingStore((s) => s.loading);
+//   const canStopTrip = useTrackingStore((s) => s.canStopTrip);
+
+//   const route = useGeofenceStore((s) => s.route);
+//   const nearStopId = useGeofenceStore((s) => s.nearStopId);
+//   const activeStopId = useGeofenceStore((s) => s.activeStopId);
+//   const selectedStopId = useGeofenceStore((s) => s.selectedStopId);
+//   const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
+//   const setSelectedStopId = useGeofenceStore((s) => s.setSelectedStopId);
+//   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
+//   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
+
+//   //June 1 
+//   const navigationStopId = useGeofenceStore((s) => s.navigationStopId);
+//   const navigationPolyline = useGeofenceStore((s) => s.navigationPolyline);
+//   const fetchNavigationPolyline = useGeofenceStore((s) => s.fetchNavigationPolyline);
+//   //////////////
+
+//   const routeAvailable = !!route;
+//   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
+//   const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(null);
+
+//   const routeStops = useMemo(() => {
+//     return (route?.stops ?? []).filter(
+//       (stop) => stop.order_status === "in_transit"
+//     ) as RouteStop[];
+//   }, [route?.stops]);
+
+//   const groupedStops = useMemo(() => {
+//     const groups = new Map<string, GroupedStop>();
+
+//     for (const stop of routeStops) {
+//       const key = getLocationKey(stop.latitude, stop.longitude);
+//       const existing = groups.get(key);
+
+//       if (!existing) {
+//         groups.set(key, {
+//           groupKey: key,
+//           address: stop.address,
+//           stops: [stop],
+//         });
+//       } else {
+//         existing.stops.push(stop);
+//       }
+//     }
+
+//     return Array.from(groups.values()).sort(
+//       (a, b) => a.stops[0].sequence_number - b.stops[0].sequence_number
+//     );
+//   }, [routeStops]);
+
+//   const activeStop = useMemo<RouteStop | null>(() => {
+//     return routeStops.find((s) => s.id === activeStopId) ?? null;
+//   }, [routeStops, activeStopId]);
+
+//   const activeGroup = useMemo(() => {
+//     if (!activeStop) return null;
+//     const key = getLocationKey(activeStop.latitude, activeStop.longitude);
+//     return groupedStops.find((g) => g.groupKey === key) ?? null;
+//   }, [activeStop, groupedStops]);
+
+//   const selectedStop = useMemo(() => {
+//     if (!selectedGroupKey) return null;
+//     const group = groupedStops.find((g) => g.groupKey === selectedGroupKey);
+//     if (!group) return null;
+//     return group.stops.find((s) => s.id === selectedStopId) ?? group.stops[0] ?? null;
+//   }, [groupedStops, selectedGroupKey, selectedStopId]);
+
+//   const showNextStopCard = !!activeGroup && !!activeStop;
+
+//   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
+//   const cardYPositions = useRef<Record<string, number>>({});
+
+//   const canActivateCard = !!selectedStop && !!activeGroup && selectedGroupKey === activeGroup.groupKey;
+
+//   useEffect(() => {
+//     let mounted = true;
+
+//     const start = async () => {
+//       if (!mounted) return;
+//       await startGeofenceTracking();
+//     };
+
+//     start();
+
+//     return () => {
+//       mounted = false;
+//       useGeofenceStore.getState().stopGeofenceTracking();
+//     };
+//   }, [startGeofenceTracking]);
+
+//   useEffect(() => {
+//     if (!route) return;
+//     const firstTransit = route.stops?.find((s) => s.order_status === "in_transit") ?? null;
+//     if (firstTransit) {
+//       const key = getLocationKey(firstTransit.latitude, firstTransit.longitude);
+//       if (!selectedGroupKey) setSelectedGroupKey(key);
+//     }
+//   }, [route, selectedGroupKey]);
+
+//   // Add this near your other useEffects
+//   // useFocusEffect(
+//   //   useCallback(() => {
+//   //     // Re-open sheet when screen comes back into focus
+//   //     const timer = setTimeout(() => {
+//   //       bottomSheetRef.current?.present();
+//   //     }, 200);
+//   //     return () => clearTimeout(timer);
+//   //   }, [])
+//   // );
+
+//   // REPLACE the entire nearStopId useEffect with this:
+//   useEffect(() => {
+//     if (!nearStopId) {
+//       setActiveStopId(null);
+//       setSelectedStopId(null);
+
+//       // ── Only clear the group if it has no more in_transit stops ──
+//       if (selectedGroupKey) {
+//         const group = groupedStops.find((g) => g.groupKey === selectedGroupKey);
+//         if (!group || group.stops.length === 0) {
+//           // Group is fully done — clear it
+//           setSelectedGroupKey(null);
+//           setExpandedGroupKey(null);
+//         } else {
+//           // Group still has in_transit stops — keep it visible,
+//           // auto-select the first remaining stop in the group
+//           const nextStop = group.stops[0];
+//           if (nextStop) {
+//             setSelectedStopId(nextStop.id);
+//           }
+//         }
+//       }
+//       return;
+//     }
+
+//     setActiveStopId(nearStopId);
+//     setSelectedStopId(nearStopId);
+
+//     const stop = route?.stops?.find((s) => s.id === nearStopId);
+//     if (stop) {
+//       const key = getLocationKey(stop.latitude, stop.longitude);
+//       setSelectedGroupKey(key);
+
+//       const group = groupedStops.find((g) => g.groupKey === key);
+//       if (group && group.stops.length > 1) {
+//         setExpandedGroupKey(key);
+//       }
+//     }
+
+//     bottomSheetRef.current?.snapToIndex(1);
+
+//     const yOffset = cardYPositions.current[nearStopId];
+//     if (yOffset !== undefined && scrollViewRef.current) {
+//       scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
+//     }
+//   }, [nearStopId, route?.stops, setActiveStopId, setSelectedStopId, groupedStops, selectedGroupKey]);
+
+//   // June 1: Watch heading changes to rotate the map accordingly (optional enhancement)
+//   useEffect(() => {
+//     let headingSub: Location.LocationSubscription | null = null;
+//     let mounted = true;
+
+//     const startHeadingTracking = async () => {
+//       const { status } = await Location.requestForegroundPermissionsAsync();
+//       if (status !== "granted" || !mounted) return;
+
+//       headingSub = await Location.watchHeadingAsync((headingData) => {
+//         const heading =
+//           typeof headingData.trueHeading === "number" && headingData.trueHeading >= 0
+//             ? headingData.trueHeading
+//             : headingData.magHeading;
+
+//         if (typeof heading === "number") {
+//           mapRef.current?.updateDriverHeading(heading);
+//         }
+//       });
+//     };
+
+//     startHeadingTracking();
+
+//     return () => {
+//       mounted = false;
+//       headingSub?.remove();
+//     };
+//   }, []);
+
+//   const openSheet = useCallback(() => bottomSheetRef.current?.present(), []);
+
+//   const backDrop = useCallback(
+//     (props: any) => (
+//       <BottomSheetBackdrop
+//         {...props}
+//         appearsOnIndex={0}
+//         disappearsOnIndex={-1}
+//         opacity={0.3}
+//       />
+//     ),
+//     []
+//   );
+
+//   const handleTripToggle = async () => {
+//     const { accessToken } = useAuthStore.getState();
+//     const {
+//       isTripStarted,
+//       startTrip,
+//       stopTrip,
+//       connectSocket,
+//       startTracking,
+//       canStopTrip,
+//       loading,
+//     } = useTrackingStore.getState();
+
+//     if (!accessToken || loading) return;
+//     if (!routeAvailable) return;
+
+//     if (isTripStarted) {
+//       if (!canStopTrip) return;
+//       await stopTrip();
+//       return;
+//     }
+
+//     const ok = await startTrip();
+//     if (ok) {
+//       const { domain_name } = useAuthStore.getState();
+//       if (domain_name) connectSocket(domain_name);
+//       await startTracking();
+
+//       //June 1 ← NEW: fetch polyline to first stop immediately when trip starts
+//       // await fetchNavigationPolyline();
+//       // ── Wait for GPS location to be available, then fetch polyline ──
+//       waitForLocationAndFetchRoute();
+//     }
+//   };
+
+//   const handleMarkDelivered = () => {
+//     if (!selectedStop || !route) return;
+//     if (!selectedStop.order) return;
+//     if (!canMark) return;
+
+//     bottomSheetRef.current?.dismiss();
+//     router.push({
+//       pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
+//       params: {
+//         orderId: selectedStop.order,
+//         customerName: selectedStop.customer_name,
+//         deliveryDate: route.delivery_date ?? "",
+//       },
+//     } as any);
+//   };
+
+//   const handleMarkUndelivered = () => {
+//     if (!selectedStop || !route) return;
+//     if (!selectedStop.order) return;
+
+//     bottomSheetRef.current?.dismiss();
+
+//     router.push({
+//       pathname: ROUTES.DRIVER.CAPTURE_POD,
+//       params: {
+//         routeId: route.id,
+//         stopId: selectedStop.id,
+//         orderId: selectedStop.order,
+//       },
+//     } as any);
+//   };
+
+//   const completedCount =
+//     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
+
+//   {/* June 1 */ }
+//   const waitForLocationAndFetchRoute = useCallback(() => {
+//     const MAX_ATTEMPTS = 20;   // 10 seconds max (20 × 500ms)
+//     let attempts = 0;
+
+//     const interval = setInterval(() => {
+//       attempts++;
+//       const location = useGeofenceStore.getState().location;
+
+//       if (location) {
+//         clearInterval(interval);
+
+//         // Re-set navigationStopId based on now-available location
+//         const { route } = useGeofenceStore.getState();
+//         if (route?.stops?.length) {
+//           const inTransit = route.stops.filter((s) => s.order_status === "in_transit");
+//           if (inTransit.length) {
+//             let closest = inTransit[0];
+//             let minDist = Infinity;
+//             for (const stop of inTransit) {
+//               const d = Math.sqrt(
+//                 Math.pow(stop.latitude - location.lat, 2) +
+//                 Math.pow(stop.longitude - location.lng, 2)
+//               );
+//               if (d < minDist) { minDist = d; closest = stop; }
+//             }
+//             useGeofenceStore.getState().setActiveStopId(closest.id);
+//             // Trigger polyline fetch via store
+//             useGeofenceStore.setState((s) => ({
+//               ...s,
+//               navigationStopId: closest.id,
+//             }));
+//             useGeofenceStore.getState().fetchNavigationPolyline();
+//           }
+//         }
+//       }
+
+//       if (attempts >= MAX_ATTEMPTS) {
+//         clearInterval(interval);
+//         // Fallback: fetch anyway even without location
+//         fetchNavigationPolyline();
+//       }
+//     }, 500);
+//   }, [fetchNavigationPolyline]);
+
+//   return (
+//     <>
+//       <StatusBar style="light" />
+//       <SafeAreaView edges={["top"]} className="flex-1 bg-black">
+//         <View className="absolute inset-0">
+//           <OSMMap
+//             ref={mapRef}
+//             stops={route?.stops ?? []}
+//             activeStopId={activeStopId}
+//             selectedStopId={selectedStopId}
+//             navigationStopId={navigationStopId}          // ← NEW
+//             navigationPolyline={navigationPolyline}     // ← NEW
+//           />
+//         </View>
+
+//         {/* <TripStatusBanner
+//           routeName={route?.name ?? "Today's Route"}
+//           completed={completedCount}
+//           total={route?.stops?.length ?? 0}
+//           eta="1h 24m"
+//           isTripStarted={isTripStarted}
+//           loading={trackingLoading}
+//           onToggle={handleTripToggle}
+//           disabled={isTripStarted ? !canStopTrip : !routeAvailable}
+//         /> */}
+
+//       // June 1
+//         <TripStatusBanner
+//           routeName={route?.name ?? "Today's Route"}
+//           completed={completedCount}
+//           total={route?.stops?.length ?? 0}
+//           eta="1h 24m"
+//           isTripStarted={isTripStarted}
+//           loading={trackingLoading}
+//           onToggle={handleTripToggle}
+//           disabled={isTripStarted ? !canStopTrip : !routeAvailable}
+//           navigationStopName={
+//             navigationStopId
+//               ? (route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null)
+//               : null
+//           }
+//           navigationStopAddress={
+//             navigationStopId
+//               ? (route?.stops?.find((s) => s.id === navigationStopId)?.address ?? null)
+//               : null
+//           }
+//           onRefreshRoute={fetchNavigationPolyline}
+//         />
+
+//         {/* ── 2. ✅ ADD NAVIGATION BANNER HERE ── */}
+//         {/* {isTripStarted && navigationStopId && (() => {
+//           const navStop = route?.stops?.find((s) => s.id === navigationStopId);
+//           if (!navStop) return null;
+//           return (
+//             <View className="absolute bottom-72 left-4 right-4 z-20">
+//               <View className="flex-row items-center gap-x-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
+//                 <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-primary">
+//                   <Ionicons name="navigate" size={18} color="white" />
+//                 </View>
+//                 <View className="flex-1">
+//                   <Text variant="caption" color="muted" className="uppercase tracking-wide">
+//                     Navigating to
+//                   </Text>
+//                   <Text variant="body" weight="bold" color="primary" numberOfLines={1}>
+//                     {navStop.customer_name}
+//                   </Text>
+//                   <Text variant="body-sm" color="muted" numberOfLines={1}>
+//                     {navStop.address}
+//                   </Text>
+//                 </View>
+//                 <TouchableOpacity
+//                   onPress={() => fetchNavigationPolyline()}
+//                   className="h-9 w-9 items-center justify-center rounded-full bg-bg-screen"
+//                 >
+//                   <Ionicons name="refresh" size={16} color="#1B5E37" />
+//                 </TouchableOpacity>
+//               </View>
+//             </View>
+//           );
+//         })()} */}
+
+
+//         <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
+//           <TouchableOpacity
+//             onPress={openSheet}
+//             className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
+//           >
+//             <Ionicons name="list" size={22} color="white" />
+//           </TouchableOpacity>
+
+//           <TouchableOpacity
+//             onPress={() => mapRef.current?.centerOnUser()}
+//             className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
+//           >
+//             <Ionicons name="locate" size={22} color="#1B5E37" />
+//           </TouchableOpacity>
+//         </View>
+
+//         <BottomSheetModal
+//           ref={bottomSheetRef}
+//           snapPoints={snapPoints}
+//           index={0}
+//           topInset={insets.top}
+//           bottomInset={insets.bottom}
+//           enablePanDownToClose
+//           backdropComponent={backDrop}
+//           handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
+//           backgroundStyle={{
+//             backgroundColor: "#F0EBE1",
+//             borderTopLeftRadius: 28,
+//             borderTopRightRadius: 28,
+//           }}
+//         >
+//           <BottomSheetScrollView
+//             ref={scrollViewRef}
+//             contentContainerStyle={{
+//               padding: 15,
+//               paddingBottom: 110 + insets.bottom,
+//             }}
+//           >
+//             {!isTripStarted && (
+//               <TripStartPrompt
+//                 loading={trackingLoading}
+//                 disabled={!routeAvailable}
+//                 onStart={handleTripToggle}
+//               />
+//             )}
+
+//             <RouteStatRow
+//               stats={[
+//                 { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
+//                 { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
+//                 { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
+//                 { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
+//               ]}
+//             />
+
+//             {showNextStopCard && activeGroup ? (
+//               <>
+//                 <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+//                   <Text variant="body" weight="semibold" color="primary">
+//                     Active Customer Group
+//                   </Text>
+//                   <Text variant="body-sm" color="muted" className="mt-1">
+//                     {activeGroup.stops.length} customer{activeGroup.stops.length > 1 ? "s" : ""} at the same location
+//                   </Text>
+//                 </View>
+
+//                 <View className="mt-4 gap-y-3">
+//                   {activeGroup.stops.map((stop) => {
+//                     const isSelected = stop.id === selectedStopId;
+
+//                     return (
+//                       <TouchableOpacity
+//                         key={stop.id}
+//                         activeOpacity={0.85}
+//                         onPress={() => {
+//                           setSelectedStopId(stop.id);
+//                           setSelectedGroupKey(activeGroup.groupKey);
+//                         }}
+//                       >
+//                         <StopListItem
+//                           sequenceNumber={stop.sequence_number}
+//                           customerName={stop.customer_name}
+//                           address={stop.address}
+//                           items={[]}
+//                           status={isSelected ? "current" : "pending"}
+//                           isActive={isSelected}
+//                           pulse={isSelected}
+//                           showNearbyTag={isSelected}
+//                         />
+//                       </TouchableOpacity>
+//                     );
+//                   })}
+//                 </View>
+
+//                 {selectedStop && (
+//                   <View className="mt-4">
+//                     <NextStopCard
+//                       stopNumber={selectedStop.sequence_number}
+//                       customerName={selectedStop.customer_name}
+//                       address={selectedStop.address}
+//                       items={[]}
+//                       orderId={selectedStop.order ?? ""}
+//                       disabled={!canActivateCard || !routeAvailable}
+//                       onMarkDelivered={handleMarkDelivered}
+//                       onMarkUndelivered={handleMarkUndelivered}
+//                     />
+//                   </View>
+//                 )}
+//               </>
+//             ) : (
+//               <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+//                 <Text variant="body" color="muted" weight="medium">
+//                   {routeAvailable ? "No active customer in geofence" : "No route assigned for today"}
+//                 </Text>
+//                 <Text variant="body-sm" color="muted" className="mt-1">
+//                   {routeAvailable
+//                     ? "Move closer to a stop to activate delivery actions."
+//                     : "Trip toggle and customer actions are disabled until a route is assigned."}
+//                 </Text>
+//               </View>
+//             )}
+
+//             <Button
+//               className="mt-6"
+//               label="Show all Customers"
+//               intent="secondary"
+//               fullWidth
+//               size="lg"
+//               disabled={!routeAvailable}
+//               onPress={() => {
+//                 if (!routeAvailable) return;
+//                 bottomSheetRef.current?.close();
+//                 setTimeout(() => {
+//                   router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any);
+//                 }, 150);
+//               }}
+//             />
+//           </BottomSheetScrollView>
+//         </BottomSheetModal>
+//       </SafeAreaView>
+//     </>
+//   );
+// }
+
+
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { View, TouchableOpacity } from "react-native";
 import {
@@ -10,7 +610,7 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
+import { useFocusEffect, useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import OSMMap, { OSMMapHandle } from "../components/OSMMap";
 import { useAuthStore } from "@store/authStore";
@@ -66,11 +666,9 @@ export default function MapScreen() {
   const startGeofenceTracking = useGeofenceStore((s) => s.startGeofenceTracking);
   const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
 
-  //June 1 
   const navigationStopId = useGeofenceStore((s) => s.navigationStopId);
   const navigationPolyline = useGeofenceStore((s) => s.navigationPolyline);
   const fetchNavigationPolyline = useGeofenceStore((s) => s.fetchNavigationPolyline);
-  //////////////
 
   const routeAvailable = !!route;
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
@@ -118,16 +716,29 @@ export default function MapScreen() {
   const selectedStop = useMemo(() => {
     if (!selectedGroupKey) return null;
     const group = groupedStops.find((g) => g.groupKey === selectedGroupKey);
-    if (!group) return null;
-    return group.stops.find((s) => s.id === selectedStopId) ?? group.stops[0] ?? null;
+    if (!group || group.stops.length === 0) return null;
+
+    const exactMatch = group.stops.find((s) => s.id === selectedStopId);
+    if (exactMatch) return exactMatch;
+
+    return group.stops[0] ?? null;
   }, [groupedStops, selectedGroupKey, selectedStopId]);
 
-  const showNextStopCard = !!activeGroup && !!activeStop;
+  const selectedGroup = useMemo(() => {
+    if (!selectedGroupKey) return null;
+    return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
+  }, [groupedStops, selectedGroupKey]);
+
+  const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0;
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
 
-  const canActivateCard = !!selectedStop && !!activeGroup && selectedGroupKey === activeGroup.groupKey;
+  const canActivateCard =
+    !!selectedStop &&
+    !!selectedGroup &&
+    !!selectedStop.order &&
+    selectedStop.order_status === "in_transit";
 
   useEffect(() => {
     let mounted = true;
@@ -148,18 +759,42 @@ export default function MapScreen() {
   useEffect(() => {
     if (!route) return;
     const firstTransit = route.stops?.find((s) => s.order_status === "in_transit") ?? null;
-    if (firstTransit) {
+    if (firstTransit && !selectedGroupKey) {
       const key = getLocationKey(firstTransit.latitude, firstTransit.longitude);
-      if (!selectedGroupKey) setSelectedGroupKey(key);
+      setSelectedGroupKey(key);
+      setSelectedStopId(firstTransit.id);
     }
-  }, [route, selectedGroupKey]);
+  }, [route, selectedGroupKey, setSelectedStopId]);
 
   useEffect(() => {
     if (!nearStopId) {
       setActiveStopId(null);
-      setSelectedStopId(null);
-      setSelectedGroupKey(null);
-      setExpandedGroupKey(null);
+
+      if (selectedGroupKey) {
+        const existingGroup = groupedStops.find((g) => g.groupKey === selectedGroupKey);
+
+        if (existingGroup && existingGroup.stops.length > 0) {
+          const nextStopInGroup =
+            existingGroup.stops.find((s) => s.id === selectedStopId) ??
+            existingGroup.stops[0];
+
+          setSelectedStopId(nextStopInGroup?.id ?? null);
+
+          if (existingGroup.stops.length > 1) {
+            setExpandedGroupKey(existingGroup.groupKey);
+          } else {
+            setExpandedGroupKey(null);
+          }
+        } else {
+          setSelectedStopId(null);
+          setSelectedGroupKey(null);
+          setExpandedGroupKey(null);
+        }
+      } else {
+        setSelectedStopId(null);
+        setExpandedGroupKey(null);
+      }
+
       return;
     }
 
@@ -174,6 +809,8 @@ export default function MapScreen() {
       const group = groupedStops.find((g) => g.groupKey === key);
       if (group && group.stops.length > 1) {
         setExpandedGroupKey(key);
+      } else {
+        setExpandedGroupKey(null);
       }
     }
 
@@ -183,9 +820,106 @@ export default function MapScreen() {
     if (yOffset !== undefined && scrollViewRef.current) {
       scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
     }
-  }, [nearStopId, route?.stops, setActiveStopId, setSelectedStopId, groupedStops]);
+  }, [
+    nearStopId,
+    route?.stops,
+    groupedStops,
+    selectedGroupKey,
+    selectedStopId,
+    setActiveStopId,
+    setSelectedStopId,
+  ]);
 
-  // June 1: Watch heading changes to rotate the map accordingly (optional enhancement)
+  useFocusEffect(
+    useCallback(() => {
+      const currentRoute = useGeofenceStore.getState().route;
+      const inTransitStops = (currentRoute?.stops ?? []).filter(
+        (s) => s.order_status === "in_transit"
+      ) as RouteStop[];
+
+      if (!inTransitStops.length) {
+        setSelectedStopId(null);
+        setSelectedGroupKey(null);
+        setExpandedGroupKey(null);
+        setActiveStopId(null);
+        return;
+      }
+
+      if (selectedGroupKey) {
+        const existingGroup = groupedStops.find((g) => g.groupKey === selectedGroupKey);
+
+        if (existingGroup && existingGroup.stops.length > 0) {
+          const nextStop: RouteStop | null =
+            existingGroup.stops.find((s) => s.id === selectedStopId) ??
+            existingGroup.stops[0] ??
+            null;
+
+          setSelectedStopId(nextStop?.id ?? null);
+
+          if (existingGroup.stops.length > 1) {
+            setExpandedGroupKey(existingGroup.groupKey);
+          } else {
+            setExpandedGroupKey(null);
+          }
+
+          const timer = setTimeout(() => {
+            bottomSheetRef.current?.present();
+            bottomSheetRef.current?.snapToIndex(1);
+          }, 150);
+
+          return () => clearTimeout(timer);
+        }
+      }
+
+      let fallbackStop: RouteStop | null = null;
+
+      if (nearStopId) {
+        fallbackStop = inTransitStops.find((s) => s.id === nearStopId) ?? null;
+      }
+
+      if (!fallbackStop) {
+        fallbackStop = inTransitStops[0] ?? null;
+      }
+
+      if (!fallbackStop) {
+        setSelectedStopId(null);
+        setSelectedGroupKey(null);
+        setExpandedGroupKey(null);
+        setActiveStopId(null);
+        return;
+      }
+
+      const fallbackKey = getLocationKey(
+        fallbackStop.latitude,
+        fallbackStop.longitude
+      );
+
+      setSelectedGroupKey(fallbackKey);
+      setSelectedStopId(fallbackStop.id);
+      setActiveStopId(nearStopId ?? null);
+
+      const fallbackGroup = groupedStops.find((g) => g.groupKey === fallbackKey);
+      if (fallbackGroup && fallbackGroup.stops.length > 1) {
+        setExpandedGroupKey(fallbackKey);
+      } else {
+        setExpandedGroupKey(null);
+      }
+
+      const timer = setTimeout(() => {
+        bottomSheetRef.current?.present();
+        bottomSheetRef.current?.snapToIndex(1);
+      }, 150);
+
+      return () => clearTimeout(timer);
+    }, [
+      groupedStops,
+      nearStopId,
+      selectedGroupKey,
+      selectedStopId,
+      setActiveStopId,
+      setSelectedStopId,
+    ])
+  );
   useEffect(() => {
     let headingSub: Location.LocationSubscription | null = null;
     let mounted = true;
@@ -228,23 +962,69 @@ export default function MapScreen() {
     []
   );
 
+  const waitForLocationAndFetchRoute = useCallback(() => {
+    const MAX_ATTEMPTS = 20;
+    let attempts = 0;
+
+    const interval = setInterval(() => {
+      attempts++;
+      const location = useGeofenceStore.getState().location;
+
+      if (location) {
+        clearInterval(interval);
+
+        const { route } = useGeofenceStore.getState();
+        if (route?.stops?.length) {
+          const inTransit = route.stops.filter((s) => s.order_status === "in_transit");
+          if (inTransit.length) {
+            let closest = inTransit[0];
+            let minDist = Infinity;
+
+            for (const stop of inTransit) {
+              const d = Math.sqrt(
+                Math.pow(stop.latitude - location.lat, 2) +
+                Math.pow(stop.longitude - location.lng, 2)
+              );
+              if (d < minDist) {
+                minDist = d;
+                closest = stop;
+              }
+            }
+
+            useGeofenceStore.getState().setActiveStopId(closest.id);
+            useGeofenceStore.setState((s) => ({
+              ...s,
+              navigationStopId: closest.id,
+            }));
+            useGeofenceStore.getState().fetchNavigationPolyline();
+          }
+        }
+      }
+
+      if (attempts >= MAX_ATTEMPTS) {
+        clearInterval(interval);
+        fetchNavigationPolyline();
+      }
+    }, 500);
+  }, [fetchNavigationPolyline]);
+
   const handleTripToggle = async () => {
     const { accessToken } = useAuthStore.getState();
     const {
-      isTripStarted,
+      isTripStarted: tripStarted,
       startTrip,
       stopTrip,
       connectSocket,
       startTracking,
-      canStopTrip,
+      canStopTrip: canEndTrip,
       loading,
     } = useTrackingStore.getState();
 
     if (!accessToken || loading) return;
     if (!routeAvailable) return;
 
-    if (isTripStarted) {
-      if (!canStopTrip) return;
+    if (tripStarted) {
+      if (!canEndTrip) return;
       await stopTrip();
       return;
     }
@@ -254,10 +1034,6 @@ export default function MapScreen() {
       const { domain_name } = useAuthStore.getState();
       if (domain_name) connectSocket(domain_name);
       await startTracking();
-
-      //June 1 ← NEW: fetch polyline to first stop immediately when trip starts
-      // await fetchNavigationPolyline();
-      // ── Wait for GPS location to be available, then fetch polyline ──
       waitForLocationAndFetchRoute();
     }
   };
@@ -283,7 +1059,6 @@ export default function MapScreen() {
     if (!selectedStop.order) return;
 
     bottomSheetRef.current?.dismiss();
-
     router.push({
       pathname: ROUTES.DRIVER.CAPTURE_POD,
       params: {
@@ -297,51 +1072,6 @@ export default function MapScreen() {
   const completedCount =
     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
-  {/* June 1 */ }
-  const waitForLocationAndFetchRoute = useCallback(() => {
-    const MAX_ATTEMPTS = 20;   // 10 seconds max (20 × 500ms)
-    let attempts = 0;
-
-    const interval = setInterval(() => {
-      attempts++;
-      const location = useGeofenceStore.getState().location;
-
-      if (location) {
-        clearInterval(interval);
-
-        // Re-set navigationStopId based on now-available location
-        const { route } = useGeofenceStore.getState();
-        if (route?.stops?.length) {
-          const inTransit = route.stops.filter((s) => s.order_status === "in_transit");
-          if (inTransit.length) {
-            let closest = inTransit[0];
-            let minDist = Infinity;
-            for (const stop of inTransit) {
-              const d = Math.sqrt(
-                Math.pow(stop.latitude - location.lat, 2) +
-                Math.pow(stop.longitude - location.lng, 2)
-              );
-              if (d < minDist) { minDist = d; closest = stop; }
-            }
-            useGeofenceStore.getState().setActiveStopId(closest.id);
-            // Trigger polyline fetch via store
-            useGeofenceStore.setState((s) => ({
-              ...s,
-              navigationStopId: closest.id,
-            }));
-            useGeofenceStore.getState().fetchNavigationPolyline();
-          }
-        }
-      }
-
-      if (attempts >= MAX_ATTEMPTS) {
-        clearInterval(interval);
-        // Fallback: fetch anyway even without location
-        fetchNavigationPolyline();
-      }
-    }, 500);
-  }, [fetchNavigationPolyline]);
-
   return (
     <>
       <StatusBar style="light" />
@@ -352,23 +1082,11 @@ export default function MapScreen() {
             stops={route?.stops ?? []}
             activeStopId={activeStopId}
             selectedStopId={selectedStopId}
-            navigationStopId={navigationStopId}          // ← NEW
-            navigationPolyline={navigationPolyline}     // ← NEW
+            navigationStopId={navigationStopId}
+            navigationPolyline={navigationPolyline}
           />
         </View>
 
-        {/* <TripStatusBanner
-          routeName={route?.name ?? "Today's Route"}
-          completed={completedCount}
-          total={route?.stops?.length ?? 0}
-          eta="1h 24m"
-          isTripStarted={isTripStarted}
-          loading={trackingLoading}
-          onToggle={handleTripToggle}
-          disabled={isTripStarted ? !canStopTrip : !routeAvailable}
-        /> */}
-
-      // June 1
         <TripStatusBanner
           routeName={route?.name ?? "Today's Route"}
           completed={completedCount}
@@ -380,49 +1098,16 @@ export default function MapScreen() {
           disabled={isTripStarted ? !canStopTrip : !routeAvailable}
           navigationStopName={
             navigationStopId
-              ? (route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null)
+              ? route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null
               : null
           }
           navigationStopAddress={
             navigationStopId
-              ? (route?.stops?.find((s) => s.id === navigationStopId)?.address ?? null)
+              ? route?.stops?.find((s) => s.id === navigationStopId)?.address ?? null
               : null
           }
           onRefreshRoute={fetchNavigationPolyline}
         />
-
-        {/* ── 2. ✅ ADD NAVIGATION BANNER HERE ── */}
-        {/* {isTripStarted && navigationStopId && (() => {
-          const navStop = route?.stops?.find((s) => s.id === navigationStopId);
-          if (!navStop) return null;
-          return (
-            <View className="absolute bottom-72 left-4 right-4 z-20">
-              <View className="flex-row items-center gap-x-3 rounded-2xl bg-white px-4 py-3 shadow-lg">
-                <View className="h-9 w-9 items-center justify-center rounded-full bg-brand-primary">
-                  <Ionicons name="navigate" size={18} color="white" />
-                </View>
-                <View className="flex-1">
-                  <Text variant="caption" color="muted" className="uppercase tracking-wide">
-                    Navigating to
-                  </Text>
-                  <Text variant="body" weight="bold" color="primary" numberOfLines={1}>
-                    {navStop.customer_name}
-                  </Text>
-                  <Text variant="body-sm" color="muted" numberOfLines={1}>
-                    {navStop.address}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => fetchNavigationPolyline()}
-                  className="h-9 w-9 items-center justify-center rounded-full bg-bg-screen"
-                >
-                  <Ionicons name="refresh" size={16} color="#1B5E37" />
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        })()} */}
-
 
         <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
           <TouchableOpacity
@@ -448,6 +1133,7 @@ export default function MapScreen() {
           bottomInset={insets.bottom}
           enablePanDownToClose
           backdropComponent={backDrop}
+          animateOnMount
           handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
           backgroundStyle={{
             backgroundColor: "#F0EBE1",
@@ -479,19 +1165,20 @@ export default function MapScreen() {
               ]}
             />
 
-            {showNextStopCard && activeGroup ? (
+            {showNextStopCard && selectedGroup ? (
               <>
                 <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
                   <Text variant="body" weight="semibold" color="primary">
                     Active Customer Group
                   </Text>
                   <Text variant="body-sm" color="muted" className="mt-1">
-                    {activeGroup.stops.length} customer{activeGroup.stops.length > 1 ? "s" : ""} at the same location
+                    {selectedGroup.stops.length} customer
+                    {selectedGroup.stops.length > 1 ? "s" : ""} at the same location
                   </Text>
                 </View>
 
                 <View className="mt-4 gap-y-3">
-                  {activeGroup.stops.map((stop) => {
+                  {selectedGroup.stops.map((stop) => {
                     const isSelected = stop.id === selectedStopId;
 
                     return (
@@ -500,7 +1187,7 @@ export default function MapScreen() {
                         activeOpacity={0.85}
                         onPress={() => {
                           setSelectedStopId(stop.id);
-                          setSelectedGroupKey(activeGroup.groupKey);
+                          setSelectedGroupKey(selectedGroup.groupKey);
                         }}
                       >
                         <StopListItem
