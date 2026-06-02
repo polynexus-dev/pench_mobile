@@ -93,7 +93,7 @@ export function DriverDashboardScreen() {
 
     const totalStops = route?.stops?.length ?? 0;
     const deliveredStops =
-        route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
+        route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;    
 
     const deliveryProgress =
         totalStops > 0

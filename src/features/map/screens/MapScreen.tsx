@@ -1118,6 +1118,13 @@ export default function MapScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity
+            onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+            className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
+          >
+            <Ionicons name="qr-code-outline" size={22} color="#fff" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             onPress={() => mapRef.current?.centerOnUser()}
             className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
           >

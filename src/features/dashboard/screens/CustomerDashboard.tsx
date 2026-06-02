@@ -868,7 +868,7 @@ export function CustomerDashboardScreen() {
                                     <View className="flex-1 pr-3">
                                         <Text
                                             className="text-heading text-text-primary"
-                                            fontWeight="bold"
+                                            weight="bold"
                                         >
                                             Set Delivery Location
                                         </Text>
@@ -890,13 +890,13 @@ export function CustomerDashboardScreen() {
                                     className="mt-4 flex-row items-center justify-center rounded-btn bg-brand-primary px-btn-x py-btn-y"
                                 >
                                     {locating ? (
-                                        <Text className="text-text-inverse" fontWeight="semibold">
+                                        <Text className="text-text-inverse" weight="semibold">
                                             Detecting…
                                         </Text>
                                     ) : (
                                         <>
                                             <Ionicons name="locate" size={18} color="#fff" />
-                                            <Text className="ml-2 text-text-inverse" fontWeight="semibold">
+                                            <Text className="ml-2 text-text-inverse" weight="semibold">
                                                 Detect Location
                                             </Text>
                                         </>
@@ -927,7 +927,7 @@ export function CustomerDashboardScreen() {
                                         onPress={handleSkip}
                                         className="flex-1 items-center justify-center rounded-btn border border-border-default bg-bg-card px-btn-x py-btn-y"
                                     >
-                                        <Text className="text-text-secondary" fontWeight="medium">
+                                        <Text className="text-text-secondary" weight="medium">
                                             Skip
                                         </Text>
                                     </TouchableOpacity>

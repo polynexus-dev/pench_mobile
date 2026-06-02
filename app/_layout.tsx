@@ -11,6 +11,12 @@ import * as SplashScreen from "expo-splash-screen";
 import "../global.css";
 import { ToastProvider } from "@/shared/components/Toast/Toast";
 import "@/services/location/backgroundTracking";
+import { useNotifications } from "@/features/notifications/hooks/useNotifications";
+
+function AppInit() {
+  useNotifications();
+  return null;
+}
 
 SplashScreen.preventAutoHideAsync();
 
@@ -94,6 +100,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
+            <AppInit />
             <RootNavigator />
             <ToastProvider />
           </BottomSheetModalProvider>
