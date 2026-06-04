@@ -95,9 +95,9 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
+            <StatusBar style="dark" />
             <RootNavigator />
             <ToastProvider />
-            <StatusBar style="dark" />
           </BottomSheetModalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
