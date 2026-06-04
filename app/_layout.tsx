@@ -78,15 +78,34 @@ function RootNavigator() {
     }
   }, [user]);
 
+  // ── Dynamic status bar style calculation based on active route ──
+  const getStatusBarStyle = () => {
+    if (!segments || segments.length === 0) return "dark";
+    const pathString = segments.join("/");
+    const isDarkScreen =
+      pathString.includes("profile") ||
+      pathString.includes("qr") ||
+      pathString.includes("map") ||
+      pathString.includes("capture-pod");
+    return isDarkScreen ? "light" : "dark";
+  };
+  const statusBarStyle = getStatusBarStyle();
+
   if (!isReady) {
     return (
       <View className="flex-1 items-center justify-center bg-bg-screen">
+        <StatusBar style="dark" />
         <ActivityIndicator size="large" color="#1B5E37" />
       </View>
     );
   }
 
-  return <Slot />;
+  return (
+    <>
+      <StatusBar style={statusBarStyle} />
+      <Slot />
+    </>
+  );
 }
 
 export default function RootLayout() {
@@ -95,7 +114,6 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
-            <StatusBar style="dark" />
             <RootNavigator />
             <ToastProvider />
           </BottomSheetModalProvider>
