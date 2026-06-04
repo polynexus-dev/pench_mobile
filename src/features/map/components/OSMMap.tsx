@@ -600,7 +600,7 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
     }
 
     var activeIcon      = makeIcon('#3b82f6');
-    var selectedIcon    = makeIcon('#f97316');
+    var selectedIcon    = makeIcon('#f1f1f1');
     var inTransitIcon   = makeIcon('#ffbf00');
     var deliveredIcon   = makeIcon('#22c55e');
     var undeliveredIcon = makeIcon('#ef4444');

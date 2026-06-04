@@ -729,7 +729,8 @@ export default function MapScreen() {
     return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
   }, [groupedStops, selectedGroupKey]);
 
-  const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0;
+  // const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0;
+  const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0 && !!nearStopId;
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
