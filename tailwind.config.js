@@ -283,6 +283,14 @@ module.exports = {
         DEFAULT: 1,
         2: 2,
       },
+
+      // ── Min Height ────────────────────────────────────────────────
+      minHeight: {
+        "btn-sm": sizes.btnSm,
+        "btn-md": sizes.btnMd,
+        "btn-lg": sizes.btnLg,
+        "btn-xl": sizes.btnXl,
+      },
     },
   },
   plugins: [],

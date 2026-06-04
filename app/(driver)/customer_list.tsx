@@ -35,8 +35,13 @@ type GroupedStop = {
     stops: RouteStop[];
 };
 
-const getLocationKey = (lat: number, lng: number) =>
-    `${lat.toFixed(5)}_${lng.toFixed(5)}`;
+const getLocationKey = (lat: number | null | undefined, lng: number | null | undefined) => {
+    if (lat === null || lat === undefined || isNaN(Number(lat)) ||
+        lng === null || lng === undefined || isNaN(Number(lng))) {
+        return "0_0";
+    }
+    return `${Number(lat).toFixed(5)}_${Number(lng).toFixed(5)}`;
+};
 
 const CARD_SHADOW = Platform.select({
     ios: {
