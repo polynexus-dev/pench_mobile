@@ -11,6 +11,7 @@ import * as SplashScreen from "expo-splash-screen";
 import "../global.css";
 import { ToastProvider } from "@/shared/components/Toast/Toast";
 import "@/services/location/backgroundTracking";
+import { StatusBar } from "expo-status-bar";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -96,6 +97,7 @@ export default function RootLayout() {
           <BottomSheetModalProvider>
             <RootNavigator />
             <ToastProvider />
+            <StatusBar style="dark" />
           </BottomSheetModalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
