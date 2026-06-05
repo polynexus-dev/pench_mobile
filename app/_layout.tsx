@@ -12,6 +12,7 @@ import "../global.css";
 import { ToastProvider } from "@/shared/components/Toast/Toast";
 import "@/services/location/backgroundTracking";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
+import { StatusBar } from "expo-status-bar";
 
 function AppInit() {
   useNotifications();
@@ -100,6 +101,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <BottomSheetModalProvider>
+            <StatusBar style="dark" />
             <AppInit />
             <RootNavigator />
             <ToastProvider />

@@ -14,6 +14,12 @@ export const dashboardApi = {
       // `https://${domainName}/api/erp/orders/driver/stop-tracking/`
       buildUrl(domainName, `/api/erp/orders/driver/stop-tracking/`)
     ),
+
+  startDeliveryTracking: (domainName: string, payload: any): Promise<any> =>
+    httpClient.post(
+      buildUrl(domainName, `/api/erp/orders/driver/start-tracking/`),
+      payload
+    ),
 };
 
 

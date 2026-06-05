@@ -736,7 +736,9 @@ export const useGeofenceStore = createStore<GeofenceStore>(
                     set((s) => {
                         s.location = location;
                         s.nearStopId = nearStopId;
-                        s.activeStopId = nearStopId;
+                        if (nearStopId) {
+                            s.activeStopId = nearStopId;
+                        }
                     });
 
                     // ── Auto-refresh polyline every 10m of movement ──────────────────────

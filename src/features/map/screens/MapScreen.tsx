@@ -77,9 +77,7 @@ export default function MapScreen() {
   const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(null);
 
   const routeStops = useMemo(() => {
-    return (route?.stops ?? []).filter(
-      (stop) => stop.order_status === "in_transit"
-    ) as RouteStop[];
+    return (route?.stops ?? []) as RouteStop[];
   }, [route?.stops]);
 
   const groupedStops = useMemo(() => {
@@ -131,8 +129,6 @@ export default function MapScreen() {
     return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
   }, [groupedStops, selectedGroupKey]);
 
-  // const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0;
-  const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0 && !!nearStopId;
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
@@ -161,7 +157,7 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (!route) return;
-    const firstTransit = route.stops?.find((s) => s.order_status === "in_transit") ?? null;
+    const firstTransit = route.stops?.find((s) => s.order_status !== "delivered" && s.order_status !== "cancelled") ?? null;
     if (firstTransit && !selectedGroupKey) {
       const key = getLocationKey(firstTransit.latitude, firstTransit.longitude);
       setSelectedGroupKey(key);
@@ -170,36 +166,7 @@ export default function MapScreen() {
   }, [route, selectedGroupKey, setSelectedStopId]);
 
   useEffect(() => {
-    if (!nearStopId) {
-      setActiveStopId(null);
-
-      if (selectedGroupKey) {
-        const existingGroup = groupedStops.find((g) => g.groupKey === selectedGroupKey);
-
-        if (existingGroup && existingGroup.stops.length > 0) {
-          const nextStopInGroup =
-            existingGroup.stops.find((s) => s.id === selectedStopId) ??
-            existingGroup.stops[0];
-
-          setSelectedStopId(nextStopInGroup?.id ?? null);
-
-          if (existingGroup.stops.length > 1) {
-            setExpandedGroupKey(existingGroup.groupKey);
-          } else {
-            setExpandedGroupKey(null);
-          }
-        } else {
-          setSelectedStopId(null);
-          setSelectedGroupKey(null);
-          setExpandedGroupKey(null);
-        }
-      } else {
-        setSelectedStopId(null);
-        setExpandedGroupKey(null);
-      }
-
-      return;
-    }
+    if (!nearStopId) return;
 
     setActiveStopId(nearStopId);
     setSelectedStopId(nearStopId);
@@ -227,8 +194,6 @@ export default function MapScreen() {
     nearStopId,
     route?.stops,
     groupedStops,
-    selectedGroupKey,
-    selectedStopId,
     setActiveStopId,
     setSelectedStopId,
   ]);
@@ -237,7 +202,7 @@ export default function MapScreen() {
     useCallback(() => {
       const currentRoute = useGeofenceStore.getState().route;
       const inTransitStops = (currentRoute?.stops ?? []).filter(
-        (s) => s.order_status === "in_transit"
+        (s) => s.order_status !== "delivered" && s.order_status !== "cancelled"
       ) as RouteStop[];
 
       if (!inTransitStops.length) {
@@ -378,7 +343,7 @@ export default function MapScreen() {
 
         const { route } = useGeofenceStore.getState();
         if (route?.stops?.length) {
-          const inTransit = route.stops.filter((s) => s.order_status === "in_transit");
+          const inTransit = route.stops.filter((s) => s.order_status !== "delivered" && s.order_status !== "cancelled");
           if (inTransit.length) {
             let closest = inTransit[0];
             let minDist = Infinity;
@@ -575,20 +540,22 @@ export default function MapScreen() {
               ]}
             />
 
-            {showNextStopCard && selectedGroup ? (
+            {routeAvailable && groupedStops.length > 0 ? (
               <>
-                <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
-                  <Text variant="body" weight="semibold" color="primary">
-                    Active Customer Group
-                  </Text>
-                  <Text variant="body-sm" color="muted" className="mt-1">
-                    {selectedGroup.stops.length} customer
-                    {selectedGroup.stops.length > 1 ? "s" : ""} at the same location
-                  </Text>
-                </View>
+                {selectedGroup && (
+                  <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+                    <Text variant="body" weight="semibold" color="primary">
+                      {nearStopId ? "Active Customer Group" : "Selected Customer Group"}
+                    </Text>
+                    <Text variant="body-sm" color="muted" className="mt-1">
+                      {selectedGroup.stops.length} customer
+                      {selectedGroup.stops.length > 1 ? "s" : ""} at the same location
+                    </Text>
+                  </View>
+                )}
 
                 <View className="mt-4 gap-y-3">
-                  {selectedGroup.stops.map((stop) => {
+                  {(selectedGroup ?? groupedStops[0])?.stops.map((stop) => {
                     const isSelected = stop.id === selectedStopId;
 
                     return (
@@ -597,7 +564,8 @@ export default function MapScreen() {
                         activeOpacity={0.85}
                         onPress={() => {
                           setSelectedStopId(stop.id);
-                          setSelectedGroupKey(selectedGroup.groupKey);
+                          const key = getLocationKey(stop.latitude, stop.longitude);
+                          setSelectedGroupKey(key);
                         }}
                       >
                         <StopListItem
@@ -607,8 +575,9 @@ export default function MapScreen() {
                           items={[]}
                           status={isSelected ? "current" : "pending"}
                           isActive={isSelected}
-                          pulse={isSelected}
-                          showNearbyTag={isSelected}
+                          isNear={stop.id === nearStopId}
+                          pulse={stop.id === nearStopId}
+                          showNearbyTag={stop.id === nearStopId}
                         />
                       </TouchableOpacity>
                     );
@@ -633,11 +602,11 @@ export default function MapScreen() {
             ) : (
               <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
                 <Text variant="body" color="muted" weight="medium">
-                  {routeAvailable ? "No active customer in geofence" : "No route assigned for today"}
+                  {routeAvailable ? "No customers on route" : "No route assigned for today"}
                 </Text>
                 <Text variant="body-sm" color="muted" className="mt-1">
                   {routeAvailable
-                    ? "Move closer to a stop to activate delivery actions."
+                    ? "All deliveries may have been completed."
                     : "Trip toggle and customer actions are disabled until a route is assigned."}
                 </Text>
               </View>

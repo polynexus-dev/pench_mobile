@@ -38,7 +38,10 @@ export function useStartupSync() {
         });
 
         if (res.active_route) {
-          useAuthStore.setState({ route_id: res.active_route });
+          const resolvedRouteId = typeof res.active_route === "object"
+            ? ((res.active_route as any).id || (res.active_route as any).route_id)
+            : res.active_route;
+          useAuthStore.setState({ route_id: resolvedRouteId });
         } else if (route_id) {
           useAuthStore.setState({ route_id });
         }

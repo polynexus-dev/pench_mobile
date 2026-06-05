@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { ROUTES } from "@/constants/route";
 import { OSMMapHandle } from "@/features/map/components/OSMMap";
 import { Button } from "@/shared/ui/Button/Button";
@@ -34,9 +35,27 @@ export function DriverDashboardScreen() {
     const { width } = useWindowDimensions();
     const screenX = "px-4";
 
-    const activeStop = useGeofenceStore((s) => s.getActiveStop());
+    const geofenceActiveStop = useGeofenceStore((s) => s.getActiveStop());
     const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
     const route = useGeofenceStore((s) => s.route);
+
+    // Fall back to first non-completed stop from route when geofence has no active stop
+    const activeStop = useMemo(() => {
+        if (geofenceActiveStop) return geofenceActiveStop;
+        if (!route?.stops?.length) return null;
+        return route.stops.find((s) => s.order_status !== "delivered" && s.order_status !== "cancelled") ?? null;
+    }, [geofenceActiveStop, route?.stops]);
+
+    // DEBUG: Remove after fix is verified
+    useEffect(() => {
+        console.log("[DASH-DEBUG] route:", route?.id, "stops:", route?.stops?.length);
+        console.log("[DASH-DEBUG] geofenceActiveStop:", geofenceActiveStop?.id, geofenceActiveStop?.customer_name);
+        console.log("[DASH-DEBUG] activeStop:", activeStop?.id, activeStop?.customer_name);
+        if (route?.stops?.length) {
+            const inTransit = route.stops.filter((s) => s.order_status === "in_transit");
+            console.log("[DASH-DEBUG] in_transit stops:", inTransit.length, inTransit.map(s => s.id));
+        }
+    }, [route, geofenceActiveStop, activeStop]);
 
     const [persistedRouteId, setPersistedRouteId] = useState<string | null>(null);
     const routeId = persistedRouteId ?? authRouteId;
@@ -189,7 +208,7 @@ export function DriverDashboardScreen() {
                 </Animated.View>
             )}
             <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-bg-screen">
-
+                <StatusBar style={statusBarLight ? "dark" : "light"} />
                 <Animated.ScrollView
                     showsVerticalScrollIndicator={false}
                     contentContainerStyle={{ paddingBottom: 120, paddingTop: 8 }}

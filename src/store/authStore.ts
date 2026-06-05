@@ -1,6 +1,6 @@
 import { createStore } from "./devtools";
 import type { AuthState } from "@/features/auth";
-import { teardownPushNotifications } from "@/features/notifications/services/notificationService";
+import { useCartStore } from "./useCartStore";
 
 interface AuthStore extends AuthState {
   // Existing actions
@@ -38,12 +38,16 @@ export const useAuthStore = createStore<AuthStore>("auth", (set) => ({
     }),
   clearAuth: () =>
     set((s) => {
-      teardownPushNotifications();
       s.user = null;
       s.accessToken = null;
       s.refreshToken = null;
       s.domain_name = null;   // ← clear on logout
       s.route_id = null;      // ← clear on logout
+      try {
+        useCartStore.getState().clearCart();
+      } catch (e) {
+        console.warn("Failed to clear cart during logout:", e);
+      }
     }),
 
   // ← ADD: setter for map tracking

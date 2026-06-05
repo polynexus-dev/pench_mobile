@@ -1,417 +1,652 @@
 import React from "react";
-
 import {
   Alert,
   ScrollView,
-  Text,
   TouchableOpacity,
   View,
+  useWindowDimensions,
 } from "react-native";
-
-import { SafeAreaView } from "react-native-safe-area-context";
-
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { Ionicons } from "@expo/vector-icons";
+import { useRouter } from "expo-router";
 
 import { useAuthStore } from "@store/authStore";
-
 import { useLogout } from "@features/auth/hooks/useLogout";
-import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { Input, Button } from "@/shared/ui";
+import { Text } from "@/shared/ui/Text/Text";
+import { httpClient } from "@/services/api/httpClient";
+import { buildUrl } from "@/services/api/buildUrl";
+import { useToast } from "@/hooks/useToast";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string;
+  helper?: string;
   onPress?: () => void;
   danger?: boolean;
 }
 
-function MenuItem({
+function ProfileActionItem({
   icon,
   label,
   value,
+  helper,
   onPress,
   danger,
 }: MenuItemProps) {
   return (
     <TouchableOpacity
-      activeOpacity={0.85}
+      activeOpacity={0.7}
       onPress={onPress}
-      className={`mb-4 flex-row items-center rounded-[24px] px-5 py-5 ${danger
-        ? "bg-red-50"
-        : "bg-white"
-        }`}
-      style={{
-        elevation: 3,
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 10,
-        shadowOffset: {
-          width: 0,
-          height: 4,
-        },
-      }}
+      className="flex-row items-center justify-between px-4 py-4 bg-white"
     >
-      {/* Icon */}
-      <View
-        className={`h-14 w-14 items-center justify-center rounded-2xl ${danger
-          ? "bg-red-100"
-          : "bg-green-100"
-          }`}
-      >
+      <View className="flex-row flex-1 items-center mr-4">
         <Ionicons
           name={icon}
-          size={24}
-          color={
-            danger
-              ? "#DC2626"
-              : "#166534"
-          }
+          size={22}
+          color={danger ? "#DC2626" : "#4A4A4A"}
         />
+        <View className="ml-4 flex-1">
+          <Text
+            className={`text-[15px] font-semibold ${
+              danger ? "text-red-600 font-bold" : "text-text-primary"
+            }`}
+          >
+            {label}
+          </Text>
+          {helper ? (
+            <Text className="mt-0.5 text-xs text-text-muted">
+              {helper}
+            </Text>
+          ) : null}
+        </View>
       </View>
 
-      {/* Content */}
-      <View className="ml-4 flex-1">
-
-        <Text
-          numberOfLines={1}
-          adjustsFontSizeToFit
-          minimumFontScale={0.85}
-          maxFontSizeMultiplier={1.3}
-          className={`text-base font-bold ${danger
-            ? "text-red-600"
-            : "text-gray-900"
-            }`}
-        >
-          {label}
-        </Text>
-
-        {!!value && (
+      <View className="flex-row items-center flex-shrink max-w-[50%]">
+        {value ? (
           <Text
             numberOfLines={1}
-            maxFontSizeMultiplier={1.2}
-            className="mt-1 text-sm text-gray-500"
+            ellipsizeMode="tail"
+            className="text-[14px] text-text-secondary mr-2 font-medium flex-shrink"
           >
             {value}
           </Text>
+        ) : null}
+        {!danger && (
+          <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
         )}
       </View>
-
-      {!danger && (
-        <Ionicons
-          name="chevron-forward"
-          size={20}
-          color="#9CA3AF"
-        />
-      )}
     </TouchableOpacity>
   );
 }
 
+function SectionTitle({ title }: { title: string }) {
+  return (
+    <View className="mb-2 mt-6 px-1">
+      <Text className="text-[17px] font-bold text-text-primary">
+        {title}
+      </Text>
+    </View>
+  );
+}
+
+function CardShell({ children }: { children: React.ReactNode }) {
+  return (
+    <View className="overflow-hidden rounded-2xl bg-white border border-neutral-100 shadow-xs">
+      {children}
+    </View>
+  );
+}
+
+function ProfileStat({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}) {
+  return (
+    <View className="items-center">
+      <Text className="text-2xl font-bold text-white">
+        {value}
+      </Text>
+      <Text className="mt-1 text-xs text-white/70">
+        {label}
+      </Text>
+    </View>
+  );
+}
+
+const renderGradientBackground = () => {
+  const steps = 80;
+  const startColor = [27, 94, 55]; // #1B5E37 (Pench Brand Green)
+  const endColor = [244, 246, 251];   // #F4F6FB (Screen background color)
+  return (
+    <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 380 }}>
+      {Array.from({ length: steps }).map((_, i) => {
+        const ratio = i / (steps - 1);
+        const r = Math.round(startColor[0] + (endColor[0] - startColor[0]) * ratio);
+        const g = Math.round(startColor[1] + (endColor[1] - startColor[1]) * ratio);
+        const b = Math.round(startColor[2] + (endColor[2] - startColor[2]) * ratio);
+        return (
+          <View
+            key={i}
+            style={{
+              height: 380 / steps,
+              backgroundColor: `rgb(${r}, ${g}, ${b})`,
+              width: "100%",
+            }}
+          />
+        );
+      })}
+    </View>
+  );
+};
+
 export function CustomerProfileScreen() {
   const { user } = useAuthStore();
-
+  const setUser = useAuthStore((s) => s.setUser);
+  const domain_name = useAuthStore((s) => s.domain_name) || "";
   const { logout } = useLogout();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { show } = useToast();
+
+  const [activeView, setActiveView] = React.useState<'view' | 'edit_profile' | 'change_password'>('view');
+  
+  const [firstName, setFirstName] = React.useState("");
+  const [lastName, setLastName] = React.useState("");
+  const [email, setEmail] = React.useState("");
+  const [phone, setPhone] = React.useState("");
+  const [isSavingProfile, setIsSavingProfile] = React.useState(false);
+
+  const [currentPassword, setCurrentPassword] = React.useState("");
+  const [newPassword, setNewPassword] = React.useState("");
+  const [confirmPassword, setConfirmPassword] = React.useState("");
+  const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+
+  const [scrollY, setScrollY] = React.useState(0);
+  const headerOpacity = Math.min(1, Math.max(0, (scrollY - 40) / 80));
+
+  const openEditProfile = () => {
+    setFirstName(user?.first_name ?? "");
+    setLastName(user?.last_name ?? "");
+    setEmail(user?.email ?? "");
+    setPhone(user?.phone ?? "");
+    setActiveView("edit_profile");
+  };
+
+  const openChangePassword = () => {
+    setCurrentPassword("");
+    setNewPassword("");
+    setConfirmPassword("");
+    setActiveView("change_password");
+  };
+
+  const handleSaveProfile = async () => {
+    if (!domain_name) {
+      show({ message: "No active session domain configured.", type: "error" });
+      return;
+    }
+    if (!firstName.trim() || !lastName.trim()) {
+      show({ message: "First name and last name cannot be empty.", type: "error" });
+      return;
+    }
+    setIsSavingProfile(true);
+    try {
+      const url = buildUrl(domain_name, "/api/accounts/me/");
+      const response = await httpClient.patch(url, {
+        first_name: firstName,
+        last_name: lastName,
+        email: email,
+        phone: phone,
+      });
+      setUser(response as any);
+      show({ message: "Profile updated successfully.", type: "success" });
+      setActiveView("view");
+    } catch (error: any) {
+      show({
+        message: error?.message || "Failed to update profile.",
+        type: "error",
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleSavePassword = async () => {
+    if (!domain_name) {
+      show({ message: "No active session domain configured.", type: "error" });
+      return;
+    }
+    if (user?.has_password && !currentPassword) {
+      show({ message: "Current password is required.", type: "error" });
+      return;
+    }
+    if (newPassword.length < 8) {
+      show({ message: "New password must be at least 8 characters long.", type: "error" });
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      show({ message: "Passwords do not match.", type: "error" });
+      return;
+    }
+    setIsSavingPassword(true);
+    try {
+      const url = buildUrl(domain_name, "/api/accounts/set-password/");
+      const response: any = await httpClient.post(url, {
+        current_password: currentPassword,
+        password: newPassword,
+      });
+      if (response?.user) {
+        setUser(response.user);
+      }
+      show({ message: "Password changed successfully.", type: "success" });
+      setActiveView("view");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error: any) {
+      show({
+        message: error?.message || "Failed to change password.",
+        type: "error",
+      });
+    } finally {
+      setIsSavingPassword(false);
+    }
+  };
 
   function handleLogout() {
     Alert.alert(
       "Logout",
       "Are you sure you want to logout?",
       [
-        {
-          text: "Cancel",
-          style: "cancel",
-        },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: logout,
-        },
-      ],
+        { text: "Cancel", style: "cancel" },
+        { text: "Logout", style: "destructive", onPress: logout },
+      ]
     );
   }
 
-  const initials = user?.username
-    ? user.username
-      .slice(0, 2)
-      .toUpperCase()
-    : "CU";
+  const handleBackPress = () => {
+    if (activeView !== "view") {
+      setActiveView("view");
+    } else {
+      if (router.canGoBack()) {
+        router.back();
+      }
+    }
+  };
 
-  const dashboard =
-    user?.customer_dashboard;
+  const userFirstName = user?.first_name?.trim();
+  const userLastName = user?.last_name?.trim();
+  const fullName = userFirstName || userLastName 
+    ? `${userFirstName || ""} ${userLastName || ""}`.trim() 
+    : user?.username ?? "Customer";
+
+  const initials = userFirstName && userLastName 
+    ? `${userFirstName[0]}${userLastName[0]}`.toUpperCase() 
+    : user?.username ? user.username.slice(0, 2).toUpperCase() : "CU";
+
+  const dashboard = user?.customer_dashboard;
 
   return (
-    <ScreenWrapper>
-      <SafeAreaView className="flex-1 bg-[#F4F7F5]">
+    <>
+      <StatusBar style="light" />
+      <SafeAreaView edges={["top"]} className="flex-1 bg-[#1B5E37]">
+        {/* Sticky/Floating Header that fades in on scroll */}
+        <View
+          style={{
+            position: "absolute",
+            top: insets.top,
+            left: 0,
+            right: 0,
+            height: 70,
+            backgroundColor: "#1B5E37",
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            paddingHorizontal: 16,
+            zIndex: 20,
+            opacity: headerOpacity,
+          }}
+          pointerEvents={headerOpacity > 0.1 ? "auto" : "none"}
+        >
+          {/* Back button */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={handleBackPress}
+            className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-100"
+          >
+            <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
+          </TouchableOpacity>
+
+          {/* Title */}
+          <View className="pb-2" style={{ position: "absolute", left: 0, right: 0, alignItems: "center", zIndex: -1 }}>
+            <Text className="text-lg font-bold text-white">
+              {activeView === "view" ? "Profile" : activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
+            </Text>
+          </View>
+
+          {/* Balanced spacer */}
+          <View className="w-10" />
+        </View>
 
         <ScrollView
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={{
-            paddingBottom: 120,
+          contentContainerStyle={{ paddingBottom: 120 }}
+          className="bg-[#F4F6FB]"
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            setScrollY(event.nativeEvent.contentOffset.y);
           }}
         >
-          {/* Hero Section */}
-          <View
-            className="px-5 pb-12 pt-8"
-            style={{
-              backgroundColor: "#1B5E37",
-            }}
-          >
-            {/* Top Row */}
-            <View className="flex-row items-center">
+          {/* Gradient Background */}
+          {renderGradientBackground()}
 
-              {/* Avatar */}
-              <View
-                className="h-24 w-24 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor:
-                    "rgba(255,255,255,0.18)",
-                }}
+          {/* Header Section */}
+          <View className="px-4 pt-10 relative">
+            {/* Back Button overlay */}
+            {router.canGoBack() || activeView !== "view" ? (
+              <TouchableOpacity
+                activeOpacity={0.8}
+                onPress={handleBackPress}
+                className="absolute left-4 top-6 z-10 h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-100"
               >
-                <Text
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                  numberOfLines={1}
-                  className="text-3xl font-bold text-white"
-                >
-                  {initials}
-                </Text>
-              </View>
+                <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
+              </TouchableOpacity>
+            ) : null}
 
-              {/* User Info */}
-              <View className="ml-5 flex-1">
-
-                <Text
-                  numberOfLines={1}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.8}
-                  maxFontSizeMultiplier={1.3}
-                  className="text-3xl font-bold text-white"
-                >
-                  {user?.username ?? "Customer"}
-                </Text>
-
-                <Text className="mt-2 text-base text-white/80">
-                  Premium Customer
-                </Text>
-
-                <View className="mt-3 flex-row items-center">
-
-                  <Ionicons
-                    name="water-outline"
-                    size={16}
-                    color="rgba(255,255,255,0.85)"
-                  />
-
-                  <Text className="ml-2 text-sm text-white/80">
-                    Daily Fresh Dairy Delivery
+            {activeView === "view" ? (
+              <>
+                {/* Profile Avatar & Name */}
+                <View className="items-center mt-2">
+                  <View className="h-20 w-20 items-center justify-center rounded-full bg-white border border-neutral-100 shadow-md">
+                    <Text className="text-2xl font-bold text-brand-primary">
+                      {initials}
+                    </Text>
+                  </View>
+                  <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
+                    {fullName}
+                  </Text>
+                  <Text className="mt-1 text-sm font-medium text-text-muted text-center">
+                    Premium Customer
                   </Text>
                 </View>
+
+                {/* Subscriptions Stats Panel */}
+                <View
+                  className="mt-6 flex-row justify-between rounded-[28px] p-5"
+                  style={{
+                    backgroundColor: "rgba(255, 255, 255, 0.12)",
+                  }}
+                >
+                  <ProfileStat
+                    label="Subscriptions"
+                    value={String(dashboard?.active_subscriptions ?? 0)}
+                  />
+                  <ProfileStat
+                    label="Orders"
+                    value={String(dashboard?.total_orders ?? 0)}
+                  />
+                  <ProfileStat
+                    label="Balance"
+                    value={`₹${dashboard?.pending_balance ?? 0}`}
+                  />
+                </View>
+              </>
+            ) : (
+              <View className="items-center mt-2 pb-4">
+                <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
+                  {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
+                </Text>
+                <Text className="mt-1 text-sm font-medium text-text-muted text-center">
+                  {activeView === "edit_profile" ? "Update your personal details" : "Update account security"}
+                </Text>
               </View>
-            </View>
-
-            {/* Stats */}
-            <View
-              className="mt-8 flex-row justify-between rounded-[28px] p-5"
-              style={{
-                backgroundColor:
-                  "rgba(255,255,255,0.12)",
-              }}
-            >
-              <ProfileStat
-                label="Subscriptions"
-                value={String(
-                  dashboard?.active_subscriptions ?? 0,
-                )}
-              />
-
-              <ProfileStat
-                label="Orders"
-                value={String(
-                  dashboard?.total_orders ?? 0,
-                )}
-              />
-
-              <ProfileStat
-                label="Balance"
-                value={`₹${dashboard?.pending_balance ?? 0
-                  }`}
-              />
-            </View>
+            )}
           </View>
 
-          {/* Floating Content */}
-          <View className="-mt-7 rounded-t-[36px] bg-[#F4F7F5] px-5 pt-6">
+          {/* Main Content Area */}
+          <View className="px-4 mt-4">
+            {activeView === "view" && (
+              <>
+                <SectionTitle title="Contact Information" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="call-outline"
+                    label="Phone"
+                    value={user?.phone ?? "—"}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="mail-outline"
+                    label="Email"
+                    value={user?.email ?? "—"}
+                  />
+                </CardShell>
 
-            {/* Contact Info */}
-            <SectionTitle
-              title="Contact Information"
-            />
+                <SectionTitle title="Account Settings" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="person-outline"
+                    label="Edit Profile"
+                    helper="Update your personal details"
+                    onPress={openEditProfile}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="lock-closed-outline"
+                    label="Change Password"
+                    helper="Update account security"
+                    onPress={openChangePassword}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="notifications-outline"
+                    label="Notifications"
+                    helper="Manage delivery and route alerts"
+                    onPress={() => Alert.alert("Notifications", "Notification settings coming soon.")}
+                  />
+                </CardShell>
 
-            <MenuItem
-              icon="call-outline"
-              label="Phone"
-              value={
-                user?.phone ?? "—"
-              }
-            />
+                <SectionTitle title="Subscriptions" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="refresh-outline"
+                    label="My Subscriptions"
+                    helper="View active daily plans"
+                    onPress={() => router.push("/(customer)/(tabs)/subscriptions")}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="calendar-outline"
+                    label="Delivery Calendar"
+                    helper="Pause or skip deliveries"
+                    onPress={() => router.push("/(customer)/(tabs)/subscriptions")}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="add-circle-outline"
+                    label="New Subscription"
+                    helper="Subscribe to new fresh items"
+                    onPress={() => Alert.alert("New Subscription", "Please contact support to start a new subscription.")}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="receipt-outline"
+                    label="Invoices & Billing"
+                    helper="Check recent statement charges"
+                    onPress={() => Alert.alert("Invoices", "Invoices billing details coming soon.")}
+                  />
+                </CardShell>
 
-            <MenuItem
-              icon="mail-outline"
-              label="Email"
-              value={
-                user?.email ?? "—"
-              }
-            />
+                <SectionTitle title="Orders" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="cart-outline"
+                    label="Order History"
+                    helper="View past deliveries and status"
+                    onPress={() => router.push("/(customer)/(tabs)/orders")}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="cube-outline"
+                    label="Special Orders"
+                    helper="One-time bulk order requests"
+                    onPress={() => Alert.alert("Special Orders", "Special order features coming soon.")}
+                  />
+                </CardShell>
 
-            {/* Account */}
-            <SectionTitle
-              title="Account"
-            />
+                <SectionTitle title="Support & Info" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="help-circle-outline"
+                    label="Help & Support"
+                    helper="Talk to customer support"
+                    onPress={() => Alert.alert("Support", "Support helpline: support@penchfoods.in")}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="information-circle-outline"
+                    label="About Pench Foods"
+                    helper="Learn more about our fresh farm model"
+                    onPress={() => Alert.alert("About Us", "Pench Foods: Pure, fresh milk delivered straight to your doorstep.")}
+                  />
+                  <View className="h-px bg-neutral-100/80 ml-14" />
+                  <ProfileActionItem
+                    icon="shield-checkmark-outline"
+                    label="Privacy Policy"
+                    helper="View user data privacy terms"
+                    onPress={() => Alert.alert("Privacy Policy", "For full terms, please visit penchfoods.in/privacy")}
+                  />
+                </CardShell>
 
-            <MenuItem
-              icon="person-outline"
-              label="Edit Profile"
-              onPress={() => { }}
-            />
+                <SectionTitle title="Session" />
+                <CardShell>
+                  <ProfileActionItem
+                    icon="log-out-outline"
+                    label="Logout"
+                    helper="Sign out from this device"
+                    onPress={handleLogout}
+                    danger
+                  />
+                </CardShell>
+              </>
+            )}
 
-            <MenuItem
-              icon="lock-closed-outline"
-              label="Change Password"
-              onPress={() => { }}
-            />
+            {activeView === "edit_profile" && (
+              <View className="mt-4 gap-y-4">
+                <CardShell>
+                  <View className="p-4 gap-y-4">
+                    <Input
+                      label="First Name"
+                      placeholder="Enter first name"
+                      value={firstName}
+                      onChangeText={setFirstName}
+                    />
+                    <Input
+                      label="Last Name"
+                      placeholder="Enter last name"
+                      value={lastName}
+                      onChangeText={setLastName}
+                    />
+                    <Input
+                      label="Email"
+                      placeholder="Enter email address"
+                      value={email}
+                      onChangeText={setEmail}
+                      keyboardType="email-address"
+                      autoCapitalize="none"
+                    />
+                    <Input
+                      label="Phone Number"
+                      placeholder="Enter phone number"
+                      value={phone}
+                      onChangeText={setPhone}
+                      keyboardType="phone-pad"
+                    />
+                  </View>
+                </CardShell>
 
-            <MenuItem
-              icon="notifications-outline"
-              label="Notifications"
-              onPress={() => { }}
-            />
+                <View className="flex-row gap-x-3 mt-4 pb-10">
+                  <Button
+                    intent="outline"
+                    label="Cancel"
+                    onPress={() => setActiveView("view")}
+                    className="flex-1"
+                    disabled={isSavingProfile}
+                  />
+                  <Button
+                    intent="primary"
+                    label="Save"
+                    onPress={handleSaveProfile}
+                    className="flex-1 bg-[#1B5E37]"
+                    loading={isSavingProfile}
+                  />
+                </View>
+              </View>
+            )}
 
-            {/* Subscription */}
-            <SectionTitle
-              title="Subscriptions"
-            />
+            {activeView === "change_password" && (
+              <View className="mt-4 gap-y-4">
+                <CardShell>
+                  <View className="p-4 gap-y-4">
+                    {user?.has_password && (
+                      <Input
+                        label="Current Password"
+                        placeholder="Enter current password"
+                        value={currentPassword}
+                        onChangeText={setCurrentPassword}
+                        isPassword
+                        autoCapitalize="none"
+                      />
+                    )}
+                    <Input
+                      label="New Password"
+                      placeholder="Min 8 characters"
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      isPassword
+                      autoCapitalize="none"
+                    />
+                    <Input
+                      label="Confirm Password"
+                      placeholder="Confirm new password"
+                      value={confirmPassword}
+                      onChangeText={setConfirmPassword}
+                      isPassword
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </CardShell>
 
-            <MenuItem
-              icon="refresh-outline"
-              label="My Subscriptions"
-              onPress={() => { }}
-            />
+                <View className="flex-row gap-x-3 mt-4 pb-10">
+                  <Button
+                    intent="outline"
+                    label="Cancel"
+                    onPress={() => setActiveView("view")}
+                    className="flex-1"
+                    disabled={isSavingPassword}
+                  />
+                  <Button
+                    intent="primary"
+                    label="Save"
+                    onPress={handleSavePassword}
+                    className="flex-1 bg-[#1B5E37]"
+                    loading={isSavingPassword}
+                  />
+                </View>
+              </View>
+            )}
 
-            <MenuItem
-              icon="add-circle-outline"
-              label="New Subscription"
-              onPress={() => { }}
-            />
-
-            <MenuItem
-              icon="calendar-outline"
-              label="Delivery Schedule"
-              onPress={() => { }}
-            />
-
-            <MenuItem
-              icon="receipt-outline"
-              label="Invoices & Billing"
-              onPress={() => { }}
-            />
-
-            {/* Orders */}
-            <SectionTitle
-              title="Orders"
-            />
-
-            <MenuItem
-              icon="cart-outline"
-              label="Order History"
-              onPress={() => { }}
-            />
-
-            <MenuItem
-              icon="cube-outline"
-              label="Special Orders"
-              onPress={() => { }}
-            />
-
-            {/* App */}
-            <SectionTitle title="App" />
-
-            <MenuItem
-              icon="help-circle-outline"
-              label="Help & Support"
-              onPress={() => { }}
-            />
-
-            <MenuItem
-              icon="information-circle-outline"
-              label="About Pench Foods"
-              onPress={() => { }}
-            />
-
-            <MenuItem
-              icon="shield-checkmark-outline"
-              label="Privacy Policy"
-              onPress={() => { }}
-            />
-
-            {/* Logout */}
-            <View className="mt-3">
-              <MenuItem
-                icon="log-out-outline"
-                label="Logout"
-                onPress={handleLogout}
-                danger
-              />
-            </View>
-
-            {/* Footer */}
-            <Text className="pb-10 pt-4 text-center text-xs text-gray-400">
+            <Text className="pb-5 pt-6 text-center text-xs text-text-muted">
               © 2026 Pench Foods
             </Text>
           </View>
         </ScrollView>
       </SafeAreaView>
-    </ScreenWrapper>
-  );
-}
-
-interface SectionTitleProps {
-  title: string;
-}
-
-function SectionTitle({
-  title,
-}: SectionTitleProps) {
-  return (
-    <Text className="mb-4 mt-7 ml-1 text-xs font-bold uppercase tracking-[2px] text-gray-400">
-      {title}
-    </Text>
-  );
-}
-
-interface ProfileStatProps {
-  label: string;
-  value: string;
-}
-
-function ProfileStat({
-  label,
-  value,
-}: ProfileStatProps) {
-  return (
-    <View className="items-center">
-
-      <Text
-        adjustsFontSizeToFit
-        minimumFontScale={0.75}
-        numberOfLines={1}
-        className="text-3xl font-bold text-white"
-      >
-        {value}
-      </Text>
-
-      <Text className="mt-1 text-xs text-white/70">
-        {label}
-      </Text>
-    </View>
+    </>
   );
 }

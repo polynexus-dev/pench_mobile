@@ -26,12 +26,19 @@ export function useSyncRouteToGeofence(data: RouteResponse | null | undefined) {
     const syncedRouteIdRef = useRef<string | null>(null);
 
     useEffect(() => {
+        // DEBUG: Remove after fix is verified
+        console.log("[SYNC-DEBUG] data:", data?.id, "stops:", data?.stops?.length);
+        
         if (!data?.id) {
+            console.log("[SYNC-DEBUG] No route data, clearing.");
             useTrackingStore.getState().setCanStopTrip(false);
             return;
         }
 
-        if (syncedRouteIdRef.current === data.id) return;
+        if (syncedRouteIdRef.current === data.id) {
+            console.log("[SYNC-DEBUG] Already synced route:", data.id);
+            return;
+        }
 
         const normalizedStops = (data.stops ?? []).map((stop) => ({
             ...stop,
@@ -43,16 +50,18 @@ export function useSyncRouteToGeofence(data: RouteResponse | null | undefined) {
             stops: normalizedStops,
         };
 
+        console.log("[SYNC-DEBUG] Setting route:", data.id, "with", normalizedStops.length, "stops");
         setRoute(normalizedRoute);
 
         const firstTransit =
-            normalizedStops.find((stop) => stop.order_status === "in_transit") ?? null;
+            normalizedStops.find((stop) => stop.order_status !== "delivered" && stop.order_status !== "cancelled") ?? null;
 
+        console.log("[SYNC-DEBUG] firstTransit:", firstTransit?.id, firstTransit?.customer_name);
         setActiveStopId(firstTransit?.id ?? null);
         setSelectedStopId(firstTransit?.id ?? null);
 
         const hasActiveStops = normalizedStops.some(
-            (stop) => stop.order_status === "in_transit"
+            (stop) => stop.order_status !== "delivered" && stop.order_status !== "cancelled"
         );
 
         useTrackingStore.getState().setCanStopTrip(!hasActiveStops);

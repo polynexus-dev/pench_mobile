@@ -17,8 +17,8 @@ export const ROUTES = {
         ATTENDANCE: "/(driver)/attendance" as const,
         FINALIZE_DELIVERY: "/(driver)/finalize" as const,
         CAPTURE_POD: "/(driver)/capture-pod" as const,
-        ALL_CUSTOMERS: "(driver)/customer_list" as const,
-        QR_SCANNER: "/(driver)/qr-scanner",
+        ALL_CUSTOMERS: "/(driver)/customer_list" as const,
+        QR_SCANNER: "/(driver)/qr-scanner" as const,
     },
 
     CUSTOMER: {
@@ -31,5 +31,6 @@ export const ROUTES = {
         COMPLAINT: (id: string) => `/(customer)/complaints/${id}` as const,
         DELIVERY_TRACKING: "/(customer)/tracking" as const,
         INVOICE: (id: string) => `/(customer)/invoices/${id}` as const,
+        QR_SCANNER: "/(customer)/qr-scanner" as const,
     },
 } as const;
