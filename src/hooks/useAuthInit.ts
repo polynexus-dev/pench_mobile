@@ -41,18 +41,7 @@ export function useAuthInit() {
                     const me = await httpClient.get("accounts/me/") as unknown as User;
                     setUser(me);
 
-                    let domain = storedDomain ?? me.tenant_schema ?? "";
-
-                    // Sanitize stale full-URL domain values from previous sessions
-                    if (domain.startsWith("http://") || domain.startsWith("https://")) {
-                        const hostMatch = domain.match(/^https?:\/\/([^/:]+)/);
-                        if (hostMatch) {
-                            domain = hostMatch[1].split(".")[0]; // extract just the subdomain
-                        }
-                        // Update AsyncStorage with the clean value
-                        await asyncStorage.setItem("domain_name", domain);
-                    }
-
+                    const domain = storedDomain ?? me.tenant_schema ?? "";
                     if (domain) {
                         setDomainAndRoute(domain, null);
                     }

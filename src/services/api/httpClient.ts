@@ -1,4 +1,4 @@
-import axios, { AxiosError } from "axios";
+import axios, { AxiosError, AxiosRequestConfig } from "axios";
 import { env } from "@/config/env";
 import { useAuthStore } from "@/store/authStore";
 import { ApiError } from "@/errors/ApiError";
@@ -12,20 +12,6 @@ export const httpClient = axios.create({
   timeout: 15000,
 });
 
-let isRefreshing = false;
-let failedQueue: any[] = [];
-
-const processQueue = (error: any, token: string | null = null) => {
-  failedQueue.forEach((prom) => {
-    if (error) {
-      prom.reject(error);
-    } else {
-      prom.resolve(token);
-    }
-  });
-  failedQueue = [];
-};
-
 httpClient.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().accessToken;
@@ -33,14 +19,6 @@ httpClient.interceptors.request.use(
       config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${token}`;
     }
-
-    const domainName = useAuthStore.getState().domain_name;
-    if (domainName) {
-      const tenant = domainName.replace(/^https?:\/\//, "").split(".")[0];
-      config.headers = config.headers ?? {};
-      config.headers["X-Tenant"] = tenant;
-    }
-
     return config;
   },
   (error) => {
@@ -51,66 +29,9 @@ httpClient.interceptors.request.use(
 
 httpClient.interceptors.response.use(
   (response) => response.data,
-  async (error: AxiosError<any>) => {
-    const originalRequest = error.config;
+  (error: AxiosError<any>) => {
     const statusCode: number = error?.response?.status ?? 500;
-    const endpoint: string = originalRequest?.url ?? "unknown";
-
-    // Intercept 401 Unauthorized errors
-    if (statusCode === 401 && originalRequest && !originalRequest.headers?.["_retry"]) {
-      if (endpoint.includes("/accounts/login/")) {
-        return Promise.reject(error);
-      }
-
-      if (endpoint.includes("/accounts/login/refresh/")) {
-        useAuthStore.getState().clearAuth();
-        return Promise.reject(error);
-      }
-
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          failedQueue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalRequest.headers = originalRequest.headers ?? {};
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return httpClient(originalRequest);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      // Mark request as retried
-      originalRequest.headers = originalRequest.headers ?? {};
-      originalRequest.headers["_retry"] = "true";
-      isRefreshing = true;
-
-      const { refreshToken } = useAuthStore.getState();
-      if (!refreshToken) {
-        useAuthStore.getState().clearAuth();
-        return Promise.reject(error);
-      }
-
-      try {
-        const refreshUrl = `${env.EXPO_PUBLIC_API_BASE_URL}/api/accounts/login/refresh/`;
-        // Use plain axios instance to avoid interceptor loops
-        const response = await axios.post(refreshUrl, { refresh: refreshToken });
-        const { access } = response.data;
-
-        // Update tokens in store
-        useAuthStore.getState().setTokens(access, refreshToken);
-
-        processQueue(null, access);
-        originalRequest.headers.Authorization = `Bearer ${access}`;
-        return httpClient(originalRequest);
-      } catch (refreshError) {
-        processQueue(refreshError, null);
-        useAuthStore.getState().clearAuth();
-        return Promise.reject(refreshError);
-      } finally {
-        isRefreshing = false;
-      }
-    }
-
+    const endpoint: string = error?.config?.url ?? "unknown";
     const message: string =
       error?.response?.data?.detail ||
       error?.response?.data?.message ||

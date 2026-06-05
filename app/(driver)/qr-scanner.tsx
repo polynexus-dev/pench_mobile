@@ -1,2 +1,5 @@
-import { QRScannerScreen } from "@/features/qr";
-export default QRScannerScreen;
+import { QRScannerScreen } from "@/features/delivery/screens/QRScannerScreen";
+
+export default function QRScannerRoute() {
+    return <QRScannerScreen />;
+}

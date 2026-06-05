@@ -2,13 +2,13 @@ import React from "react";
 import {
   Modal as RNModal,
   View,
-  Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   KeyboardAvoidingView,
   Platform,
 } from "react-native";
 import { cn } from "@/utils/cn";
+import { Text } from "@/shared/ui/Text/Text";
 
 interface ModalProps {
   visible: boolean;
@@ -30,9 +30,9 @@ export function Modal({ visible, onClose, title, children, className }: ModalPro
               <View className={cn("bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl", className)}>
                 {title && (
                   <View className="flex-row items-center justify-between mb-4">
-                    <Text className="text-lg font-bold text-gray-900">{title}</Text>
+                    <Text variant="subhead" weight="bold" color="primary">{title}</Text>
                     <TouchableOpacity onPress={onClose} className="p-1">
-                      <Text className="text-secondary text-base">✕</Text>
+                      <Text variant="body" color="secondary">✕</Text>
                     </TouchableOpacity>
                   </View>
                 )}

@@ -19,9 +19,10 @@ import { orderApi, Order } from "@/features/dashboard/api/orderApi";
 import { productApi, Product } from "@/features/dashboard/api/productApi";
 import { Ionicons } from "@expo/vector-icons";
 import { Calendar } from "react-native-calendars";
+import { StatusBar } from "expo-status-bar";
 
-function OrderCard({ order, onCancel }: { order: Order; onCancel: () => void }) {
-  const isCancelable = order.status === "pending" || order.status === "confirmed";
+function OrderCard({ order, onCancel }: { order: Order; onCancel: (isSpecial: boolean) => void }) {
+  const isCancelable = (order.status === "pending" || order.status === "confirmed") && !!order.is_special;
 
   const handleCancelPress = () => {
     Alert.alert(
@@ -32,7 +33,7 @@ function OrderCard({ order, onCancel }: { order: Order; onCancel: () => void }) 
         {
           text: "Yes, Cancel",
           style: "destructive",
-          onPress: onCancel,
+          onPress: () => onCancel(order.is_special ?? false),
         },
       ]
     );
@@ -55,8 +56,16 @@ function OrderCard({ order, onCancel }: { order: Order; onCancel: () => void }) 
             ORDER #{order.id.slice(0, 8).toUpperCase()}
           </Text>
           {order.status === "pending" && (
-            <View className="rounded bg-sky-50 px-1.5 py-0.5 border border-sky-100">
-              <Text className="text-[10px] font-bold text-sky-700">Special Order</Text>
+            <View className={`rounded px-1.5 py-0.5 border ${
+              order.is_special
+                ? "bg-sky-50 border-sky-100"
+                : "bg-green-50 border-green-100"
+            }`}>
+              <Text className={`text-[10px] font-bold ${
+                order.is_special ? "text-sky-700" : "text-green-700"
+              }`}>
+                {order.is_special ? "Special Order" : "Subscription"}
+              </Text>
             </View>
           )}
         </View>
@@ -202,11 +211,12 @@ export default function OrdersScreen() {
     fetchProducts();
   };
 
-  const handleCancelOrder = async (orderId: string) => {
+  const handleCancelOrder = async (orderId: string, isSpecial: boolean) => {
     try {
       setLoading(true);
       await orderApi.deleteOrder(domainName, orderId);
-      Alert.alert("Cancelled", "Your special order has been successfully cancelled.");
+      const orderTypeLabel = isSpecial ? "special order" : "subscription delivery order";
+      Alert.alert("Cancelled", `Your ${orderTypeLabel} has been successfully cancelled.`);
       fetchOrders();
     } catch (e: any) {
       Alert.alert("Failed", e?.message || "Could not cancel order.");
@@ -290,6 +300,7 @@ export default function OrdersScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F5F8F6]">
+      <StatusBar style="dark" />
       <View className="px-4 py-4 border-b border-gray-100 bg-white">
         <Text className="text-2xl font-black text-gray-900">Your Orders</Text>
         <Text className="text-[13px] text-gray-500">Track and manage your upcoming deliveries</Text>
@@ -359,7 +370,7 @@ export default function OrdersScreen() {
           contentContainerStyle={{ padding: 16, paddingBottom: 80 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => (
-            <OrderCard order={item} onCancel={() => handleCancelOrder(item.id)} />
+            <OrderCard order={item} onCancel={(isSpecial) => handleCancelOrder(item.id, isSpecial)} />
           )}
           ListEmptyComponent={
             <View className="mt-16 items-center justify-center px-4">

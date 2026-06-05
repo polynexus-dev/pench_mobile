@@ -13,7 +13,7 @@ interface Props {
     stats: StatItem[];
 }
 
-export function RouteStatRow({ stats }: Props) {
+export default function RouteStatRow({ stats }: Props) {
     return (
         <View className="flex-row justify-between gap-x-3 mb-5">
             {stats.map((s) => (

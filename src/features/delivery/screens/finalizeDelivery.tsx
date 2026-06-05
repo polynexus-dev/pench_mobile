@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import {
-  ScrollView,
-  View,
-  TouchableOpacity,
-  Alert,
-  ActivityIndicator,
+    ScrollView,
+    View,
+    TouchableOpacity,
+    TextInput,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,402 +14,265 @@ import { Text } from "@/shared/ui/Text/Text";
 import { useAuthStore } from "@/store/authStore";
 import { useGeofenceStore } from "@/store/geofenceStore";
 import { useSubmitDelivery } from "../hooks/useSubmitDelivery";
-import { httpClient } from "@/services/api/httpClient";
-import { buildUrl } from "@/services/api/buildUrl";
-
-const matchProductToBottleType = (productName: string, bottleTypes: any[]) => {
-  const nameLower = productName.toLowerCase();
-  
-  if (
-    nameLower.includes("1l") ||
-    nameLower.includes("1 l") ||
-    nameLower.includes("1litre") ||
-    nameLower.includes("1 litre") ||
-    nameLower.includes("1 ltr") ||
-    nameLower.includes("1ltr")
-  ) {
-    return bottleTypes.find(
-      (bt) => bt.name.toLowerCase().includes("1l") || bt.volume_ml === 1000
-    );
-  }
-  
-  if (
-    nameLower.includes("500") ||
-    nameLower.includes("half") ||
-    nameLower.includes("500ml") ||
-    nameLower.includes("500g")
-  ) {
-    if (nameLower.includes("glass") || nameLower.includes("curd")) {
-      return bottleTypes.find(
-        (bt) =>
-          bt.name.toLowerCase().includes("500ml glass") ||
-          (bt.name.toLowerCase().includes("glass") && bt.volume_ml === 500)
-      );
-    }
-    if (nameLower.includes("pet") || nameLower.includes("standard")) {
-      return bottleTypes.find(
-        (bt) =>
-          bt.name.toLowerCase().includes("pet") ||
-          (bt.name.toLowerCase().includes("pet") && bt.volume_ml === 500)
-      );
-    }
-    return bottleTypes.find((bt) => bt.volume_ml === 500);
-  }
-  
-  return null;
-};
 
 export function FinalizeDeliveryScreen() {
-  const router = useRouter();
-  const params = useLocalSearchParams<any>();
-  if (__DEV__) {
-    console.log("[FinalizeDeliveryScreen] Received Params:", params);
-  }
-  const stopId = params.stopId || params.stop_id;
-  const orderId = params.orderId || params.order_id;
+    const router = useRouter();
+    const { orderId, customerName, deliveryDate } = useLocalSearchParams<{
+        orderId: string;
+        customerName?: string;
+        deliveryDate?: string;
+    }>();
 
-  const storeRoute = useGeofenceStore((s) => s.route);
-  const stops = storeRoute?.stops || [];
-  const stop = stops.find((s) => s.order === orderId || s.id === stopId);
+    const { domain_name } = useAuthStore((s) => s);
+    const route = useGeofenceStore((s) => s.route);
+    const { markStopDelivered } = useGeofenceStore((s) => s);
+    const advanceNavigation = useGeofenceStore((s) => s.advanceNavigation);
 
-  const resolvedCustomerName =
-    params.customerName ||
-    params.customer_name ||
-    params.customer ||
-    stop?.customer_name ||
-    "N/A";
 
-  const todayDateStr = new Date().toISOString().split("T")[0];
-  const resolvedDate =
-    params.deliveryDate ||
-    params.delivery_date ||
-    params.date ||
-    storeRoute?.delivery_date ||
-    todayDateStr;
+    const [issued, setIssued] = useState("0");
+    const [returned, setReturned] = useState("0");
+    const { mutateAsync: submitDelivery, isPending: isSubmitting } = useSubmitDelivery();
 
-  const { domain_name } = useAuthStore((s) => s);
+    const currentStop = useMemo(() => {
+        if (!route?.stops?.length || !orderId) return null;
+        return route.stops.find((s) => s.order === orderId) ?? null;
+    }, [route?.stops, orderId]);
 
-  const [bottleTypes, setBottleTypes] = useState<any[]>([]);
-  const [deliveryTransactions, setDeliveryTransactions] = useState<
-    Record<string, { issued: number; returned: number; broken: number }>
-  >({});
-  const [isLoadingBottleTypes, setIsLoadingBottleTypes] = useState(true);
-  const [showBrokenColumn, setShowBrokenColumn] = useState(false);
+    const resolvedCustomerName =
+        customerName || currentStop?.customer_name || "Customer";
 
-  // Fetch admin setting for broken bottle tracking
-  useEffect(() => {
-    async function fetchDriverSettings() {
-      if (!domain_name) return;
-      try {
-        const url = buildUrl(domain_name, "/api/erp/administration/config/driver-settings/");
-        const res: any = await httpClient.get(url);
-        setShowBrokenColumn(!!res?.charge_bottle_penalty);
-      } catch (err) {
-        console.error("Failed to load driver settings:", err);
-        // Default to hidden if we can't fetch the setting
-        setShowBrokenColumn(false);
-      }
-    }
-    fetchDriverSettings();
-  }, [domain_name]);
+    const resolvedDate =
+        deliveryDate || route?.delivery_date || new Date().toISOString().split("T")[0];
 
-  useEffect(() => {
-    async function fetchBottleTypes() {
-      if (!domain_name) return;
-      try {
-        const url = buildUrl(domain_name, "/api/erp/inventory/bottle-types/");
-        const res: any = await httpClient.get(url);
-        const activeTypes = Array.isArray(res) ? res.filter((bt: any) => bt.is_active) : [];
-        setBottleTypes(activeTypes);
+    const resolvedItems =
+        currentStop?.product_list ??
+        currentStop?.subscription_details?.items ??
+        [];
 
-        // Initialize state
-        const initialCounts: Record<string, { issued: number; returned: number; broken: number }> = {};
-        activeTypes.forEach((bt: any) => {
-          initialCounts[bt.id] = { issued: 0, returned: 0, broken: 0 };
-        });
+    const totalAmount =
+        currentStop?.order_total ??
+        resolvedItems.reduce((sum: number, item: any) => {
+            const price = Number(item.unit_price ?? item.line_total ?? 0);
+            const qty = Number(item.quantity ?? 0);
+            return sum + price * qty;
+        }, 0);
 
-        // Match with stop's product list
-        if (stop?.product_list) {
-          stop.product_list.forEach((item: any) => {
-            const bt = matchProductToBottleType(item.product_name, activeTypes);
-            if (bt && initialCounts[bt.id]) {
-              initialCounts[bt.id].issued += item.quantity;
-              initialCounts[bt.id].returned += item.quantity;
-            }
-          });
-        } else {
-          // If no product list, fallback to 1st bottle type with defaults
-          if (activeTypes.length > 0) {
-            const firstId = activeTypes[0].id;
-            initialCounts[firstId].issued = 1;
-            initialCounts[firstId].returned = 2;
-          }
+    const handleSubmit = async () => {
+        if (!domain_name || !orderId) {
+            Alert.alert("Error", "Missing city or order id");
+            return;
         }
 
-        setDeliveryTransactions(initialCounts);
-      } catch (err) {
-        console.error("Failed to load bottle types:", err);
-      } finally {
-        setIsLoadingBottleTypes(false);
-      }
-    }
-    fetchBottleTypes();
-  }, [domain_name, stop]);
+        try {
+            await submitDelivery({
+                domainName: domain_name,
+                orderId,
+                payload: {
+                    bottles_issued: Number(issued),
+                    bottles_returned: Number(returned),
+                },
+            });
+            markStopDelivered(orderId);
+            advanceNavigation(); // June 1 ← already called inside markStopDelivered, but safe if called again
+            router.back();
+        } catch {
+            // handled in hook
+        }
+    };
 
-  const { mutateAsync: submitDelivery, isPending: isSubmitting } =
-    useSubmitDelivery();
+    const increment = (
+        value: string,
+        setter: React.Dispatch<React.SetStateAction<string>>
+    ) => setter(String(Number(value || 0) + 1));
 
-  const handleSubmit = async () => {
-    if (!domain_name || !orderId) {
-      Alert.alert("Error", "Missing city or order id");
-      return;
-    }
+    const decrement = (
+        value: string,
+        setter: React.Dispatch<React.SetStateAction<string>>
+    ) => setter(String(Math.max(0, Number(value || 0) - 1)));
 
-    const txnsPayload = Object.entries(deliveryTransactions)
-      .map(([btId, counts]) => ({
-        bottle_type_id: btId,
-        issued: counts.issued,
-        returned: counts.returned,
-        broken: counts.broken,
-      }))
-      .filter((t) => t.issued > 0 || t.returned > 0 || t.broken > 0);
+    return (
+        <SafeAreaView className="flex-1 bg-bg-screen">
+            <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
+                <View className="mb-4 flex-row items-center justify-between">
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        className="h-11 w-11 items-center justify-center rounded-full bg-bg-card"
+                    >
+                        <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
+                    </TouchableOpacity>
 
-    const totalIssued = txnsPayload.reduce((sum, t) => sum + t.issued, 0);
-    const totalReturned = txnsPayload.reduce((sum, t) => sum + t.returned, 0);
+                    <Text variant="heading" weight="bold" color="primary">
+                        Finalize Delivery
+                    </Text>
 
-    try {
-      const result = await submitDelivery({
-        domainName: domain_name,
-        orderId,
-        payload: {
-          bottles_issued: totalIssued,
-          bottles_returned: totalReturned,
-          bottle_transactions: txnsPayload,
-        } as any,
-      });
-
-      if (!result) return;
-      if (__DEV__) console.log("Delivery submission result", result);
-      if (typeof orderId !== "string" || !orderId.trim()) {
-        Alert.alert("Error", "Invalid order id");
-        return;
-      }
-
-      const store = useGeofenceStore.getState();
-      store.markStopDelivered(orderId);
-      store.setActiveStopId(null);
-      router.back();
-    } catch {
-      // handled in hook
-    }
-  };
-
-  return (
-    <SafeAreaView className="flex-1 bg-bg-screen">
-      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 120 }}>
-        <View className="mb-4 flex-row items-center justify-between">
-          <TouchableOpacity
-            onPress={() => router.back()}
-            className="h-11 w-11 items-center justify-center rounded-full bg-bg-card"
-          >
-            <Ionicons name="chevron-back" size={22} color="#1A1A1A" />
-          </TouchableOpacity>
-
-          <Text variant="heading" weight="bold" color="primary">
-            Finalize Delivery
-          </Text>
-
-          <View className="h-11 w-11" />
-        </View>
-
-        <View className="rounded-card border border-border-default bg-bg-card p-4">
-          <Text variant="label" color="muted">
-            Customer Name
-          </Text>
-          <Text
-            variant="body"
-            weight="semibold"
-            color="primary"
-            className="mt-1 text-lg"
-          >
-            {resolvedCustomerName}
-          </Text>
-
-          <Text variant="label" color="muted" className="mt-4">
-            Delivery Date
-          </Text>
-          <Text variant="body" color="primary" className="mt-1">
-            {resolvedDate}
-          </Text>
-        </View>
-
-        <View className="mt-4 rounded-card border border-border-default bg-bg-card p-4">
-          <Text variant="body-lg" weight="bold" color="primary">
-            Delivery Details
-          </Text>
-          <Text variant="body-sm" color="muted" className="mt-2">
-            {showBrokenColumn
-              ? "Confirm the quantity of issued, returned, and broken bottles for each bottle type:"
-              : "Confirm the quantity of issued and returned bottles for each bottle type:"}
-          </Text>
-        </View>
-
-        {isLoadingBottleTypes ? (
-          <View className="mt-4 items-center justify-center p-8 bg-bg-card border border-border-default rounded-card">
-            <ActivityIndicator size="small" color="#1B5E37" />
-            <Text variant="body-sm" color="muted" className="mt-2">
-              Loading bottle types...
-            </Text>
-          </View>
-        ) : (
-          bottleTypes.map((bt) => {
-            const tx = deliveryTransactions[bt.id] || { issued: 0, returned: 0, broken: 0 };
-            return (
-              <View key={bt.id} className="mt-4 rounded-card border border-border-default bg-bg-card p-4">
-                <View className="flex-row items-center justify-between border-b border-border-default pb-2">
-                  <Text variant="body" weight="bold" color="primary">
-                    {bt.name}
-                  </Text>
-                  <Text variant="caption" color="muted">
-                    {bt.volume_ml}ml
-                  </Text>
+                    <View className="h-11 w-11" />
                 </View>
 
-                {/* Counter controls */}
-                <View className="mt-3 flex-row justify-between gap-x-2">
-                  {/* Issued */}
-                  <View className="flex-1 items-center bg-bg-screen border border-border-default rounded-xl p-2">
-                    <Text variant="caption" weight="semibold" color="muted" className="mb-1 text-[10px] uppercase">
-                      Issued
+                <View className="rounded-card border border-border-default bg-bg-card p-4">
+                    <Text variant="label" color="muted">
+                        Customer Name
                     </Text>
-                    <View className="flex-row items-center justify-between w-full px-1">
-                      <TouchableOpacity
-                        onPress={() => {
-                          setDeliveryTransactions(prev => ({
-                            ...prev,
-                            [bt.id]: { ...prev[bt.id], issued: Math.max(0, prev[bt.id].issued - 1) }
-                          }));
-                        }}
-                        className="w-7 h-7 rounded-full bg-bg-card border border-border-default items-center justify-center"
-                      >
-                        <Ionicons name="remove" size={14} color="#1A1A1A" />
-                      </TouchableOpacity>
-                      <Text variant="body" weight="bold" color="primary">
-                        {tx.issued}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setDeliveryTransactions(prev => ({
-                            ...prev,
-                            [bt.id]: { ...prev[bt.id], issued: prev[bt.id].issued + 1 }
-                          }));
-                        }}
-                        className="w-7 h-7 rounded-full bg-bg-card border border-border-default items-center justify-center"
-                      >
-                        <Ionicons name="add" size={14} color="#1A1A1A" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                    <Text
+                        variant="body"
+                        weight="semibold"
+                        color="primary"
+                        className="mt-1 text-lg"
+                    >
+                        {resolvedCustomerName}
+                    </Text>
 
-                  {/* Returned */}
-                  <View className="flex-1 items-center bg-bg-screen border border-border-default rounded-xl p-2">
-                    <Text variant="caption" weight="semibold" color="muted" className="mb-1 text-[10px] uppercase">
-                      Returned
+                    <Text variant="label" color="muted" className="mt-4">
+                        Delivery Date
                     </Text>
-                    <View className="flex-row items-center justify-between w-full px-1">
-                      <TouchableOpacity
-                        onPress={() => {
-                          setDeliveryTransactions(prev => ({
-                            ...prev,
-                            [bt.id]: { ...prev[bt.id], returned: Math.max(0, prev[bt.id].returned - 1) }
-                          }));
-                        }}
-                        className="w-7 h-7 rounded-full bg-bg-card border border-border-default items-center justify-center"
-                      >
-                        <Ionicons name="remove" size={14} color="#1A1A1A" />
-                      </TouchableOpacity>
-                      <Text variant="body" weight="bold" color="primary">
-                        {tx.returned}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setDeliveryTransactions(prev => ({
-                            ...prev,
-                            [bt.id]: { ...prev[bt.id], returned: prev[bt.id].returned + 1 }
-                          }));
-                        }}
-                        className="w-7 h-7 rounded-full bg-bg-card border border-border-default items-center justify-center"
-                      >
-                        <Ionicons name="add" size={14} color="#1A1A1A" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
+                    <Text variant="body" color="primary" className="mt-1">
+                        {resolvedDate}
+                    </Text>
 
-                  {/* Broken — only shown if charge_bottle_penalty is enabled */}
-                  {showBrokenColumn && (
-                  <View className="flex-1 items-center bg-bg-screen border border-border-default rounded-xl p-2">
-                    <Text variant="caption" weight="semibold" color="muted" className="mb-1 text-[10px] uppercase">
-                      Broken
+                    <Text variant="label" color="muted" className="mt-4">
+                        Total Amount
                     </Text>
-                    <View className="flex-row items-center justify-between w-full px-1">
-                      <TouchableOpacity
-                        onPress={() => {
-                          setDeliveryTransactions(prev => ({
-                            ...prev,
-                            [bt.id]: { ...prev[bt.id], broken: Math.max(0, prev[bt.id].broken - 1) }
-                          }));
-                        }}
-                        className="w-7 h-7 rounded-full bg-bg-card border border-border-default items-center justify-center"
-                      >
-                        <Ionicons name="remove" size={14} color="#1A1A1A" />
-                      </TouchableOpacity>
-                      <Text variant="body" weight="bold" color="primary">
-                        {tx.broken}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={() => {
-                          setDeliveryTransactions(prev => ({
-                            ...prev,
-                            [bt.id]: { ...prev[bt.id], broken: prev[bt.id].broken + 1 }
-                          }));
-                        }}
-                        className="w-7 h-7 rounded-full bg-bg-card border border-border-default items-center justify-center"
-                      >
-                        <Ionicons name="add" size={14} color="#1A1A1A" />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                  )}
+                    <Text variant="body" color="primary" className="mt-1">
+                        ₹{Number(totalAmount || 0).toFixed(2)}
+                    </Text>
                 </View>
-              </View>
-            );
-          })
-        )}
 
-        <View className="mt-6 gap-y-3">
-          <Button
-            label={isSubmitting ? "Submitting..." : "Finalize Delivery"}
-            intent="primary"
-            size="lg"
-            fullWidth
-            disabled={isSubmitting}
-            onPress={handleSubmit}
-          />
-          <Button
-            label="Mark as Undelivered"
-            intent="outline"
-            size="lg"
-            fullWidth
-            disabled={isSubmitting}
-            onPress={() => {
-              router.push({
-                pathname: "/(driver)/capture-pod",
-                params: { orderId }
-              });
-            }}
-          />
-        </View>
-      </ScrollView>
-    </SafeAreaView>
-  );
+                <View className="mt-4 rounded-card border border-border-default bg-bg-card p-4">
+                    <Text variant="body-lg" weight="bold" color="primary">
+                        Delivery Details
+                    </Text>
+                    <Text variant="body-sm" color="muted" className="mt-2">
+                        Confirm the items and bottle counts below:
+                    </Text>
+                </View>
+
+                <View className="mt-4 rounded-card border border-border-default bg-bg-card p-4">
+                    <Text variant="body-lg" weight="bold" color="primary">
+                        Product Listing
+                    </Text>
+
+                    <View className="mt-4 gap-y-3">
+                        {resolvedItems.length > 0 ? (
+                            resolvedItems.map((item: any, index: number) => (
+                                <View
+                                    key={String(item.id ?? index)}
+                                    className="rounded-xl border border-border-default bg-white p-3"
+                                >
+                                    <View className="flex-row items-start justify-between">
+                                        <View className="flex-1 pr-3">
+                                            <Text variant="body" weight="semibold" color="primary">
+                                                {item.product_name}
+                                            </Text>
+                                            <Text variant="body-sm" color="muted" className="mt-1">
+                                                Qty: {item.quantity} {item.unit ?? ""}
+                                            </Text>
+                                        </View>
+
+                                        <Text variant="body" weight="bold" color="primary">
+                                            ₹{Number((item.unit_price ?? 0) * (item.quantity ?? 1)).toFixed(2)}
+                                        </Text>
+                                    </View>
+                                </View>
+                            ))
+                        ) : (
+                            <View className="rounded-xl border border-dashed border-border-default bg-white p-4">
+                                <Text variant="body-sm" color="muted">
+                                    No product details available for this order.
+                                </Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
+                <View className="mt-4 rounded-card border border-border-default bg-bg-card p-4">
+                    <View className="flex-row gap-x-2">
+                        <View className="flex-1 rounded-xl border border-border-default bg-bg-screen p-3">
+                            <Text
+                                variant="caption"
+                                weight="semibold"
+                                color="muted"
+                                className="mb-2 text-[10px] uppercase text-center"
+                            >
+                                Bottles Issued
+                            </Text>
+
+                            <View className="flex-row items-center justify-between px-1">
+                                <TouchableOpacity
+                                    onPress={() => decrement(issued, setIssued)}
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-card"
+                                >
+                                    <Ionicons name="remove" size={16} color="#1A1A1A" />
+                                </TouchableOpacity>
+
+                                <Text variant="body" weight="bold" color="primary">
+                                    {issued}
+                                </Text>
+
+                                <TouchableOpacity
+                                    onPress={() => increment(issued, setIssued)}
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-card"
+                                >
+                                    <Ionicons name="add" size={16} color="#1A1A1A" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        <View className="flex-1 rounded-xl border border-border-default bg-bg-screen p-3">
+                            <Text
+                                variant="caption"
+                                weight="semibold"
+                                color="muted"
+                                className="mb-2 text-[10px] uppercase text-center"
+                            >
+                                Bottles Returned
+                            </Text>
+
+                            <View className="flex-row items-center justify-between px-1">
+                                <TouchableOpacity
+                                    onPress={() => decrement(returned, setReturned)}
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-card"
+                                >
+                                    <Ionicons name="remove" size={16} color="#1A1A1A" />
+                                </TouchableOpacity>
+
+                                <Text variant="body" weight="bold" color="primary">
+                                    {returned}
+                                </Text>
+
+                                <TouchableOpacity
+                                    onPress={() => increment(returned, setReturned)}
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-bg-card"
+                                >
+                                    <Ionicons name="add" size={16} color="#1A1A1A" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </View>
+
+                <View className="mt-6 gap-y-3">
+                    <Button
+                        label={isSubmitting ? "Submitting..." : "Finalize Delivery"}
+                        intent="primary"
+                        size="lg"
+                        fullWidth
+                        disabled={isSubmitting}
+                        onPress={handleSubmit}
+                    />
+                    <Button
+                        label="Mark as Undelivered"
+                        intent="outline"
+                        size="lg"
+                        fullWidth
+                        disabled={isSubmitting}
+                        onPress={() => {
+                            router.push({
+                                pathname: "/(driver)/capture-pod",
+                                params: { orderId },
+                            } as any);
+                        }}
+                    />
+                </View>
+            </ScrollView>
+        </SafeAreaView>
+    );
 }

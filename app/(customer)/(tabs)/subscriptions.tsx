@@ -5,6 +5,7 @@ import { useAuthStore } from "@/store/authStore";
 import { subscriptionApi, SubscriptionSummary } from "@/features/dashboard/api/subscriptionApi";
 import { Ionicons } from "@expo/vector-icons";
 import { Calendar, DateData } from "react-native-calendars";
+import { StatusBar } from "expo-status-bar";
 
 function SubscriptionCard({
   sub,
@@ -223,6 +224,7 @@ export default function SubscriptionsScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-[#F5F8F6]">
+      <StatusBar style="dark" />
       <View className="px-4 py-4 border-b border-gray-100 bg-white">
         <Text className="mb-1 text-2xl font-black text-gray-900">Subscriptions</Text>
         <Text className="text-[14px] text-gray-500">Manage your daily deliveries and vacation pauses</Text>

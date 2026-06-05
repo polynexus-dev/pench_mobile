@@ -15,7 +15,7 @@ type Props = {
     onMarkUndelivered?: () => void;
 };
 
-export function NextStopCard({
+export default function NextStopCard({
     stopNumber,
     customerName,
     address,
@@ -30,8 +30,7 @@ export function NextStopCard({
             <View className="flex-row items-start justify-between">
                 <View className="flex-1 pr-3">
                     <Text className="text-label text-text-muted">Next Stop</Text>
-                    <Text className="text-body-lg text-text-primary"
-                    // fontWeight="bold"
+                    <Text className="text-body-lg text-text-primary" weight="bold"
                     >
                         {stopNumber}. {customerName}
                     </Text>
@@ -41,7 +40,7 @@ export function NextStopCard({
                 <View className={`rounded-full px-3 py-2 ${disabled ? "bg-warningLight" : "bg-success"}`}>
                     <Text
                         className={disabled ? "text-warning" : "text-text-inverse"}
-                    // fontWeight="semibold"
+                        weight="semibold"
                     >
                         {disabled ? "Move Closer" : "Ready"}
                     </Text>
@@ -55,10 +54,6 @@ export function NextStopCard({
                     </View>
                 ))}
             </View>
-
-            {/* <View className="mt-4 flex-row items-center justify-between">
-                <Text className="text-caption text-text-muted">Order ID: {orderId}</Text>
-            </View> */}
 
             <View className="mt-4 gap-3">
                 <Button

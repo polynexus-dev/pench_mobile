@@ -1,5 +1,6 @@
 import { createStore } from "./devtools";
 import type { AuthState } from "@/features/auth";
+import { useCartStore } from "./useCartStore";
 
 interface AuthStore extends AuthState {
   // Existing actions
@@ -42,6 +43,11 @@ export const useAuthStore = createStore<AuthStore>("auth", (set) => ({
       s.refreshToken = null;
       s.domain_name = null;   // ← clear on logout
       s.route_id = null;      // ← clear on logout
+      try {
+        useCartStore.getState().clearCart();
+      } catch (e) {
+        console.warn("Failed to clear cart during logout:", e);
+      }
     }),
 
   // ← ADD: setter for map tracking

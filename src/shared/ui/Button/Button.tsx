@@ -56,10 +56,10 @@ const buttonVariants = cva(
             // ── Size — height matches token sizes ───────────────────
             // h-btn-sm/md/lg/xl come from tokens.sizes in tailwind config
             size: {
-                sm: "h-btn-sm px-4    gap-1.5",   // 36px tall
-                md: "h-btn-md px-6    gap-2",     // 44px tall  ← iOS touch min
-                lg: "h-btn-lg px-8    gap-2",     // 52px tall
-                xl: "h-btn-xl px-10   gap-2.5",   // 56px tall
+                sm: "min-h-btn-sm py-1.5 px-4    gap-1.5",   // 36px min
+                md: "min-h-btn-md py-2   px-6    gap-2",     // 44px min  ← iOS touch min
+                lg: "min-h-btn-lg py-2.5 px-8    gap-2",     // 52px min
+                xl: "min-h-btn-xl py-3   px-10   gap-2.5",   // 56px min
             },
 
             // ── Full width ───────────────────────────────────────────

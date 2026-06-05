@@ -5,11 +5,15 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
-    "scheme": "pench-foods",
+    "scheme": "penchnew",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "location"
+        ]
+      }
     },
     "android": {
       "navigationBarColor": "#f8f8f8",
@@ -21,7 +25,15 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.polynexus.pench"
+      "package": "com.polynexus.pench",
+      "googleServicesFile": "./google-services.json",
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -51,18 +63,25 @@
           "isAndroidBackgroundLocationEnabled": true,
           "isIosBackgroundLocationEnabled": true
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/icon.png",
+          "color": "#1B5E37",
+          "defaultChannel": "delivery_updates"
+        }
       ]
     ],
-    "ios": {
-      "infoPlist": {
-        "UIBackgroundModes": [
-          "location"
-        ]
-      }
-    },
     "experiments": {
       "typedRoutes": true,
-      "reactCompiler": true 
+      "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      // "eas": {
+      //   "projectId": "22604f7a-a5f3-4f6e-9985-4055ebf46ca5"
+      // }
     }
   }
 }

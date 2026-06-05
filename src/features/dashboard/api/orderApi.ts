@@ -17,6 +17,7 @@ export interface Order {
   scheduled_delivery_date: string;
   delivered_at: string | null;
   items: OrderItem[];
+  is_special?: boolean;
 }
 
 

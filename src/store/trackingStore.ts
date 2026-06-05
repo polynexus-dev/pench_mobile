@@ -5,8 +5,9 @@ import { useAuthStore } from "./authStore";
 import { mapApi } from "@/features/map/api/mapApi";
 import { startBackgroundTracking, stopBackgroundTracking } from "@/services/location/trackingService";
 import { useToast } from "@/hooks/useToast";
-import { cleanupTripSession } from "@/features/map/hooks/stopTripCleanup";
-import { env } from "@/config/env";
+import { useGeofenceStore } from "./geofenceStore";
+import { queryClient } from "@/services/api/queryClient";
+import { asyncStorage } from "@services/storage/asyncStorage";
 
 const { show } = useToast();
 
@@ -23,7 +24,9 @@ interface TrackingStore {
     watcher: Location.LocationSubscription | null;
     loading: boolean;
     error: string | null;
+    canStopTrip: boolean;
 
+    setCanStopTrip: (value: boolean) => void;
     startTrip: () => Promise<boolean>;
     stopTrip: () => Promise<boolean>;
     connectSocket: (domain: string) => void;
@@ -41,7 +44,13 @@ export const useTrackingStore = createStore<TrackingStore>(
         watcher: null,
         loading: false,
         error: null,
+        canStopTrip: false,
 
+        setCanStopTrip: (value: boolean) => {
+            set((s) => {
+                s.canStopTrip = value;
+            });
+        },
         startTrip: async () => {
             set((s) => {
                 s.loading = true;
@@ -61,17 +70,7 @@ export const useTrackingStore = createStore<TrackingStore>(
 
                 get().connectSocket(domain_name);
                 await get().startTracking();
-
-                try {
-                    await startBackgroundTracking();
-                } catch (backgroundErr: any) {
-                    if (__DEV__) {
-                        console.warn(
-                            "⚠️ Background location tracking not started (expected in Expo Go):",
-                            backgroundErr.message
-                        );
-                    }
-                }
+                await startBackgroundTracking();
 
                 set((s) => {
                     s.isTripStarted = true;
@@ -108,19 +107,11 @@ export const useTrackingStore = createStore<TrackingStore>(
                 await mapApi.completeTrip(domain_name, route_id);
 
                 get().stopTracking();
-
-                try {
-                    await stopBackgroundTracking();
-                } catch (backgroundErr: any) {
-                    if (__DEV__) {
-                        console.warn(
-                            "⚠️ Background location tracking failed to stop:",
-                            backgroundErr.message
-                        );
-                    }
-                }
-
+                await stopBackgroundTracking();
                 get().disconnectSocket();
+
+                // full cleanup after successful stop
+                await cleanupTripSession();
 
                 set((s) => {
                     s.isTripStarted = false;
@@ -148,46 +139,19 @@ export const useTrackingStore = createStore<TrackingStore>(
                 existing.close();
             }
 
-            // Extract tenant subdomain from potentially stale domain values
-            let tenantSubdomain = domain
+            const cleanDomain = domain
                 .replace(/^https?:\/\//, "")
                 .replace(/^www\./, "")
-                .replace(/\/+$/, "")
-                .split(".")[0]; // e.g. "pench-nagpur"
-
-            // Build WebSocket host using current env base URL
-            const apiBaseUrl = env.EXPO_PUBLIC_API_BASE_URL;
-            const match = apiBaseUrl.match(/^https?:\/\/([^/]+)/);
-            let wsHost = `${tenantSubdomain}.localhost`;
-            let wsProtocol = "wss";
-
-            if (match) {
-                const hostWithPort = match[1];
-                const hostParts = hostWithPort.split(":");
-                const hostIp = hostParts[0];
-                const port = hostParts[1] ? `:${hostParts[1]}` : "";
-
-                if (hostIp === "localhost" || hostIp === "127.0.0.1") {
-                    wsHost = `${tenantSubdomain}.localhost${port}`;
-                    wsProtocol = "ws";
-                } else if (/^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/.test(hostIp)) {
-                    // For local IP, connect directly to the IP to bypass local DNS/rebinding issues on mobile,
-                    // and pass the tenant subdomain as a query parameter for the backend middleware.
-                    wsHost = `${hostIp}${port}`;
-                    wsProtocol = "ws";
-                } else {
-                    // Remote/production domain
-                    wsHost = `${tenantSubdomain}.${hostIp}${port}`;
-                }
-            }
+                .replace(/\/+$/, "");
 
             const token = useAuthStore.getState().accessToken;
-            const wsUrl = `${wsProtocol}://${wsHost}/ws/tracking/?token=${token}&tenant=${tenantSubdomain}`;
-            const ws = new WebSocket(wsUrl);
+            const ws = new WebSocket(`wss://${cleanDomain}/ws/tracking/?token=${token}`);
 
             console.log(
-                "Connecting to WebSocket at",
-                wsUrl
+                "Connecting to WebSocket at wss://",
+                cleanDomain,
+                "with token:",
+                token
             );
 
             ws.onopen = () => {
@@ -197,7 +161,7 @@ export const useTrackingStore = createStore<TrackingStore>(
             ws.onclose = () => {
                 if (!get().isTripStarted) return;
                 if (__DEV__) console.log("🔄 WebSocket closed, Reconnecting...");
-                setTimeout(() => get().connectSocket(domain), 3000);
+                setTimeout(() => get().connectSocket(cleanDomain), 3000);
             };
 
             ws.onerror = (e: any) => {
@@ -289,3 +253,65 @@ export const useTrackingStore = createStore<TrackingStore>(
         },
     })
 );
+
+function normalizeDomain(domain: string) {
+    return domain
+        .replace(/^https?:\/\//, "")
+        .replace(/^www\./, "")
+        .replace(/\/+$/, "");
+}
+
+export async function cleanupTripSession() {
+    const { socket, watcher } = useTrackingStore.getState();
+    const { stopGeofenceTracking } = useGeofenceStore.getState();
+
+    if (socket) {
+        try {
+            socket.onclose = null;
+            socket.close();
+        } catch {}
+    }
+
+    if (watcher) {
+        try {
+            watcher.remove?.();
+        } catch {}
+    }
+
+    stopGeofenceTracking();
+
+    const domain_name = useAuthStore.getState().domain_name;
+    const cleanDomain = domain_name ? normalizeDomain(domain_name) : null;
+
+    if (cleanDomain) {
+        queryClient.removeQueries({
+            queryKey: ["my-route", cleanDomain],
+            exact: true,
+        });
+    }
+
+    await asyncStorage.removeItem("route_id");
+
+    useAuthStore.setState({ route_id: null });
+
+    useTrackingStore.setState({
+        isTripStarted: false,
+        socket: null,
+        watcher: null,
+        loading: false,
+        error: null,
+        canStopTrip: false,
+    });
+
+    useGeofenceStore.setState({
+        route: null,
+        routeLoading: false,
+        routeError: null,
+        location: null,
+        nearStopId: null,
+        activeStopId: null,
+        selectedStopId: null,
+        loading: false,
+        error: null,
+    });
+}
