@@ -31,5 +31,6 @@ export const ROUTES = {
         COMPLAINT: (id: string) => `/(customer)/complaints/${id}` as const,
         DELIVERY_TRACKING: "/(customer)/tracking" as const,
         INVOICE: (id: string) => `/(customer)/invoices/${id}` as const,
+        QR_SCANNER: "/(customer)/qr-scanner" as const,
     },
 } as const;

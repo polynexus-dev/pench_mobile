@@ -1,6 +1,6 @@
+import { buildUrl } from "@services/api/buildUrl";
 import { httpClient } from "@services/api/httpClient";
 import type { TripActionResponse } from "../types/dashboard.types";
-import { buildUrl } from "@services/api/buildUrl";
 
 export const dashboardApi = {
   startTrip: (domainName: string): Promise<TripActionResponse> =>
