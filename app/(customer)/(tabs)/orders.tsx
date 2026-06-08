@@ -1,1 +1,1 @@
-export { OrdersScreen as default } from "@features/ecommerce"
+export { OrdersScreen } from "@features/ecommerce/screens/OrderScreen"

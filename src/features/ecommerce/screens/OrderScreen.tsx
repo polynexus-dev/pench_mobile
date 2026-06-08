@@ -16,7 +16,7 @@ import { OrdersTabs } from "../components/OrdersTabs";
 import { EmptyOrdersState } from "../components/EmptyOrdersState";
 import { OrderExtraBottomSheet } from "../components/OrderExtraBottomSheet";
 
-export default function OrdersScreen() {
+export function OrdersScreen() {
     const domainName = useAuthStore((s) => s.domain_name) || "";
     const params = useLocalSearchParams<{ openModal?: string }>();
 
