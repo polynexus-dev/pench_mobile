@@ -1,17 +1,17 @@
-import { useEffect, useRef, useState } from "react";
-import { Slot, useRouter, useSegments } from "expo-router";
-import { useAuthStore } from "@/store/authStore";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ActivityIndicator, View } from "react-native";
-import { useAuthInit } from "@/hooks/useAuthInit";
-import * as SplashScreen from "expo-splash-screen";
-import "../global.css";
-import { ToastProvider } from "@/shared/components/Toast/Toast";
-import "@/services/location/backgroundTracking";
 import { useNotifications } from "@/features/notifications/hooks/useNotifications";
+import { useAuthInit } from "@/hooks/useAuthInit";
+import "@/services/location/backgroundTracking";
+import { ToastProvider } from "@/shared/components/Toast/Toast";
+import { useAuthStore } from "@/store/authStore";
+import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Slot, useRouter, useSegments } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
+import { useEffect, useRef } from "react";
+import { ActivityIndicator, View } from "react-native";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import "../global.css";
 
 function AppInit() {
   useNotifications();
