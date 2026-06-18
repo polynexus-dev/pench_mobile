@@ -20,7 +20,7 @@
 //   · Full a11y — accessibilityLabel, accessibilityHint, accessibilityState
 // ─────────────────────────────────────────────────────────────────
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef, useImperativeHandle } from "react";
 import {
   TextInput,
   View,
@@ -117,7 +117,7 @@ const COLOR = {
 // 3. TYPES
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-export interface InputProps extends Omit<TextInputProps, "style" | "secureTextEntry"> {
+export interface InputProps extends Omit<TextInputProps, "style"> {
   // Variant
   variant?: "filled" | "outline" | "ghost";
   size?: "sm" | "md" | "lg";
@@ -173,6 +173,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
       rightAction,
 
       isPassword = false,
+      secureTextEntry,
 
       maxLength,
       showCount = false,
@@ -193,6 +194,8 @@ export const Input = React.forwardRef<TextInput, InputProps>(
     },
     ref
   ) => {
+    const localRef = useRef<TextInput>(null);
+    useImperativeHandle(ref, () => localRef.current!);
 
     // ── Local state ───────────────────────────────────────────
     const [isFocused, setIsFocused] = useState(false);
@@ -315,7 +318,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
 
     // ── Character counter ─────────────────────────────────────
     const currentLength = (value ?? internalValue).length;
-    const showCounter = showCount || Boolean(maxLength);
+    const showCounter = showCount !== undefined ? showCount : Boolean(maxLength);
     const nearLimit = maxLength ? currentLength >= maxLength * 0.85 : false;
     const atLimit = maxLength ? currentLength >= maxLength : false;
 
@@ -339,7 +342,8 @@ export const Input = React.forwardRef<TextInput, InputProps>(
         )}
 
         {/* ── Field row ─────────────────────────────────────── */}
-        <View
+        <Pressable
+          onPress={() => localRef.current?.focus()}
           className={cn(
             containerVariants({ variant, size, isDisabled: disabled }),
             borderClassName,
@@ -361,7 +365,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
 
           {/* TextInput */}
           <TextInput
-            ref={ref}
+            ref={localRef}
             value={value}
             onChangeText={handleChangeText}
             onFocus={handleFocus}
@@ -369,7 +373,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
             placeholder={placeholder}
             placeholderTextColor={COLOR.muted}
             editable={isInteractive}
-            secureTextEntry={isPassword && !isPasswordVisible}
+            secureTextEntry={secureTextEntry !== undefined ? secureTextEntry : (isPassword && !isPasswordVisible)}
             maxLength={maxLength}
             maxFontSizeMultiplier={1.2}           // prevent system font breaking layout
             accessibilityLabel={accessibilityLabel ?? label}
@@ -381,7 +385,7 @@ export const Input = React.forwardRef<TextInput, InputProps>(
 
           {/* Right slot */}
           <RightSlot />
-        </View>
+        </Pressable>
 
         {/* ── Bottom row — message + counter ────────────────── */}
         {(isError || helperText || showCounter) && (

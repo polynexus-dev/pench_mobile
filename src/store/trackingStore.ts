@@ -6,6 +6,7 @@ import { mapApi } from "@/features/map/api/mapApi";
 import { startBackgroundTracking, stopBackgroundTracking } from "@/services/location/trackingService";
 import { useToast } from "@/hooks/useToast";
 import { cleanupTripSession } from "@/features/map/hooks/stopTripCleanup";
+import { queryClient } from "@/services/api/queryClient";
 
 const { show } = useToast();
 
@@ -31,6 +32,7 @@ interface TrackingStore {
     disconnectSocket: () => void;
     startTracking: () => Promise<void>;
     stopTracking: () => void;
+    resetStore: () => void;
 }
 
 export const useTrackingStore = createStore<TrackingStore>(
@@ -75,6 +77,8 @@ export const useTrackingStore = createStore<TrackingStore>(
                     s.loading = false;
                 });
 
+                queryClient.invalidateQueries({ queryKey: ["my-route", domain_name] });
+
                 return true;
             } catch (err: any) {
                 if (__DEV__) console.error("❌ startTrip error:", err.message);
@@ -115,6 +119,8 @@ export const useTrackingStore = createStore<TrackingStore>(
                     s.isTripStarted = false;
                     s.loading = false;
                 });
+
+                queryClient.invalidateQueries({ queryKey: ["my-route", domain_name] });
 
                 return true;
             } catch (err: any) {
@@ -247,6 +253,17 @@ export const useTrackingStore = createStore<TrackingStore>(
             get().watcher?.remove();
             set((s) => {
                 s.watcher = null;
+            });
+        },
+        resetStore: () => {
+            set((s) => {
+                s.isTripStarted = false;
+                s.location = null;
+                s.socket = null;
+                s.watcher = null;
+                s.loading = false;
+                s.error = null;
+                s.canStopTrip = false;
             });
         },
     })

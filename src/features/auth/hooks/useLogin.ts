@@ -9,6 +9,8 @@ import { ROUTES } from "@/constants/route";
 import type { LoginPayload } from "../types/auth.types";
 import { asyncStorage } from "@services/storage/asyncStorage";
 
+import { queryClient } from "@/services/api/queryClient";
+
 export function useLogin() {
   const router = useRouter();
   const { setUser, setTokens, setDomainAndRoute } = useAuthStore();
@@ -18,6 +20,9 @@ export function useLogin() {
     mutationFn: (payload: LoginPayload) => authApi.login(payload),
     onSuccess: async (res) => {
       const { user, access, refresh, active_route_id } = res;
+
+      // Clear query cache from previous session
+      queryClient.clear();
 
       await tokenUtils.saveTokens(access, refresh);
       setTokens(access, refresh);

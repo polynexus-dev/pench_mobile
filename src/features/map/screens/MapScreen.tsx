@@ -81,6 +81,13 @@ export default function MapScreen() {
     ) as RouteStop[];
   }, [route?.stops]);
 
+  const allStopsFinished = useMemo(() => {
+    if (!route?.stops?.length) return false;
+    return route.stops.every(
+      (stop) => stop.order_status === "delivered" || stop.order_status === "undelivered"
+    );
+  }, [route?.stops]);
+
   const groupedStops = useMemo(() => {
     const groups = new Map<string, GroupedStop>();
 
@@ -216,6 +223,7 @@ export default function MapScreen() {
       }
     }
 
+    bottomSheetRef.current?.present();
     bottomSheetRef.current?.snapToIndex(1);
 
     const yOffset = cardYPositions.current[nearStopId];
@@ -263,13 +271,6 @@ export default function MapScreen() {
           } else {
             setExpandedGroupKey(null);
           }
-
-          const timer = setTimeout(() => {
-            bottomSheetRef.current?.present();
-            bottomSheetRef.current?.snapToIndex(1);
-          }, 150);
-
-          return () => clearTimeout(timer);
         }
       }
 
@@ -306,13 +307,6 @@ export default function MapScreen() {
       } else {
         setExpandedGroupKey(null);
       }
-
-      const timer = setTimeout(() => {
-        bottomSheetRef.current?.present();
-        bottomSheetRef.current?.snapToIndex(1);
-      }, 150);
-
-      return () => clearTimeout(timer);
     }, [
       groupedStops,
       nearStopId,
@@ -426,7 +420,7 @@ export default function MapScreen() {
     if (!routeAvailable) return;
 
     if (tripStarted) {
-      if (!canEndTrip) return;
+      if (!allStopsFinished) return;
       await stopTrip();
       return;
     }
@@ -497,7 +491,7 @@ export default function MapScreen() {
         isTripStarted={isTripStarted}
         loading={trackingLoading}
         onToggle={handleTripToggle}
-        disabled={isTripStarted ? !canStopTrip : !routeAvailable}
+        disabled={isTripStarted ? !allStopsFinished : !routeAvailable}
         navigationStopName={
           navigationStopId
             ? route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null

@@ -38,7 +38,8 @@ httpClient.interceptors.response.use(
       error?.message ||
       "Something went wrong";
 
-    const apiError = ApiError.fromResponse(statusCode, message, endpoint);
+    const responseData = error?.response?.data;
+    const apiError = ApiError.fromResponse(statusCode, message, endpoint, responseData);
     logError(apiError, `httpClient:response [${endpoint}]`);
 
     return Promise.reject(apiError);

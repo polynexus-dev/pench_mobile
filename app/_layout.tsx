@@ -4,15 +4,15 @@ import "@/services/location/backgroundTracking";
 import { ToastProvider } from "@/shared/components/Toast/Toast";
 import { useAuthStore } from "@/store/authStore";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "@/services/api/queryClient";
 import { Slot, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useRef } from "react";
-import { ActivityIndicator, View, StyleSheet, Platform } from "react-native";
+import { ActivityIndicator, View, Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider, useSafeAreaInsets } from "react-native-safe-area-context";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
-import { BlurView } from 'expo-blur';
 import { StatusBar } from "expo-status-bar";
 
 function AppInit() {
@@ -20,36 +20,8 @@ function AppInit() {
   return null;
 }
 
-function StatusOverlays() {
-  const insets = useSafeAreaInsets();
-  if (Platform.OS === 'ios') {
-    return null;
-  }
-  return (
-    <>
-      {/* Top Blur only */}
-      <BlurView
-        intensity={60}
-        tint="dark"
-        style={[
-          styles.blur,
-          { height: insets.top },
-        ]}
-      />
-    </>
-  );
-}
-
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 2,
-      staleTime: 1000 * 60 * 5,
-    },
-  },
-});
 
 const ROLE_ROUTES: Record<string, string> = {
   driver: "/(driver)/(tabs)/dashboard",
@@ -126,22 +98,9 @@ export default function RootLayout() {
             <AppInit />
             <RootNavigator />
             <ToastProvider />
-            <StatusOverlays />
           </BottomSheetModalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
-
-
-const styles = StyleSheet.create({
-  blur: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 9999,
-    overflow: 'hidden',
-  },
-});

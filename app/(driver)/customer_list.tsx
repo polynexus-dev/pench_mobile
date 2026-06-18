@@ -7,6 +7,7 @@ import {
     Platform,
     Linking,
     Alert,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -14,6 +15,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useGeofenceStore } from "@store/geofenceStore";
 import { Text } from "@/shared/ui/Text/Text";
 import { Button } from "@/shared/ui";
+import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
 
 type RouteStop = {
     id: string;
@@ -59,6 +61,7 @@ const CARD_SHADOW = Platform.select({
 });
 
 export default function CustomerListScreen() {
+    const { isLoading: isRouteLoading } = useFetchMyRoute();
     const router = useRouter();
     const route = useGeofenceStore((s) => s.route);
     const [searchQuery, setSearchQuery] = useState("");
@@ -79,10 +82,7 @@ export default function CustomerListScreen() {
 
     // Group stops by coordinates and filter by search query
     const groupedStops = useMemo(() => {
-        const visibleStops = (route?.stops ?? []).filter(
-            (stop) =>
-                stop.order_status === "in_transit" || stop.order_status === "delivered",
-        ) as RouteStop[];
+        const visibleStops = (route?.stops ?? []) as RouteStop[];
 
         const filteredStops = visibleStops.filter(
             (stop) =>
@@ -90,27 +90,37 @@ export default function CustomerListScreen() {
                 stop.address.toLowerCase().includes(searchQuery.toLowerCase()),
         );
 
-        const groups = new Map<string, GroupedStop>();
-
-        for (const stop of filteredStops) {
-            const key = getLocationKey(stop.latitude, stop.longitude);
-            const existing = groups.get(key);
-
-            if (!existing) {
-                groups.set(key, {
-                    groupKey: key,
-                    address: stop.address,
-                    stops: [stop],
-                });
-            } else {
-                existing.stops.push(stop);
-            }
-        }
-
-        return Array.from(groups.values()).sort(
-            (a, b) => a.stops[0].sequence_number - b.stops[0].sequence_number,
-        );
+        return [...filteredStops].sort((a, b) => a.sequence_number - b.sequence_number);
     }, [route?.stops, searchQuery]);
+
+    if (isRouteLoading) {
+        return (
+            <SafeAreaView className="flex-1 bg-bg-screen" edges={["top", "bottom"]}>
+                {/* Header Section */}
+                <View className="flex-row items-center justify-between px-4 py-2.5 bg-bg-screen">
+                    <TouchableOpacity
+                        onPress={() => router.back()}
+                        activeOpacity={0.7}
+                        className="h-11 w-11 items-center justify-center rounded-full bg-white border border-border-default shadow-sm"
+                    >
+                        <Ionicons name="chevron-back" size={20} color="#1A1A1A" />
+                    </TouchableOpacity>
+
+                    <Text variant="title" weight="bold" color="primary">
+                        All Customers
+                    </Text>
+
+                    <View className="h-11 w-11" />
+                </View>
+                <View className="flex-1 justify-center items-center">
+                    <ActivityIndicator size="large" color="#1B5E37" />
+                    <Text className="mt-3 text-text-secondary text-[15px] font-semibold" variant="body" weight="semibold">
+                        Loading customer list...
+                    </Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView className="flex-1 bg-bg-screen" edges={["top", "bottom"]}>
@@ -341,123 +351,110 @@ export default function CustomerListScreen() {
                         </View>
                     )
                 ) : (
-                    groupedStops.map((group) => (
-                        <View
-                            key={group.groupKey}
-                            style={CARD_SHADOW}
-                            className="mb-3 rounded-card border border-border-default bg-white p-4"
-                        >
-                            {/* Customer Stops */}
-                            <View className="gap-y-2">
-                                {group.stops.map((stop) => {
-                                    const isDelivered = stop.order_status === "delivered";
-                                    const isPending = stop.order_status === "in_transit";
+                    groupedStops.map((stop) => {
+                        const isDelivered = stop.order_status === "delivered";
+                        const isPending = stop.order_status === "in_transit" || stop.order_status === "pending";
 
-                                    return (
-                                        <View
-                                            key={stop.id}
-                                            className="flex-row items-center justify-between rounded-xl bg-bg-input py-2 px-3"
+                        // If pending, make it yellow. If completed/other, make it green.
+                        const bgClass = isPending ? "bg-[#FEFCE8]" : "bg-[#E8F5EE]";
+                        const borderClass = isPending ? "border-[#FEF9C3]" : "border-[#C2E0CC]";
+                        const statusTextColor = isPending ? "text-warning" : "text-success";
+
+                        return (
+                            <View
+                                key={stop.id}
+                                style={CARD_SHADOW}
+                                className={`mb-3 rounded-card border ${borderClass} ${bgClass} p-3.5 flex-row items-center justify-between`}
+                            >
+                                <View className="flex-row items-center flex-1 pr-3">
+                                    {/* Circular Sequence/Check Badge */}
+                                    <View
+                                        className={`h-7 w-7 items-center justify-center rounded-full ${
+                                            isDelivered ? "bg-success" : "bg-white"
+                                        }`}
+                                        style={{ marginRight: 8 }}
+                                    >
+                                        {isDelivered ? (
+                                            <Ionicons
+                                                name="checkmark"
+                                                size={13}
+                                                color="#FFFFFF"
+                                            />
+                                        ) : (
+                                            <Text variant="caption" weight="bold" color="brand">
+                                                {stop.sequence_number}
+                                            </Text>
+                                        )}
+                                    </View>
+
+                                    {/* Customer Metadata */}
+                                    <View className="flex-1 flex-row items-center justify-between">
+                                        <Text
+                                            variant="body-sm"
+                                            weight="semibold"
+                                            color="primary"
                                         >
-                                            <View className="flex-row items-center flex-1 pr-3">
-                                                {/* Circular Sequence/Check Badge */}
-                                                <View
-                                                    className={`h-7 w-7 items-center justify-center rounded-full ${isDelivered ? "bg-success" : "bg-brand-light"
-                                                        }`}
-                                                    style={{ marginRight: 8 }}
+                                            {stop.customer_name}
+                                        </Text>
+                                        <View className="flex-row items-center gap-x-2">
+                                            {stop.customer_phone ? (
+                                                <TouchableOpacity
+                                                    onPress={() => Linking.openURL(`tel:${stop.customer_phone}`)}
+                                                    className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs"
                                                 >
-                                                    {isDelivered ? (
-                                                        <Ionicons
-                                                            name="checkmark"
-                                                            size={13}
-                                                            color="#FFFFFF"
-                                                        />
-                                                    ) : (
-                                                        <Text variant="caption" weight="bold" color="brand">
-                                                            {stop.sequence_number}
-                                                        </Text>
-                                                    )}
-                                                </View>
-
-                                                {/* Customer Metadata */}
-                                                <View className="flex-1 flex-row items-center justify-between">
-                                                    <Text
-                                                        variant="body-sm"
-                                                        weight="semibold"
-                                                        color="primary"
-                                                    >
-                                                        {stop.customer_name}
-                                                    </Text>
-                                                    <View className="flex-row items-center gap-x-2">
-                                                        {stop.customer_phone ? (
-                                                            <TouchableOpacity
-                                                                onPress={() => Linking.openURL(`tel:${stop.customer_phone}`)}
-                                                                className="h-8 w-8 items-center justify-center rounded-full bg-[#E8F5EE]"
-                                                            >
-                                                                <Ionicons name="call" size={15} color="#1B5E37" />
-                                                            </TouchableOpacity>
-                                                        ) : null}
-                                                        <TouchableOpacity
-                                                            onPress={() => Alert.alert("Customer Address", stop.address || "No address added")}
-                                                            className="h-8 w-8 items-center justify-center rounded-full bg-[#E8F5EE]"
-                                                        >
-                                                            <Ionicons name="information-circle" size={17} color="#1B5E37" />
-                                                        </TouchableOpacity>
-                                                    </View>
-                                                </View>
-                                            </View>
-
-                                            {/* Status Badge & Chevron */}
-                                            <View className="flex-row items-center">
-                                                {isDelivered ? (
-                                                    <View
-                                                        className="rounded-badge bg-emerald-50 px-2 py-0.5"
-                                                        style={{ marginRight: 6 }}
-                                                    >
-                                                        <Text
-                                                            variant="caption-sm"
-                                                            weight="semibold"
-                                                            color="success"
-                                                            className="text-[10px] capitalize"
-                                                        >
-                                                            Delivered
-                                                        </Text>
-                                                    </View>
-                                                ) : isPending ? (
-                                                    <View
-                                                        className="rounded-badge bg-amber-50 px-2 py-0.5"
-                                                        style={{ marginRight: 6 }}
-                                                    >
-                                                        <Text
-                                                            variant="caption-sm"
-                                                            weight="semibold"
-                                                            color="warning"
-                                                            className="text-[10px] capitalize"
-                                                        >
-                                                            Pending
-                                                        </Text>
-                                                    </View>
-                                                ) : (
-                                                    <View
-                                                        className="rounded-badge bg-gray-100 px-2 py-0.5"
-                                                        style={{ marginRight: 6 }}
-                                                    >
-                                                        <Text
-                                                            variant="caption-sm"
-                                                            weight="semibold"
-                                                            color="muted"
-                                                            className="text-[10px] capitalize"
-                                                        >
-                                                            {stop.order_status}
-                                                        </Text>
-                                                    </View>
-                                                )}
-                                            </View>
+                                                    <Ionicons name="call" size={15} color="#1B5E37" />
+                                                </TouchableOpacity>
+                                            ) : null}
+                                            <TouchableOpacity
+                                                onPress={() => Alert.alert("Customer Address", stop.address || "No address added")}
+                                                className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs"
+                                            >
+                                                <Ionicons name="information-circle" size={17} color="#1B5E37" />
+                                            </TouchableOpacity>
                                         </View>
-                                    );
-                                })}
+                                    </View>
+                                </View>
+
+                                {/* Status Badge */}
+                                <View className="flex-row items-center">
+                                    {isDelivered ? (
+                                        <View className="rounded-badge bg-white/90 border border-success/20 px-2 py-0.5" style={{ marginRight: 4 }}>
+                                            <Text
+                                                variant="caption-sm"
+                                                weight="semibold"
+                                                color="success"
+                                                className="text-[10px] capitalize font-bold"
+                                            >
+                                                Delivered
+                                            </Text>
+                                        </View>
+                                    ) : isPending ? (
+                                        <View className="rounded-badge bg-white/90 border border-warning/20 px-2 py-0.5" style={{ marginRight: 4 }}>
+                                            <Text
+                                                variant="caption-sm"
+                                                weight="semibold"
+                                                color="warning"
+                                                className="text-[10px] capitalize font-bold"
+                                            >
+                                                Pending
+                                            </Text>
+                                        </View>
+                                    ) : (
+                                        <View className="rounded-badge bg-white/90 border border-border-default px-2 py-0.5" style={{ marginRight: 4 }}>
+                                            <Text
+                                                variant="caption-sm"
+                                                weight="semibold"
+                                                color="muted"
+                                                className="text-[10px] capitalize font-bold"
+                                            >
+                                                {stop.order_status}
+                                            </Text>
+                                        </View>
+                                    )}
+                                </View>
                             </View>
-                        </View>
-                    ))
+                        );
+                    })
                 )}
             </ScrollView>
         </SafeAreaView>

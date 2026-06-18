@@ -23,7 +23,7 @@ export function useSyncRouteToGeofence(data: RouteResponse | null | undefined) {
     const setRoute = useGeofenceStore((s) => s.setRoute);
     const setActiveStopId = useGeofenceStore((s) => s.setActiveStopId);
     const setSelectedStopId = useGeofenceStore((s) => s.setSelectedStopId);
-    const syncedRouteIdRef = useRef<string | null>(null);
+    const lastSyncedDataRef = useRef<string | null>(null);
 
     useEffect(() => {
         if (!data?.id) {
@@ -31,7 +31,8 @@ export function useSyncRouteToGeofence(data: RouteResponse | null | undefined) {
             return;
         }
 
-        if (syncedRouteIdRef.current === data.id) return;
+        const currentDataStr = JSON.stringify(data);
+        if (lastSyncedDataRef.current === currentDataStr) return;
 
         const normalizedStops = (data.stops ?? []).map((stop) => ({
             ...stop,
@@ -57,6 +58,6 @@ export function useSyncRouteToGeofence(data: RouteResponse | null | undefined) {
 
         useTrackingStore.getState().setCanStopTrip(!hasActiveStops);
 
-        syncedRouteIdRef.current = data.id;
+        lastSyncedDataRef.current = currentDataStr;
     }, [data, setRoute, setActiveStopId, setSelectedStopId]);
 }

@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import { useToast } from "@/hooks/useToast";
-import { AuthInput } from "../components/AuthInput";
+import { Input } from "@/shared/ui/Input";
 import { useForgotPassword } from "../hooks/useForgotPassword";
 import { useResetPassword } from "../hooks/useResetPassword";
 import { Ionicons } from "@expo/vector-icons";
@@ -30,19 +30,18 @@ export default function ForgotPasswordScreen() {
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
 
   const isPending = isSendingOtp || isResettingPassword;
   const currentError = step === 1 ? forgotError : resetError;
   const hasError = step === 1 ? isForgotError : isResetError;
 
-  const validatePhone = (value: string) => /^\d{12}$/.test(value.trim());
+  const validatePhone = (value: string) => /^\d{10}$/.test(value.trim());
   const validatePassword = (value: string) => value.trim().length >= 8;
 
   const handleSendOtp = async () => {
     if (!validatePhone(phone)) {
       show({
-        message: "Enter a valid 12 digit phone number",
+        message: "Enter a valid 10 digit phone number",
         type: "error",
       });
       return;
@@ -64,7 +63,7 @@ export default function ForgotPasswordScreen() {
   const handleResetPassword = async () => {
     if (!validatePhone(phone)) {
       show({
-        message: "Enter a valid 12 digit phone number",
+        message: "Enter a valid 10 digit phone number",
         type: "error",
       });
       return;
@@ -97,14 +96,14 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <ScreenWrapper>
-      <View className="flex-1 justify-center">
+    <ScreenWrapper className="bg-white">
+      <View className="flex-1 justify-center px-6">
         <View className="mb-8">
-          <Text className="text-2xl font-bold text-text-primary">
+          <Text className="text-3xl font-bold text-text-primary tracking-tight">
             Forgot Password
           </Text>
 
-          <Text className="mt-2 text-sm text-text-secondary">
+          <Text className="mt-2 text-sm font-medium text-text-muted">
             {step === 1
               ? "Enter your registered phone number to receive an OTP."
               : "Enter the OTP and your new password to reset your account."}
@@ -112,46 +111,46 @@ export default function ForgotPasswordScreen() {
         </View>
 
         <View className="w-full gap-y-4">
-          <AuthInput
+          <Input
             label="Phone Number"
             placeholder="Phone number (e.g. 917000000010)"
             value={phone}
             onChangeText={setPhone}
             keyboardType="number-pad"
-            maxLength={12}
+            maxLength={10}
+            showCount={false}
             editable={!isPending && step === 1}
-            />
+            variant="outline"
+            size="lg"
+            containerClassName="rounded-2xl"
+            rightIcon={<Ionicons name="call-outline" size={20} color="#9E9E9E" />}
+          />
 
           {step === 2 && (
             <>
-              <AuthInput
-            label="Enter OTP"
-            placeholder="Enter OTP"
-            value={code}
-            onChangeText={setCode}
-            keyboardType="number-pad"
-            editable={!isPending}
-            />
+              <Input
+                label="Enter OTP"
+                placeholder="Enter OTP"
+                value={code}
+                onChangeText={setCode}
+                keyboardType="number-pad"
+                editable={!isPending}
+                variant="outline"
+                size="lg"
+                containerClassName="rounded-2xl"
+                rightIcon={<Ionicons name="key-outline" size={20} color="#9E9E9E" />}
+              />
 
-              <AuthInput
-            label="Set New Password"
+              <Input
+                label="Set New Password"
                 placeholder="Enter new password"
                 value={newPassword}
                 onChangeText={setNewPassword}
-                secureTextEntry={!showPassword}
+                isPassword={true}
                 editable={!isPending}
-                rightIcon={
-                  <TouchableOpacity
-                    onPress={() => setShowPassword((v) => !v)}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons
-                      name={showPassword ? "eye-off-outline" : "eye-outline"}
-                      size={20}
-                      color="#9E9E9E"
-                    />
-                  </TouchableOpacity>
-                }
+                variant="outline"
+                size="lg"
+                containerClassName="rounded-2xl"
               />
             </>
           )}
@@ -173,14 +172,15 @@ export default function ForgotPasswordScreen() {
               (step === 2 && (!code || !newPassword))
             }
             activeOpacity={0.85}
-            className={`w-full h-14 rounded-full items-center justify-center mt-2 ${isPending ||
+            className={`w-full h-14 rounded-2xl items-center justify-center flex-row gap-x-1 mt-4 ${
+              isPending ||
               !phone ||
               (step === 2 && (!code || !newPassword))
-              ? "bg-brand-primary/50"
-              : "bg-brand-primary"
-              }`}
+                ? "bg-brand-primary/50"
+                : "bg-brand-primary"
+            }`}
           >
-            <Text className="text-white text-base font-semibold tracking-wide">
+            <Text className="text-white text-base font-bold tracking-wide">
               {step === 1
                 ? isPending
                   ? "Sending OTP..."
@@ -189,6 +189,9 @@ export default function ForgotPasswordScreen() {
                   ? "Resetting Password..."
                   : "Reset Password"}
             </Text>
+            {!isPending && (
+              <Ionicons name="chevron-forward" size={18} color="#FFF" />
+            )}
           </TouchableOpacity>
 
           {step === 2 && (
@@ -200,22 +203,21 @@ export default function ForgotPasswordScreen() {
                   setStep(1);
                   setCode("");
                   setNewPassword("");
-                  setShowPassword(false);
                 }
               }}
             >
-              <Text className="text-sm font-semibold text-brand-primary">
+              {/* <Text className="text-sm font-semibold text-brand-primary">
                 Change phone number
-              </Text>
+              </Text> */}
             </TouchableOpacity>
           )}
 
           <TouchableOpacity
             activeOpacity={0.85}
-            className="items-center mt-2"
+            className="items-center mt-1"
             onPress={() => router.back()}
           >
-            <Text className="text-sm font-semibold text-text-link">
+            <Text className="text-sm font-bold text-brand-primary">
               Back to Login
             </Text>
           </TouchableOpacity>

@@ -15,13 +15,16 @@ import {
     TouchableOpacity,
     useWindowDimensions,
     View,
+    ActivityIndicator,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useState, useRef, useMemo } from "react";
 import { asyncStorage } from "@services/storage/asyncStorage";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
 
 export function DriverDashboardScreen() {
+    const { isLoading: isRouteLoading } = useFetchMyRoute();
     const router = useRouter();
     const user = useAuthStore((s) => s.user);
     const accessToken = useAuthStore((s) => s.accessToken);
@@ -270,7 +273,14 @@ export function DriverDashboardScreen() {
                         </View>
 
                         {/* Route Card */}
-                        {routeId ? (
+                        {isRouteLoading ? (
+                            <View className="mt-2 rounded-[24px] bg-[#D1E0D6] p-6 shadow-xs items-center justify-center min-h-[160px]">
+                                <ActivityIndicator size="small" color="#1B5E37" />
+                                <Text className="mt-3 text-[#1B5E37] text-[14px] font-semibold">
+                                    Loading route details...
+                                </Text>
+                            </View>
+                        ) : routeId ? (
                             <View className="mt-2 rounded-[24px] bg-[#D1E0D6] p-5 shadow-xs">
                                 <View className="flex-row items-start justify-between gap-4">
                                     <View className="flex-1">

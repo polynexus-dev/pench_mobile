@@ -584,6 +584,7 @@ type GeofenceStore = {
     canMarkActiveStopDelivered: () => boolean;
     fetchNavigationPolyline: () => Promise<void>;
     advanceNavigation: () => void;
+    resetStore: () => void;
 };
 
 let geofenceWatcher: Location.LocationSubscription | null = null;
@@ -677,6 +678,10 @@ export const useGeofenceStore = createStore<GeofenceStore>(
                     s.navigationStopId = closest?.id ?? null;
                 }
             });
+
+            if (get().navigationStopId) {
+                get().fetchNavigationPolyline();
+            }
         },
 
         // ── startGeofenceTracking ───────────────────────────────────────────────
@@ -957,6 +962,23 @@ export const useGeofenceStore = createStore<GeofenceStore>(
                 state.activeStopId === state.nearStopId &&
                 active?.order_status === "in_transit"
             );
+        },
+
+        resetStore: () => {
+            set((s) => {
+                s.route = null;
+                s.routeLoading = false;
+                s.routeError = null;
+                s.location = null;
+                s.nearStopId = null;
+                s.activeStopId = null;
+                s.selectedStopId = null;
+                s.navigationStopId = null;
+                s.navigationPolyline = [];
+                s.navigationLoading = false;
+                s.loading = false;
+                s.error = null;
+            });
         },
     })
 );

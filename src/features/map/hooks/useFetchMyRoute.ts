@@ -14,8 +14,8 @@ export function useFetchMyRoute() {
     const query = useQuery({
         queryKey: ["my-route", domainName],
         enabled: !!domainName,
-        staleTime: 5 * 60 * 1000,
-        refetchOnMount: false,
+        staleTime: 0,
+        refetchOnMount: true,
         refetchOnWindowFocus: false,
         refetchOnReconnect: false,
         retry: false,
