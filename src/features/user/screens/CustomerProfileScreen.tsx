@@ -6,8 +6,7 @@ import {
   View,
   useWindowDimensions,
 } from "react-native";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 
@@ -18,6 +17,7 @@ import { Text } from "@/shared/ui/Text/Text";
 import { httpClient } from "@/services/api/httpClient";
 import { buildUrl } from "@/services/api/buildUrl";
 import { useToast } from "@/hooks/useToast";
+import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -99,50 +99,102 @@ function CardShell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProfileStat({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+interface ProfileCardProps {
+  initials: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  activeView: 'view' | 'edit_profile' | 'change_password';
+  openEditProfile: () => void;
+}
+
+function ProfileCard({
+  initials,
+  fullName,
+  email,
+  phone,
+  activeView,
+  openEditProfile,
+}: ProfileCardProps) {
   return (
-    <View className="items-center">
-      <Text className="text-2xl font-bold text-white">
-        {value}
-      </Text>
-      <Text className="mt-1 text-xs text-white/70">
-        {label}
-      </Text>
+    <View className="bg-white rounded-3xl p-5 border border-neutral-100 shadow-xs mt-2">
+      {/* Top Row: Avatar + Details + Role Badge */}
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center flex-1">
+          {/* Avatar Box */}
+          <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-primary/10 border border-brand-primary/20">
+            <Text variant="heading" weight="bold" className="text-brand-primary text-xl">
+              {initials}
+            </Text>
+          </View>
+
+          {/* Meta */}
+          <View className="ml-4 flex-1">
+            <Text variant="heading" weight="bold" className="text-text-primary">
+              {fullName}
+            </Text>
+            <Text variant="body-sm" color="muted" className="mt-0.5" numberOfLines={1}>
+              {email}
+            </Text>
+            <View className="flex-row items-center border border-brand-primary/20 bg-brand-primary/5 px-2.5 py-1 rounded-full mt-2 self-start">
+              <Ionicons name="shield-checkmark-outline" size={12} color="#1B5E37" className="mr-1" />
+              <Text variant="caption-sm" color="brand" weight="bold">
+                Customer
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        {activeView === "view" && (
+          <TouchableOpacity
+            onPress={openEditProfile}
+            className="flex-row items-center bg-brand-primary/10 border border-brand-primary/20 px-3 py-1.5 rounded-full"
+          >
+            <Ionicons name="pencil-outline" size={14} color="#1B5E37" className="mr-1" />
+            <Text variant="caption-sm" color="brand" weight="bold">
+              Edit
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
+      {activeView === "view" && (
+        <>
+          {/* Divider */}
+          <View className="h-px bg-neutral-100 my-4" />
+
+          {/* Phone Info Chip */}
+          <TouchableOpacity
+            activeOpacity={phone ? 1 : 0.7}
+            onPress={!phone ? openEditProfile : undefined}
+            className="flex-row items-center justify-between bg-neutral-50 rounded-2xl p-3.5 border border-neutral-100"
+          >
+            <View className="flex-row items-center flex-1">
+              <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
+                <Ionicons name="call-outline" size={20} color="#1B5E37" />
+              </View>
+              <View className="ml-3 flex-1">
+                <Text variant="caption" color="muted">
+                  Phone
+                </Text>
+                <Text
+                  variant="body"
+                  weight="semibold"
+                  className={phone ? "text-text-primary" : "text-brand-primary"}
+                >
+                  {phone ? phone : "Add phone number"}
+                </Text>
+              </View>
+            </View>
+            {!phone && (
+              <Ionicons name="add-circle-outline" size={18} color="#1B5E37" />
+            )}
+          </TouchableOpacity>
+        </>
+      )}
     </View>
   );
 }
-
-const renderGradientBackground = () => {
-  const steps = 80;
-  const startColor = [27, 94, 55]; // #1B5E37 (Pench Brand Green)
-  const endColor = [244, 246, 251];   // #F4F6FB (Screen background color)
-  return (
-    <View style={{ position: "absolute", top: 0, left: 0, right: 0, height: 380 }}>
-      {Array.from({ length: steps }).map((_, i) => {
-        const ratio = i / (steps - 1);
-        const r = Math.round(startColor[0] + (endColor[0] - startColor[0]) * ratio);
-        const g = Math.round(startColor[1] + (endColor[1] - startColor[1]) * ratio);
-        const b = Math.round(startColor[2] + (endColor[2] - startColor[2]) * ratio);
-        return (
-          <View
-            key={i}
-            style={{
-              height: 380 / steps,
-              backgroundColor: `rgb(${r}, ${g}, ${b})`,
-              width: "100%",
-            }}
-          />
-        );
-      })}
-    </View>
-  );
-};
 
 export function CustomerProfileScreen() {
   const { user } = useAuthStore();
@@ -165,9 +217,6 @@ export function CustomerProfileScreen() {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
-
-  const [scrollY, setScrollY] = React.useState(0);
-  const headerOpacity = Math.min(1, Math.max(0, (scrollY - 40) / 80));
 
   const openEditProfile = () => {
     setFirstName(user?.first_name ?? "");
@@ -290,122 +339,82 @@ export function CustomerProfileScreen() {
 
   const dashboard = user?.customer_dashboard;
 
+  const headerTitle = activeView === "view"
+    ? "Profile"
+    : activeView === "edit_profile"
+      ? "Edit Profile"
+      : "Change Password";
+
   return (
-    <>
-      <StatusBar style="light" />
-      <SafeAreaView edges={["top"]} className="flex-1 bg-[#1B5E37]">
-        {/* Sticky/Floating Header that fades in on scroll */}
-        <View
-          style={{
-            position: "absolute",
-            top: insets.top,
-            left: 0,
-            right: 0,
-            height: 70,
-            backgroundColor: "#1B5E37",
-            flexDirection: "row",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingHorizontal: 16,
-            zIndex: 20,
-            opacity: headerOpacity,
-          }}
-          pointerEvents={headerOpacity > 0.1 ? "auto" : "none"}
-        >
-          {/* Back button */}
-          <TouchableOpacity
-            activeOpacity={0.8}
-            onPress={handleBackPress}
-            className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-100"
-          >
-            <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
-          </TouchableOpacity>
+    <ScreenWrapper
+      title={headerTitle}
+      showHeader
+      showBack={router.canGoBack() || activeView !== "view"}
+      onBack={handleBackPress}
+      headerBgColor="#1B5E37"
+      disablePadding
+      className="bg-[#1B5E37]"
+    >
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 120 }}
+        className="bg-[#EAEEE4]"
+      >
+        {/* Header Section */}
+        <View className="px-4 pt-6 relative">
+          {activeView === "view" ? (
+            <>
+              {/* Fused Profile & Active Status Card */}
+              <ProfileCard
+                initials={initials}
+                fullName={fullName}
+                email={user?.email ?? "—"}
+                phone={user?.phone ?? ""}
+                activeView={activeView}
+                openEditProfile={openEditProfile}
+              />
 
-          {/* Title */}
-          <View className="pb-2" style={{ position: "absolute", left: 0, right: 0, alignItems: "center", zIndex: -1 }}>
-            <Text className="text-lg font-bold text-white">
-              {activeView === "view" ? "Profile" : activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
-            </Text>
-          </View>
-
-          {/* Balanced spacer */}
-          <View className="w-10" />
-        </View>
-
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ paddingBottom: 120 }}
-          className="bg-[#F4F6FB]"
-          scrollEventThrottle={16}
-          onScroll={(event) => {
-            setScrollY(event.nativeEvent.contentOffset.y);
-          }}
-        >
-          {/* Gradient Background */}
-          {renderGradientBackground()}
-
-          {/* Header Section */}
-          <View className="px-4 pt-10 relative">
-            {/* Back Button overlay */}
-            {router.canGoBack() || activeView !== "view" ? (
-              <TouchableOpacity
-                activeOpacity={0.8}
-                onPress={handleBackPress}
-                className="absolute left-4 top-6 z-10 h-10 w-10 items-center justify-center rounded-full bg-white shadow-xs border border-neutral-100"
-              >
-                <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
-              </TouchableOpacity>
-            ) : null}
-
-            {activeView === "view" ? (
-              <>
-                {/* Profile Avatar & Name */}
-                <View className="items-center mt-2">
-                  <View className="h-20 w-20 items-center justify-center rounded-full bg-white border border-neutral-100 shadow-md">
-                    <Text className="text-2xl font-bold text-brand-primary">
-                      {initials}
-                    </Text>
-                  </View>
-                  <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
-                    {fullName}
+              {/* Subscriptions Stats Panel */}
+              <View className="mt-4 flex-row justify-between rounded-3xl p-5 bg-white border border-neutral-100 shadow-xs">
+                <View className="flex-1 items-center">
+                  <Text variant="heading" weight="bold">
+                    {String(dashboard?.active_subscriptions ?? 0)}
                   </Text>
-                  <Text className="mt-1 text-sm font-medium text-text-muted text-center">
-                    Premium Customer
+                  <Text variant="caption-sm" color="muted" className="mt-1">
+                    Subscriptions
                   </Text>
                 </View>
-
-                {/* Subscriptions Stats Panel */}
-                <View
-                  className="mt-6 flex-row justify-between rounded-[28px] p-5"
-                  style={{
-                    backgroundColor: "rgba(255, 255, 255, 0.12)",
-                  }}
-                >
-                  <ProfileStat
-                    label="Subscriptions"
-                    value={String(dashboard?.active_subscriptions ?? 0)}
-                  />
-                  <ProfileStat
-                    label="Orders"
-                    value={String(dashboard?.total_orders ?? 0)}
-                  />
-                  <ProfileStat
-                    label="Balance"
-                    value={`₹${dashboard?.pending_balance ?? 0}`}
-                  />
+                <View className="w-px h-10 bg-neutral-100" />
+                <View className="flex-1 items-center">
+                  <Text variant="heading" weight="bold">
+                    {String(dashboard?.total_orders ?? 0)}
+                  </Text>
+                  <Text variant="caption-sm" color="muted" className="mt-1">
+                    Orders
+                  </Text>
                 </View>
-              </>
-            ) : (
-              <View className="items-center mt-2 pb-4">
-                <Text className="mt-4 text-[22px] font-bold text-text-primary text-center">
-                  {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
-                </Text>
-                <Text className="mt-1 text-sm font-medium text-text-muted text-center">
-                  {activeView === "edit_profile" ? "Update your personal details" : "Update account security"}
-                </Text>
+                <View className="w-px h-10 bg-neutral-100" />
+                <View className="flex-1 items-center">
+                  <Text variant="heading" weight="bold">
+                    ₹{dashboard?.pending_balance ?? 0}
+                  </Text>
+                  <Text variant="caption-sm" color="muted" className="mt-1">
+                    Balance
+                  </Text>
+                </View>
               </View>
-            )}
-          </View>
+            </>
+          ) : (
+            <View className="items-center mt-2 pb-4">
+              <Text variant="heading" weight="bold" color="primary" align="center">
+                {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
+              </Text>
+              <Text variant="body-sm" color="muted" align="center" className="mt-1">
+                {activeView === "edit_profile" ? "Update your personal details" : "Update account security"}
+              </Text>
+            </View>
+          )}
+        </View>
 
           {/* Main Content Area */}
           <View className="px-4 mt-4">
@@ -645,7 +654,6 @@ export function CustomerProfileScreen() {
             </Text>
           </View>
         </ScrollView>
-      </SafeAreaView>
-    </>
+      </ScreenWrapper>
   );
 }

@@ -74,8 +74,9 @@
 // }
 
 import React from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 interface Props {
     routeName: string;
@@ -105,12 +106,18 @@ export default function TripStatusBanner({
     navigationStopAddress,
     onRefreshRoute,
 }: Props) {
+    const insets = useSafeAreaInsets();
     const progress = total > 0 ? (completed / total) * 100 : 0;
     const isDisabled = loading || disabled;
     const showNav = isTripStarted && !!navigationStopName;
 
+    const topPosition = Platform.OS === "ios" ? insets.top + 20 : insets.top + 12;
+
     return (
-        <View className="absolute left-4 right-4 top-12 z-20 rounded-card bg-bg-card shadow-2xl overflow-hidden">
+        <View 
+            className="absolute left-4 right-4 z-20 rounded-card bg-bg-card shadow-2xl overflow-hidden"
+            style={{ top: topPosition }}
+        >
             {/* ── Main row: route name + play/stop button ── */}
             <View className="flex-row items-center justify-between p-4">
                 <View className="flex-1 pr-3">

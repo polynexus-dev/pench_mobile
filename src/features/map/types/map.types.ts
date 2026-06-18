@@ -7,6 +7,7 @@ export type RouteStop = {
   customer_email?: string;
   customer_company?: string;
   customer_zone_name?: string;
+  is_new_customer?: boolean;
   address: string;
   latitude: number;
   longitude: number;
@@ -37,6 +38,16 @@ export type RouteStop = {
       unit: string;
     }[];
   };
+
+  bottles_to_deliver?: BottleDetail[];
+  bottles_to_take_back?: BottleDetail[];
+};
+
+export type BottleDetail = {
+  bottle_type_id: string;
+  bottle_type_name: string;
+  quantity: number;
+  value: number;
 };
 
 export type RouteResponse = {

@@ -11,13 +11,15 @@ import { StatusBar } from "expo-status-bar";
 import {
     Animated,
     ScrollView,
+    StyleSheet,
     TouchableOpacity,
     useWindowDimensions,
     View,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { asyncStorage } from "@services/storage/asyncStorage";
+import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 
 export function DriverDashboardScreen() {
     const router = useRouter();
@@ -72,7 +74,15 @@ export function DriverDashboardScreen() {
     });
 
     const canStartTrip = !!routeId && !!accessToken;
-    const isStopDisabled = isTripStarted && !canStopTrip;
+
+    const allStopsCompleted = useMemo(() => {
+        if (!route?.stops?.length) return false;
+        return route.stops.every(
+            (stop) => stop.order_status === "delivered" || stop.order_status === "undelivered"
+        );
+    }, [route?.stops]);
+
+    const isStopDisabled = isTripStarted && !allStopsCompleted;
 
     useEffect(() => {
         let mounted = true;
@@ -94,13 +104,13 @@ export function DriverDashboardScreen() {
     }, []);
 
     const handleTripToggle = async () => {
-        const { startTrip, stopTrip, isTripStarted, canStopTrip } = useTrackingStore.getState();
+        const { startTrip, stopTrip, isTripStarted } = useTrackingStore.getState();
         const { accessToken, route_id } = useAuthStore.getState();
 
         if (!accessToken || !route_id) return;
 
         if (isTripStarted) {
-            if (!canStopTrip) return;
+            if (!allStopsCompleted) return;
             await stopTrip();
             return;
         }
@@ -122,9 +132,17 @@ export function DriverDashboardScreen() {
         } as any);
     };
 
+    const rawRouteName = route?.name ?? "Nagpur Express Delivery";
+    const nameParts = rawRouteName.split(/\s*[-|/]\s*/).map(p => p.trim()).filter(Boolean);
+    const areaName = nameParts[0] || "Nagpur Express Delivery";
+    const driverName = nameParts[1] || route?.driver_name || (user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : "Driver");
+    const rawDate = route?.delivery_date || nameParts[2] || new Date().toISOString().split('T')[0];
+    const dateMatch = rawDate.match(/\d{4}-\d{2}-\d{2}/);
+    const deliveryDate = dateMatch ? dateMatch[0] : rawDate.split('#')[0].trim();
+
     const totalStops = route?.stops?.length ?? 0;
     const deliveredStops =
-        route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;    
+        route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
     const deliveryProgress =
         totalStops > 0
@@ -132,8 +150,14 @@ export function DriverDashboardScreen() {
             : 0;
 
     return (
-        <>
-            <StatusBar style={statusBarLight ? "light" : "dark"} backgroundColor="transparent" translucent />
+        <ScreenWrapper
+            title="Home"
+            // showBack
+            screenBgColor="#0f172a"
+            disablePadding
+        // showHeader={true}
+        >
+            {/* <StatusBar style={statusBarLight ? "light" : "dark"} backgroundColor="transparent" translucent /> */}
             {routeId && (
                 <Animated.View
                     style={{
@@ -157,18 +181,20 @@ export function DriverDashboardScreen() {
                                 {isTripStarted ? "LIVE TRIP" : "TRIP OFFLINE"}
                             </Text>
                             <Text variant="body" weight="bold" color="inverse" lines={1} className="mt-0.5">
-                                {route?.name ?? "Nagpur Express Delivery"}
+                                {areaName}
                             </Text>
                         </View>
 
                         <TouchableOpacity
                             onPress={handleTripToggle}
                             disabled={isStopDisabled}
-                            className={`h-9 w-9 items-center justify-center rounded-full shadow-sm ${isTripStarted ? "bg-error" : "bg-white"
-                                } ${isStopDisabled ? "opacity-50" : ""}`}
+                            className={`h-9 w-9 items-center justify-center rounded-full shadow-sm ${isTripStarted
+                                    ? (allStopsCompleted ? "bg-[#E53E3E]" : "bg-[#D4872A]")
+                                    : "bg-white"
+                                } ${isStopDisabled ? "opacity-75" : ""}`}
                         >
                             <Ionicons
-                                name={isTripStarted ? "stop" : "play"}
+                                name={isTripStarted ? (allStopsCompleted ? "stop" : "car-outline") : "play"}
                                 size={16}
                                 color={isTripStarted ? "#fff" : "#1B5E37"}
                             />
@@ -188,142 +214,134 @@ export function DriverDashboardScreen() {
                     </View>
                 </Animated.View>
             )}
-            <SafeAreaView edges={["top", "bottom"]} className="flex-1 bg-bg-screen">
+            <SafeAreaView edges={["bottom"]} className="flex-1 bg-bg-screen">
 
                 <Animated.ScrollView
                     showsVerticalScrollIndicator={false}
-                    contentContainerStyle={{ paddingBottom: 120, paddingTop: 8 }}
+                    contentContainerStyle={{ paddingBottom: 120, paddingTop: 0 }}
                     scrollEventThrottle={16}
                     onScroll={Animated.event(
                         [{ nativeEvent: { contentOffset: { y: scrollYAnimated } } }],
                         { useNativeDriver: true }
                     )}
                 >
-                    <View className={screenX}>
-                        <View className="flex-row items-center justify-between pt-4 pb-5">
+                    {/* Header Green Block */}
+                    <View
+                        className="bg-[#1B5E37] px-4 pb-5 rounded-b-[35px] shadow-sm"
+                        style={{ paddingTop: insets.top + 16 }}
+                    >
+                        <View className="flex-row items-center justify-between pt-2 pb-5">
                             <View className="flex-1 pr-3">
-                                <Text
-                                    variant="caption"
-                                    color="muted"
-                                    weight="semibold"
-                                    transform="uppercase"
-                                    className="tracking-widest"
-                                >
-                                    Good Morning 👋
+                                <Text className="text-[14px] font-medium text-white/80">
+                                    Good Morning
                                 </Text>
 
-                                <Text
-                                    variant="heading"
-                                    weight="bold"
-                                    color="primary"
-                                    lines={1}
-                                    className="mt-0.5"
-                                >
-                                    {user?.first_name ?? "Driver"}
+                                <Text className="text-[24px] font-bold text-white mt-0.5" numberOfLines={1}>
+                                    {user?.first_name ? `${user.first_name} ${user.last_name ?? ""}`.trim() : "Driver"}
                                 </Text>
                             </View>
 
-                            <View className="flex-row items-center gap-x-3">
+                            <View className="flex-row items-center gap-x-2.5">
                                 <View
-                                    className={`flex-row items-center gap-x-1.5 rounded-full border px-2.5 py-1 ${isTripStarted
-                                        ? "border-success/20 bg-successLight/40"
-                                        : "border-border-default bg-bg-card"
+                                    className={`flex-row items-center gap-x-1.5 rounded-full px-3 py-1.5 ${isTripStarted
+                                        ? "bg-[#E8F5EE]"
+                                        : "bg-[#FDECEC]"
                                         }`}
                                 >
                                     <View
-                                        className={`h-2 w-2 rounded-full ${isTripStarted ? "bg-success" : "bg-neutral-400"
-                                            }`}
+                                        className={`h-2 w-2 rounded-full ${isTripStarted ? "bg-success" : "bg-[#E53E3E]"}`}
                                     />
                                     <Text
-                                        variant="caption-sm"
-                                        color={isTripStarted ? "success" : "muted"}
-                                        weight="bold"
+                                        className={`text-[12px] font-bold ${isTripStarted ? "text-[#1B5E37]" : "text-[#E53E3E]"}`}
                                     >
-                                        {isTripStarted ? "LIVE" : "OFFLINE"}
+                                        {isTripStarted ? "LIVE" : "Offline"}
                                     </Text>
                                 </View>
 
                                 <TouchableOpacity
                                     onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
-                                    className="h-10 w-10 items-center justify-center rounded-full bg-white border border-border-default shadow-xs"
+                                    className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-xs"
                                 >
-                                    <Ionicons name="qr-code-outline" size={18} color="#1B5E37" />
+                                    <Text className="text-[13px] font-bold text-[#1B5E37]">
+                                        QR
+                                    </Text>
                                 </TouchableOpacity>
                             </View>
                         </View>
 
+                        {/* Route Card */}
                         {routeId ? (
-                            <View className="mt-4 rounded-2xl bg-brand-primary p-5 shadow-sm shadow-brand/20">
+                            <View className="mt-2 rounded-[24px] bg-[#D1E0D6] p-5 shadow-xs">
                                 <View className="flex-row items-start justify-between gap-4">
                                     <View className="flex-1">
                                         <Text
-                                            variant="caption"
-                                            color="inverse"
-                                            weight="semibold"
-                                            transform="uppercase"
-                                            className="tracking-widest opacity-90"
+                                            className="text-[22px] font-bold text-[#1A1A1A]"
+                                            numberOfLines={1}
                                         >
-                                            Route Assigned
+                                            {areaName}
                                         </Text>
 
                                         <Text
-                                            variant="subhead"
-                                            weight="bold"
-                                            color="inverse"
-                                            lines={2}
-                                            className="mt-1"
+                                            className="text-[16px] font-medium text-[#2C2C2C] mt-1"
+                                            numberOfLines={1}
                                         >
-                                            {route?.name ?? "Nagpur Express Delivery"}
+                                            {driverName}
                                         </Text>
 
-                                        <Text variant="caption" color="inverse" className="mt-0.5 opacity-90">
-                                            {route?.stops?.length ?? 0} Deliveries
+                                        <Text
+                                            className="text-[14px] text-[#4A4A4A] mt-1.5 font-semibold"
+                                        >
+                                            {deliveryDate}
                                         </Text>
                                     </View>
 
-                                    <TouchableOpacity
-                                        onPress={handleTripToggle}
-                                        disabled={isStopDisabled}
-                                        className={`h-12 w-12 items-center justify-center rounded-full shadow-sm ${isTripStarted ? "bg-error" : "bg-white"
-                                            } ${isStopDisabled ? "opacity-50" : ""}`}
-                                    >
-                                        <Ionicons
-                                            name={isTripStarted ? "stop" : "play"}
-                                            size={20}
-                                            color={isTripStarted ? "#fff" : "#1B5E37"}
-                                        />
-                                    </TouchableOpacity>
+                                    <View className="justify-center pt-1">
+                                        <TouchableOpacity
+                                            onPress={handleTripToggle}
+                                            disabled={isStopDisabled}
+                                            className={`px-4 py-2.5 rounded-xl shadow-sm ${isTripStarted
+                                                    ? (allStopsCompleted ? "bg-[#E53E3E]" : "bg-[#D4872A]")
+                                                    : "bg-[#1B5E37]"
+                                                } ${isStopDisabled ? "opacity-75" : ""}`}
+                                        >
+                                            <Text className="text-white font-semibold text-[15px]">
+                                                {isTripStarted ? (allStopsCompleted ? "Stop Trip" : "In Transit") : "Start Trip"}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
 
-                                <View className="mt-4 h-2.5 overflow-hidden rounded-full bg-brand-secondary">
+                                <View className="mt-5 h-2.5 overflow-hidden rounded-full bg-[#1B5E37]">
                                     <View
-                                        className="h-full rounded-full bg-white"
+                                        className="h-full rounded-full bg-[#F4FAF7]"
                                         style={{ width: `${deliveryProgress}%` }}
                                     />
                                 </View>
 
-                                <View className="mt-2 flex-row justify-between">
-                                    <Text variant="caption" color="inverse" weight="medium" className="opacity-90">
-                                        {route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0} done
+                                <View className="mt-2.5 flex-row justify-between items-center">
+                                    <Text className="text-sm font-semibold text-[#1A1A1A]">
+                                        {deliveredStops}/{totalStops} Deliveries
                                     </Text>
-                                    <Text variant="caption" color="inverse" weight="medium" className="opacity-90">
-                                        ETA 1h 24m
-                                    </Text>
+                                    {isTripStarted && (
+                                        <Text className="text-sm font-medium text-[#4A4A4A]">
+                                            ETA 1h 24m
+                                        </Text>
+                                    )}
                                 </View>
                             </View>
                         ) : (
-                            <View className="mt-4 rounded-2xl bg-brand-primary p-5 shadow-sm shadow-brand/20">
+                            <View className="mt-2 rounded-[24px] bg-[#A2C5AC] p-5 shadow-xs">
                                 <Text
-                                    variant="caption"
-                                    color="inverse"
-                                    weight="semibold"
-                                    transform="uppercase"
-                                    className="tracking-widest opacity-90"
+                                    className="text-xs font-bold uppercase tracking-widest text-[#2C2C2C]"
                                 >
                                     Route not Assigned yet
                                 </Text>
                             </View>
                         )}
+                    </View>
+
+                    {/* Rest of the content */}
+                    <View className={screenX}>
 
                         <View className="mt-4 flex-row justify-between gap-2.5">
                             <StatCard icon="water" label="Bottles" value="128" color="#1B5E37" />
@@ -357,12 +375,12 @@ export function DriverDashboardScreen() {
                                     </Text>
 
                                     <Text variant="body-sm" color="secondary" className="mt-1">
-                                        {activeStop.address}
+                                        {activeStop.address ? activeStop.address : "Address not available yet"}
                                     </Text>
-
+                                    {/* 
                                     <View className="mt-4 flex-row flex-wrap gap-2">
                                         {activeStop.order ? <ItemBadge label={activeStop.order} /> : null}
-                                    </View>
+                                    </View> */}
 
                                     <View className="mt-5">
                                         <Button
@@ -401,6 +419,18 @@ export function DriverDashboardScreen() {
                                 </View>
                             )}
                         </View>
+
+                        {routeId && (
+                            <Button
+                                label="Show all Customers"
+                                intent="secondary"
+                                size="lg"
+                                fullWidth
+                                className="mt-4"
+                                leftIcon={<Ionicons name="people-outline" size={20} color="#1B5E37" />}
+                                onPress={() => router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any)}
+                            />
+                        )}
 
                         <Text
                             variant="label"
@@ -490,7 +520,7 @@ export function DriverDashboardScreen() {
                     </View>
                 </Animated.ScrollView>
             </SafeAreaView>
-        </>
+        </ScreenWrapper>
     );
 }
 

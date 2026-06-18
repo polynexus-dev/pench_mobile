@@ -3,9 +3,9 @@
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
 import { View, TouchableOpacity } from "react-native";
 import {
-  SafeAreaView,
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
+import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -13,7 +13,6 @@ import {
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useRouter } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import OSMMap, { OSMMapHandle } from "../components/OSMMap";
 import { useAuthStore } from "@store/authStore";
 import { useTrackingStore } from "@store/trackingStore";
@@ -476,191 +475,190 @@ export default function MapScreen() {
     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
   return (
-    <>
-      <StatusBar style="light" />
-      <SafeAreaView edges={["top"]} className="flex-1 bg-black">
-        <View className="absolute inset-0">
-          <OSMMap
-            ref={mapRef}
-            stops={route?.stops ?? []}
-            activeStopId={activeStopId}
-            selectedStopId={selectedStopId}
-            navigationStopId={navigationStopId}
-            navigationPolyline={navigationPolyline}
-          />
-        </View>
-
-        <TripStatusBanner
-          routeName={route?.name ?? "Today's Route"}
-          completed={completedCount}
-          total={route?.stops?.length ?? 0}
-          eta="1h 24m"
-          isTripStarted={isTripStarted}
-          loading={trackingLoading}
-          onToggle={handleTripToggle}
-          disabled={isTripStarted ? !canStopTrip : !routeAvailable}
-          navigationStopName={
-            navigationStopId
-              ? route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null
-              : null
-          }
-          navigationStopAddress={
-            navigationStopId
-              ? route?.stops?.find((s) => s.id === navigationStopId)?.address ?? null
-              : null
-          }
-          onRefreshRoute={fetchNavigationPolyline}
+    <ScreenWrapper
+      disablePadding
+    >
+      <View className="absolute inset-0">
+        <OSMMap
+          ref={mapRef}
+          stops={route?.stops ?? []}
+          activeStopId={activeStopId}
+          selectedStopId={selectedStopId}
+          navigationStopId={navigationStopId}
+          navigationPolyline={navigationPolyline}
         />
+      </View>
 
-        <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
-          <TouchableOpacity
-            onPress={openSheet}
-            className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
-          >
-            <Ionicons name="list" size={22} color="white" />
-          </TouchableOpacity>
+      <TripStatusBanner
+        routeName={route?.name ?? "Today's Route"}
+        completed={completedCount}
+        total={route?.stops?.length ?? 0}
+        eta="1h 24m"
+        isTripStarted={isTripStarted}
+        loading={trackingLoading}
+        onToggle={handleTripToggle}
+        disabled={isTripStarted ? !canStopTrip : !routeAvailable}
+        navigationStopName={
+          navigationStopId
+            ? route?.stops?.find((s) => s.id === navigationStopId)?.customer_name ?? null
+            : null
+        }
+        navigationStopAddress={
+          navigationStopId
+            ? route?.stops?.find((s) => s.id === navigationStopId)?.address ?? null
+            : null
+        }
+        onRefreshRoute={fetchNavigationPolyline}
+      />
 
-          <TouchableOpacity
-            onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
-            className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
-          >
-            <Ionicons name="qr-code-outline" size={22} color="#fff" />
-          </TouchableOpacity>
+      <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
+        <TouchableOpacity
+          onPress={openSheet}
+          className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
+        >
+          <Ionicons name="list" size={22} color="white" />
+        </TouchableOpacity>
 
-          <TouchableOpacity
-            onPress={() => mapRef.current?.centerOnUser()}
-            className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
-          >
-            <Ionicons name="locate" size={22} color="#1B5E37" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+          className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
+        >
+          <Ionicons name="qr-code-outline" size={22} color="#fff" />
+        </TouchableOpacity>
 
-        <BottomSheetModal
-          ref={bottomSheetRef}
-          snapPoints={snapPoints}
-          index={0}
-          topInset={insets.top}
-          bottomInset={insets.bottom}
-          enablePanDownToClose
-          backdropComponent={backDrop}
-          animateOnMount
-          handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
-          backgroundStyle={{
-            backgroundColor: "#F0EBE1",
-            borderTopLeftRadius: 28,
-            borderTopRightRadius: 28,
+        <TouchableOpacity
+          onPress={() => mapRef.current?.centerOnUser()}
+          className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
+        >
+          <Ionicons name="locate" size={22} color="#1B5E37" />
+        </TouchableOpacity>
+      </View>
+
+      <BottomSheetModal
+        ref={bottomSheetRef}
+        snapPoints={snapPoints}
+        index={0}
+        topInset={insets.top}
+        bottomInset={insets.bottom}
+        enablePanDownToClose
+        backdropComponent={backDrop}
+        animateOnMount
+        handleIndicatorStyle={{ backgroundColor: "#D4872A", width: 80 }}
+        backgroundStyle={{
+          backgroundColor: "#F0EBE1",
+          borderTopLeftRadius: 28,
+          borderTopRightRadius: 28,
+        }}
+      >
+        <BottomSheetScrollView
+          ref={scrollViewRef}
+          contentContainerStyle={{
+            padding: 15,
+            paddingBottom: 110 + insets.bottom,
           }}
         >
-          <BottomSheetScrollView
-            ref={scrollViewRef}
-            contentContainerStyle={{
-              padding: 15,
-              paddingBottom: 110 + insets.bottom,
-            }}
-          >
-            {!isTripStarted && (
-              <TripStartPrompt
-                loading={trackingLoading}
-                disabled={!routeAvailable}
-                onStart={handleTripToggle}
-              />
-            )}
-
-            <RouteStatRow
-              stats={[
-                { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
-                { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
-                { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
-                { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
-              ]}
+          {!isTripStarted && (
+            <TripStartPrompt
+              loading={trackingLoading}
+              disabled={!routeAvailable}
+              onStart={handleTripToggle}
             />
+          )}
 
-            {showNextStopCard && selectedGroup ? (
-              <>
-                <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
-                  <Text variant="body" weight="semibold" color="primary">
-                    Active Customer Group
-                  </Text>
-                  <Text variant="body-sm" color="muted" className="mt-1">
-                    {selectedGroup.stops.length} customer
-                    {selectedGroup.stops.length > 1 ? "s" : ""} at the same location
-                  </Text>
-                </View>
+          <RouteStatRow
+            stats={[
+              { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
+              { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
+              { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
+              { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
+            ]}
+          />
 
-                <View className="mt-4 gap-y-3">
-                  {selectedGroup.stops.map((stop) => {
-                    const isSelected = stop.id === selectedStopId;
-
-                    return (
-                      <TouchableOpacity
-                        key={stop.id}
-                        activeOpacity={0.85}
-                        onPress={() => {
-                          setSelectedStopId(stop.id);
-                          setSelectedGroupKey(selectedGroup.groupKey);
-                        }}
-                      >
-                        <StopListItem
-                          sequenceNumber={stop.sequence_number}
-                          customerName={stop.customer_name}
-                          address={stop.address}
-                          items={[]}
-                          status={isSelected ? "current" : "pending"}
-                          isActive={isSelected}
-                          pulse={isSelected}
-                          showNearbyTag={isSelected}
-                        />
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {selectedStop && (
-                  <View className="mt-4">
-                    <NextStopCard
-                      stopNumber={selectedStop.sequence_number}
-                      customerName={selectedStop.customer_name}
-                      address={selectedStop.address}
-                      items={[]}
-                      orderId={selectedStop.order ?? ""}
-                      disabled={!canActivateCard || !routeAvailable}
-                      onMarkDelivered={handleMarkDelivered}
-                      onMarkUndelivered={handleMarkUndelivered}
-                    />
-                  </View>
-                )}
-              </>
-            ) : (
+          {showNextStopCard && selectedGroup ? (
+            <>
               <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
-                <Text variant="body" color="muted" weight="medium">
-                  {routeAvailable ? "No active customer in geofence" : "No route assigned for today"}
+                <Text variant="body" weight="semibold" color="primary">
+                  Active Customer Group
                 </Text>
                 <Text variant="body-sm" color="muted" className="mt-1">
-                  {routeAvailable
-                    ? "Move closer to a stop to activate delivery actions."
-                    : "Trip toggle and customer actions are disabled until a route is assigned."}
+                  {selectedGroup.stops.length} customer
+                  {selectedGroup.stops.length > 1 ? "s" : ""} at the same location
                 </Text>
               </View>
-            )}
 
-            <Button
-              className="mt-6"
-              label="Show all Customers"
-              intent="secondary"
-              fullWidth
-              size="lg"
-              disabled={!routeAvailable}
-              onPress={() => {
-                if (!routeAvailable) return;
-                bottomSheetRef.current?.close();
-                setTimeout(() => {
-                  router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any);
-                }, 150);
-              }}
-            />
-          </BottomSheetScrollView>
-        </BottomSheetModal>
-      </SafeAreaView>
-    </>
+              <View className="mt-4 gap-y-3">
+                {selectedGroup.stops.map((stop) => {
+                  const isSelected = stop.id === selectedStopId;
+
+                  return (
+                    <TouchableOpacity
+                      key={stop.id}
+                      activeOpacity={0.85}
+                      onPress={() => {
+                        setSelectedStopId(stop.id);
+                        setSelectedGroupKey(selectedGroup.groupKey);
+                      }}
+                    >
+                      <StopListItem
+                        sequenceNumber={stop.sequence_number}
+                        customerName={stop.customer_name}
+                        address={stop.address}
+                        items={[]}
+                        status={isSelected ? "current" : "pending"}
+                        isActive={isSelected}
+                        pulse={isSelected}
+                        showNearbyTag={isSelected}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {selectedStop && (
+                <View className="mt-4">
+                  <NextStopCard
+                    stopNumber={selectedStop.sequence_number}
+                    customerName={selectedStop.customer_name}
+                    address={selectedStop.address}
+                    items={[]}
+                    orderId={selectedStop.order ?? ""}
+                    disabled={!canActivateCard || !routeAvailable}
+                    onMarkDelivered={handleMarkDelivered}
+                    onMarkUndelivered={handleMarkUndelivered}
+                  />
+                </View>
+              )}
+            </>
+          ) : (
+            <View className="mt-4 rounded-3xl border border-border-default bg-white p-4">
+              <Text variant="body" color="muted" weight="medium">
+                {routeAvailable ? "No active customer in geofence" : "No route assigned for today"}
+              </Text>
+              <Text variant="body-sm" color="muted" className="mt-1">
+                {routeAvailable
+                  ? "Move closer to a stop to activate delivery actions."
+                  : "Trip toggle and customer actions are disabled until a route is assigned."}
+              </Text>
+            </View>
+          )}
+
+          <Button
+            className="mt-6"
+            label="Show all Customers"
+            intent="secondary"
+            fullWidth
+            size="lg"
+            disabled={!routeAvailable}
+            onPress={() => {
+              if (!routeAvailable) return;
+              bottomSheetRef.current?.close();
+              setTimeout(() => {
+                router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any);
+              }, 150);
+            }}
+          />
+        </BottomSheetScrollView>
+      </BottomSheetModal>
+    </ScreenWrapper>
   );
 }

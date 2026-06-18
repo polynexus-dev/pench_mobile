@@ -38,6 +38,15 @@ export function FinalizeDeliveryScreen() {
         return route.stops.find((s) => s.order === orderId) ?? null;
     }, [route?.stops, orderId]);
 
+    React.useEffect(() => {
+        if (currentStop) {
+            const deliverTotal = currentStop.bottles_to_deliver?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
+            const takeBackTotal = currentStop.bottles_to_take_back?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
+            setIssued(String(deliverTotal));
+            setReturned(String(takeBackTotal));
+        }
+    }, [currentStop]);
+
     const resolvedCustomerName =
         customerName || currentStop?.customer_name || "Customer";
 
@@ -108,7 +117,17 @@ export function FinalizeDeliveryScreen() {
                     <View className="h-11 w-11" />
                 </View>
 
-                <View className="rounded-card border border-border-default bg-bg-card p-4">
+                <View className={`rounded-card border ${currentStop?.is_new_customer ? "border-brand-primary/20 bg-brand-light" : "border-border-default bg-bg-card"} p-4`}>
+                    {currentStop?.is_new_customer && (
+                        <View className="flex-row mb-3">
+                            <View className="rounded-full bg-[#1B5E37] px-3 py-1.5">
+                                <Text variant="caption" color="inverse" weight="bold" className="text-[10px] uppercase">
+                                    New Customer
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+
                     <Text variant="label" color="muted">
                         Customer Name
                     </Text>
@@ -143,6 +162,52 @@ export function FinalizeDeliveryScreen() {
                     <Text variant="body-sm" color="muted" className="mt-2">
                         Confirm the items and bottle counts below:
                     </Text>
+                    {((currentStop?.bottles_to_deliver && currentStop.bottles_to_deliver.length > 0) ||
+                      (currentStop?.bottles_to_take_back && currentStop.bottles_to_take_back.length > 0)) && (
+                        <View className="mt-3 border-t border-border-default pt-3 gap-y-3">
+                            {currentStop?.bottles_to_deliver && currentStop.bottles_to_deliver.length > 0 && (
+                                <View>
+                                    <Text variant="body-sm" weight="bold" color="primary" className="mb-1">
+                                        Expected Deliveries
+                                    </Text>
+                                    {currentStop.bottles_to_deliver.map((item, idx) => (
+                                        <View key={idx} className="flex-row items-center justify-between py-1 bg-bg-screen rounded-lg px-3 mt-1">
+                                            <View className="flex-row items-center gap-x-2">
+                                                <Ionicons name="water-outline" size={16} color="#1B5E37" />
+                                                <Text variant="body-sm" color="primary">
+                                                    {item.bottle_type_name}
+                                                </Text>
+                                            </View>
+                                            <Text variant="body-sm" weight="bold" color="primary">
+                                                Qty: {item.quantity}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+
+                            {currentStop?.bottles_to_take_back && currentStop.bottles_to_take_back.length > 0 && (
+                                <View>
+                                    <Text variant="body-sm" weight="bold" color="primary" className="mb-1">
+                                        Expected Returns
+                                    </Text>
+                                    {currentStop.bottles_to_take_back.map((item, idx) => (
+                                        <View key={idx} className="flex-row items-center justify-between py-1 bg-bg-screen rounded-lg px-3 mt-1">
+                                            <View className="flex-row items-center gap-x-2">
+                                                <Ionicons name="return-down-back-outline" size={16} color="#D4872A" />
+                                                <Text variant="body-sm" color="primary">
+                                                    {item.bottle_type_name}
+                                                </Text>
+                                            </View>
+                                            <Text variant="body-sm" weight="bold" color="primary">
+                                                Qty: {item.quantity}
+                                            </Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </View>
+                    )}
                 </View>
 
                 <View className="mt-4 rounded-card border border-border-default bg-bg-card p-4">

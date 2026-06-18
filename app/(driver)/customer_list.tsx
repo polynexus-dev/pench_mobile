@@ -5,6 +5,8 @@ import {
     TextInput,
     ScrollView,
     Platform,
+    Linking,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
@@ -21,6 +23,7 @@ type RouteStop = {
     address: string;
     latitude: number;
     longitude: number;
+    customer_phone?: string;
     order_status?:
     | "in_transit"
     | "delivered"
@@ -344,36 +347,6 @@ export default function CustomerListScreen() {
                             style={CARD_SHADOW}
                             className="mb-3 rounded-card border border-border-default bg-white p-4"
                         >
-                            {/* Card Header Section */}
-                            <View className="flex-row items-start justify-between">
-                                <View className="flex-1 flex-row items-start pr-2">
-                                    <Ionicons
-                                        name="location-sharp"
-                                        size={18}
-                                        color="#1B5E37"
-                                        style={{ marginRight: 6, marginTop: 2 }}
-                                    />
-                                    <View className="flex-1">
-                                        <Text
-                                            variant="body"
-                                            weight="bold"
-                                            color="primary"
-                                            className="leading-tight"
-                                        >
-                                            {group.address}
-                                        </Text>
-                                    </View>
-                                </View>
-                                <View className="rounded-badge bg-brand-light px-2.5 py-0.5 ml-2">
-                                    <Text variant="caption" weight="semibold" color="brand">
-                                        {group.stops.length} stop{group.stops.length > 1 ? "s" : ""}
-                                    </Text>
-                                </View>
-                            </View>
-
-                            {/* Separator */}
-                            <View className="h-[1px] bg-border-default my-2.5" />
-
                             {/* Customer Stops */}
                             <View className="gap-y-2">
                                 {group.stops.map((stop) => {
@@ -406,7 +379,7 @@ export default function CustomerListScreen() {
                                                 </View>
 
                                                 {/* Customer Metadata */}
-                                                <View className="flex-1">
+                                                <View className="flex-1 flex-row items-center justify-between">
                                                     <Text
                                                         variant="body-sm"
                                                         weight="semibold"
@@ -414,6 +387,22 @@ export default function CustomerListScreen() {
                                                     >
                                                         {stop.customer_name}
                                                     </Text>
+                                                    <View className="flex-row items-center gap-x-2">
+                                                        {stop.customer_phone ? (
+                                                            <TouchableOpacity
+                                                                onPress={() => Linking.openURL(`tel:${stop.customer_phone}`)}
+                                                                className="h-8 w-8 items-center justify-center rounded-full bg-[#E8F5EE]"
+                                                            >
+                                                                <Ionicons name="call" size={15} color="#1B5E37" />
+                                                            </TouchableOpacity>
+                                                        ) : null}
+                                                        <TouchableOpacity
+                                                            onPress={() => Alert.alert("Customer Address", stop.address || "No address added")}
+                                                            className="h-8 w-8 items-center justify-center rounded-full bg-[#E8F5EE]"
+                                                        >
+                                                            <Ionicons name="information-circle" size={17} color="#1B5E37" />
+                                                        </TouchableOpacity>
+                                                    </View>
                                                 </View>
                                             </View>
 

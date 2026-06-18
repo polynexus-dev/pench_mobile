@@ -24,7 +24,7 @@ export default function LoginScreen() {
   return (
     // 🎨 Background color → change "#D6EDE4" or add bg-bg-auth token
     <ScreenWrapper>
-      <SafeAreaView
+      <View
         className="flex-1 h-full bg-bg-input"
       // style={{ backgroundColor: "#D6EDE4" }}
       >
@@ -72,7 +72,7 @@ export default function LoginScreen() {
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
-      </SafeAreaView>
+      </View>
     </ScreenWrapper>
   );
 }
