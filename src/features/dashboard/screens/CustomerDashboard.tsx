@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { RefreshControl, ScrollView, View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { StatusBar } from "expo-status-bar";
 import { router, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
@@ -168,7 +167,6 @@ export function CustomerDashboardScreen() {
 
   return (
     <View className="flex-1 bg-[#FDFDFD]">
-      <StatusBar style="dark" />
       <View style={{ paddingTop: insets.top }}>
         <HeaderSection locationName={user?.city_name || "Nagpur, Maharashtra"} />
       </View>

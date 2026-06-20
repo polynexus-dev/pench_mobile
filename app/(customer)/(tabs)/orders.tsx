@@ -1,1 +1,2 @@
-export { OrdersScreen } from "@features/ecommerce/screens/OrderScreen"
+import { OrdersScreen } from "@features/ecommerce";
+export default OrdersScreen;

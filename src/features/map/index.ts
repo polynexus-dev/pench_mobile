@@ -3,7 +3,6 @@ export * from "./hooks/useFetchMyRoute";
 export * from "./hooks/useSyncRouteToGeofence";
 export * from "./hooks/useStartupSync";
 export * from "./hooks/useCenterMap";
-export * from "./hooks/stopTripCleanup";
 export * from "./types/map.types";
 
 export { default as MapScreen } from "./screens/MapScreen";

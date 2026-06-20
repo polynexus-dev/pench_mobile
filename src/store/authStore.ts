@@ -1,6 +1,5 @@
 import { createStore } from "./devtools";
 import type { AuthState } from "@/features/auth";
-import { teardownPushNotifications } from "@/features/notifications/services/notificationService";
 
 interface AuthStore extends AuthState {
   // Existing actions
@@ -38,7 +37,6 @@ export const useAuthStore = createStore<AuthStore>("auth", (set) => ({
     }),
   clearAuth: () =>
     set((s) => {
-      teardownPushNotifications();
       s.user = null;
       s.accessToken = null;
       s.refreshToken = null;

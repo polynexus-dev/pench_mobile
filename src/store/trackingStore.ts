@@ -5,7 +5,8 @@ import { useAuthStore } from "./authStore";
 import { mapApi } from "@/features/map/api/mapApi";
 import { startBackgroundTracking, stopBackgroundTracking } from "@/services/location/trackingService";
 import { useToast } from "@/hooks/useToast";
-import { cleanupTripSession } from "@/features/map/hooks/stopTripCleanup";
+import { useGeofenceStore } from "./geofenceStore";
+import { asyncStorage } from "@services/storage/asyncStorage";
 import { queryClient } from "@/services/api/queryClient";
 
 const { show } = useToast();
@@ -112,12 +113,44 @@ export const useTrackingStore = createStore<TrackingStore>(
                 await stopBackgroundTracking();
                 get().disconnectSocket();
 
-                // full cleanup after successful stop
-                await cleanupTripSession();
+                // stop geofence tracking
+                const { stopGeofenceTracking } = useGeofenceStore.getState();
+                stopGeofenceTracking();
+
+                const cleanDomain = domain_name
+                    .replace(/^https?:\/\//, "")
+                    .replace(/^www\./, "")
+                    .replace(/\/+$/, "");
+
+                queryClient.removeQueries({
+                    queryKey: ["my-route", cleanDomain],
+                    exact: true,
+                });
+
+                await asyncStorage.removeItem("route_id");
+
+                useAuthStore.setState({ route_id: null });
+
+                // Reset geofence store state
+                useGeofenceStore.setState({
+                    route: null,
+                    routeLoading: false,
+                    routeError: null,
+                    location: null,
+                    nearStopId: null,
+                    activeStopId: null,
+                    selectedStopId: null,
+                    loading: false,
+                    error: null,
+                });
 
                 set((s) => {
                     s.isTripStarted = false;
+                    s.socket = null;
+                    s.watcher = null;
                     s.loading = false;
+                    s.error = null;
+                    s.canStopTrip = false;
                 });
 
                 queryClient.invalidateQueries({ queryKey: ["my-route", domain_name] });
