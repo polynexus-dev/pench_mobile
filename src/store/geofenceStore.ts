@@ -734,7 +734,20 @@ export const useGeofenceStore = createStore<GeofenceStore>(
                         }
 
                         if (closestStop && closestStop.distance <= geofenceMeters + 5) {
-                            nearStopId = closestStop.id;
+                            const closestStopData = route.stops.find((s) => s.id === closestStop.id);
+                            const selectedStop = route.stops.find((s) => s.id === get().selectedStopId);
+
+                            if (
+                                selectedStop &&
+                                selectedStop.order_status === "in_transit" &&
+                                closestStopData &&
+                                selectedStop.latitude.toFixed(5) === closestStopData.latitude.toFixed(5) &&
+                                selectedStop.longitude.toFixed(5) === closestStopData.longitude.toFixed(5)
+                            ) {
+                                nearStopId = selectedStop.id;
+                            } else {
+                                nearStopId = closestStop.id;
+                            }
                         }
                     }
 
@@ -775,6 +788,18 @@ export const useGeofenceStore = createStore<GeofenceStore>(
         setActiveStopId: (id) =>
             set((s) => {
                 s.activeStopId = id;
+                if (id && s.route?.stops && s.nearStopId) {
+                    const targetStop = s.route.stops.find((stop) => stop.id === id);
+                    const currentNearStop = s.route.stops.find((stop) => stop.id === s.nearStopId);
+                    if (
+                        targetStop &&
+                        currentNearStop &&
+                        targetStop.latitude.toFixed(5) === currentNearStop.latitude.toFixed(5) &&
+                        targetStop.longitude.toFixed(5) === currentNearStop.longitude.toFixed(5)
+                    ) {
+                        s.nearStopId = id;
+                    }
+                }
             }),
 
         setSelectedStopId: (id) =>

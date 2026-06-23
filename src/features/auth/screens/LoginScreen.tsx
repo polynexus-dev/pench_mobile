@@ -11,6 +11,8 @@ import {
   TouchableOpacity,
   View
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { LoginTabBar } from "../components/LoginTabBar";
 import { OTPLoginForm } from "../components/OTPLoginForm";
 import { UsernameLoginForm } from "../components/UsernameLoginForm";
@@ -43,42 +45,52 @@ export default function LoginScreen() {
   });
 
   return (
-    // <ScreenWrapper>
-      <View className="flex-1 h-full bg-white">
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <SafeAreaView className="flex-1 bg-[#F0EBE1]">
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerClassName="flex-grow"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            <View className="flex-1 items-center px-6 pt-12 pb-8">
+          <View className="flex-1 px-5 pt-6 pb-12 justify-between items-center">
 
-              {/* 🖼️ Logo */}
+            {/* Header / Logo section */}
+            <View className="items-center w-full">
               <Image
                 source={require("@assets/images/pench-logo.png")}
-                className="w-48 h-36"
+                className="w-44 h-32"
                 resizeMode="contain"
                 accessibilityLabel="Pench Foods logo"
-              />  
+              />
+              {/* <View>
+                <Text className="text-3xl font-bold text-[#1A1A1A] tracking-tight mt-2 text-center">
+                  Welcome Back
+                </Text>
+                <Text className="text-sm font-semibold text-[#4A4A4A] mt-1 text-center">
+                  Sign in to access your dashboard
+                </Text>
+              </View> */}
+            </View>
 
-              {/* Title */}
-              <View className="items-center mt-4 mb-8">
-                <Text className="text-3xl font-bold text-text-primary tracking-tight">
-                  Welcome back
+            {/* Login Form Container Card */}
+            <View className="w-full rounded-[24px] px-2 py-2 mb-6">
+              <View className="mb-6 items-center">
+                <Text className="text-3xl font-bold text-[#1A1A1A] tracking-tight">
+                  Welcome Back
                 </Text>
-                <Text className="text-sm font-medium text-text-muted mt-1">
-                  sign in to access your account
-                </Text>
+                {/* <Text className="text-sm font-semibold text-[#4A4A4A]">
+                  Sign in to access your dashboard
+                </Text> */}
               </View>
-
               {/* Tab Switcher */}
               <LoginTabBar active={method} onChange={setMethod} />
 
-              {/* Form — swaps based on active tab with sliding animation */}
-              <View onLayout={handleLayout} className="w-full overflow-hidden">
+              {/* Form container with sliding animation */}
+              <View onLayout={handleLayout} className="w-full overflow-hidden mt-4">
                 <Animated.View
                   style={{
                     flexDirection: "row",
@@ -97,20 +109,23 @@ export default function LoginScreen() {
                   </View>
                 </Animated.View>
               </View>
-
-              {/* Register Link */}
-              <View className="flex-row items-center justify-center gap-x-1 mt-8 pb-4">
-                <Text className="text-sm text-text-secondary font-medium">New Member?</Text>
-                <TouchableOpacity onPress={() => router.push("/(auth)/register" as any)}>
-                  <Text className="text-sm font-semibold text-brand-primary">
-                    Register now
-                  </Text>
-                </TouchableOpacity>
-              </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </View>
-    // {/* </ScreenWrapper> */}
+
+            {/* Bottom Register Link */}
+            <View className="flex-row items-center justify-center gap-x-1 py-2">
+              <Text className="text-sm text-[#4A4A4A] font-semibold">
+                New Member?
+              </Text>
+              <TouchableOpacity onPress={() => router.push("/(auth)/register" as any)}>
+                <Text className="text-sm font-bold text-[#1B5E37]">
+                  Register now
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

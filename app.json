@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "pench_new",
-    "slug": "pench_new",
+    "name": "Pench",
+    "slug": "Pench",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",

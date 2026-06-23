@@ -1,7 +1,8 @@
 
 
 import React, { useCallback, useEffect, useMemo, useRef } from "react";
-import { View, TouchableOpacity } from "react-native";
+import { View, TouchableOpacity as RNTouchableOpacity } from "react-native";
+import { TouchableOpacity } from "react-native-gesture-handler";
 import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
@@ -52,6 +53,7 @@ export default function MapScreen() {
   const bottomSheetRef = useRef<BottomSheetModal>(null);
   const scrollViewRef = useRef<any>(null);
   const mapRef = useRef<OSMMapHandle>(null);
+  const lastSnappedGroupKey = useRef<string | null>(null);
   const insets = useSafeAreaInsets();
 
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
@@ -178,6 +180,7 @@ export default function MapScreen() {
   useEffect(() => {
     if (!nearStopId) {
       setActiveStopId(null);
+      lastSnappedGroupKey.current = null;
 
       if (selectedGroupKey) {
         const existingGroup = groupedStops.find((g) => g.groupKey === selectedGroupKey);
@@ -221,10 +224,14 @@ export default function MapScreen() {
       } else {
         setExpandedGroupKey(null);
       }
-    }
 
-    bottomSheetRef.current?.present();
-    bottomSheetRef.current?.snapToIndex(1);
+      // Only present and snap the bottom sheet if we just entered a NEW geofence group!
+      if (lastSnappedGroupKey.current !== key) {
+        bottomSheetRef.current?.present();
+        bottomSheetRef.current?.snapToIndex(1);
+        lastSnappedGroupKey.current = key;
+      }
+    }
 
     const yOffset = cardYPositions.current[nearStopId];
     if (yOffset !== undefined && scrollViewRef.current) {
@@ -465,6 +472,39 @@ export default function MapScreen() {
     } as any);
   };
 
+  const formattedRouteName = useMemo(() => {
+    const rawName = route?.name;
+    if (!rawName) return "Today's Route";
+
+    const formatDate = (dateStr: string) => {
+      const match = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/);
+      if (!match) return dateStr;
+      const [_, y, m, d] = match;
+      const months = [
+        "January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"
+      ];
+      const monthName = months[parseInt(m, 10) - 1];
+      if (!monthName) return dateStr;
+      return `${parseInt(d, 10)} ${monthName} ${y}`;
+    };
+
+    const parts = rawName.split(/\s*[-|/]\s*/).map(p => p.trim()).filter(Boolean);
+
+    if (parts.length >= 3) {
+      const area = parts[0];
+      const datePart = parts[parts.length - 1];
+      const cleanDate = datePart.split("#")[0].trim();
+      return `${area} - ${formatDate(cleanDate)}`;
+    } else if (parts.length === 2) {
+      const area = parts[0];
+      const cleanDate = parts[1].split("#")[0].trim();
+      return `${area} - ${formatDate(cleanDate)}`;
+    }
+
+    return formatDate(rawName.split("#")[0].trim());
+  }, [route?.name]);
+
   const completedCount =
     route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
 
@@ -484,10 +524,10 @@ export default function MapScreen() {
       </View>
 
       <TripStatusBanner
-        routeName={route?.name ?? "Today's Route"}
+        routeName={formattedRouteName}
         completed={completedCount}
         total={route?.stops?.length ?? 0}
-        eta="1h 24m"
+        // eta="1h 24m"
         isTripStarted={isTripStarted}
         loading={trackingLoading}
         onToggle={handleTripToggle}
@@ -506,26 +546,26 @@ export default function MapScreen() {
       />
 
       <View className="absolute bottom-32 right-4 z-20 items-end gap-y-3">
-        <TouchableOpacity
+        <RNTouchableOpacity
           onPress={openSheet}
           className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
         >
           <Ionicons name="list" size={22} color="white" />
-        </TouchableOpacity>
+        </RNTouchableOpacity>
 
-        <TouchableOpacity
+        <RNTouchableOpacity
           onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
           className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
         >
           <Ionicons name="qr-code-outline" size={22} color="#fff" />
-        </TouchableOpacity>
+        </RNTouchableOpacity>
 
-        <TouchableOpacity
+        <RNTouchableOpacity
           onPress={() => mapRef.current?.centerOnUser()}
           className="h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg"
         >
           <Ionicons name="locate" size={22} color="#1B5E37" />
-        </TouchableOpacity>
+        </RNTouchableOpacity>
       </View>
 
       <BottomSheetModal
@@ -591,6 +631,7 @@ export default function MapScreen() {
                       onPress={() => {
                         setSelectedStopId(stop.id);
                         setSelectedGroupKey(selectedGroup.groupKey);
+                        setActiveStopId(stop.id);
                       }}
                     >
                       <StopListItem

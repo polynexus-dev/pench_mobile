@@ -11,20 +11,23 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const { width } = Dimensions.get("window");
 const PRODUCT_CARD_WIDTH = (width - 40) / 2; // 2 columns with gaps
 
 export function HeaderSection({ locationName = "Bilzen, Tanjungbalai" }: { locationName?: string }) {
+  const insets = useSafeAreaInsets();
   return (
     <LinearGradient
-      colors={["#FFEDC2", "#FFFFFF"]}
+      colors={["#f5d591ff", "#FDFDFD"]}
       start={{ x: 0.5, y: 0 }}
       end={{ x: 0.5, y: 1 }}
-      className="px-4 pb-4 pt-3"
+      className="px-4 pb-4"
+      style={{ paddingTop: insets.top + 12 }}
     >
       {/* Top row: Location & Profile */}
-      <View className="mb-5 flex-row items-center justify-between">
+      <View className="mb-5 mt-2 flex-row items-center justify-between">
         <View className="flex-row items-center flex-1">
           <View className="mr-3 h-11 w-11 items-center justify-center rounded-full bg-[#E5EFEA]">
              <Ionicons name="location" size={20} color="#0C5A35" />
@@ -43,13 +46,17 @@ export function HeaderSection({ locationName = "Bilzen, Tanjungbalai" }: { locat
       </View>
 
       {/* Search Bar */}
-      <View className="flex-row items-center rounded-2xl border border-[#0C5A35] bg-white px-4 py-2.5 shadow-sm">
-        <Ionicons name="search-outline" size={20} color="#666" />
+      <View className="flex-row items-center rounded-full bg-white px-4 py-2.5 shadow-md shadow-gray-200/50 border border-gray-300/50">
+        <Ionicons name="search-outline" size={18} color="#757575" style={{ opacity: 0.9 }} />
         <TextInput
           placeholder="Search Milk, Ghee, Paneer..."
-          placeholderTextColor="#6B7280"
-          className="ml-2 flex-1 text-sm text-gray-800"
+          placeholderTextColor="#9E9E9E"
+          className="ml-2.5 flex-1 text-md text-gray-800 font-medium p-0"
         />
+        <View className="h-4 w-px bg-gray-200 mx-2" />
+        <TouchableOpacity hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="options-outline" size={18} color="#0C5A35" />
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
@@ -106,6 +113,36 @@ export function CategoryBar({ categories, selected, onSelect }: any) {
   );
 }
 
+const getGradientColors = (bgColor: string): [string, string] => {
+  switch (bgColor?.toLowerCase()) {
+    case "#0b6035":
+      return ["#0B6035", "#053D20"];
+    case "#105b74":
+      return ["#105B74", "#093A4B"];
+    case "#7a470a":
+      return ["#7A470A", "#4E2D04"];
+    case "#0e5a37":
+      return ["#0E5A37", "#073A21"];
+    default:
+      return [bgColor || "#0C5A35", "#053D20"];
+  }
+};
+
+const getBannerImage = (id: string) => {
+  switch (id) {
+    case "b1":
+      return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png"; // milk bottle
+    case "b2":
+      return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png"; // milk bottle (subscription theme)
+    case "b3":
+      return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-22.png"; // ghee jar
+    case "b4":
+      return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png"; // milk bottle (bottle promise theme)
+    default:
+      return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png";
+  }
+};
+
 export function BannerCarousel({ items }: { items: any[] }) {
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<FlatList>(null);
@@ -144,31 +181,46 @@ export function BannerCarousel({ items }: { items: any[] }) {
           setActiveIndex(nextIndex);
         }}
         renderItem={({ item }) => (
-          <View className="flex-row overflow-hidden rounded-2xl p-5" style={{ width: width - 32, backgroundColor: item.bgColor || "#0C5A35" }}>
-            <View className="z-10 flex-1 pr-1">
-              <View className="mb-3 self-start rounded-full bg-white/20 px-3 py-1">
-                <Text className="text-[10px] font-semibold text-white">
-                  {item.note || "Farm Fresh"}
+          <LinearGradient
+            colors={getGradientColors(item.bgColor)}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            className="flex-row overflow-hidden rounded-[24px] p-5"
+            style={{ width: width - 32 }}
+          >
+            <View className="z-10 flex-1 pr-1 justify-between">
+              <View>
+                <View className="mb-3 self-start rounded-full bg-white/20 px-3 py-1">
+                  <Text className="text-[10px] font-bold text-white uppercase tracking-wider">
+                    {item.note || "Farm Fresh"}
+                  </Text>
+                </View>
+                <Text className="mb-1 text-[18px] font-bold leading-6 text-white tracking-tight" numberOfLines={2}>
+                  {item.title || "Get more from Pench"}
+                </Text>
+                <Text className="mb-4 text-[10px] leading-[14px] text-white/80 font-medium" numberOfLines={2}>
+                  {item.subtitle || "Order more dairy products on your daily subscription and get awesome discounts"}
                 </Text>
               </View>
-              <Text className="mb-2 text-[20px] font-semibold leading-7 text-white">
-                {item.title || "Get more from Pench"}
-              </Text>
-              <Text className="mb-5 text-[10px] leading-[14px] text-white/80">
-                {item.subtitle || "Order more dairy products on your daily subscription and get awesome discounts"}
-              </Text>
               <TouchableOpacity className="self-start rounded-xl bg-[#F4C553] px-5 py-2">
                 <Text className="text-[12px] font-bold text-[#0C5A35]">Order now</Text>
               </TouchableOpacity>
             </View>
-            <View className="absolute -bottom-6 -right-6 h-36 w-36 overflow-hidden rounded-full opacity-90">
-               <Image
-                 source={{ uri: "https://images.unsplash.com/photo-1628105652613-2d5fc2f3a6cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=400&q=80" }}
-                 className="h-full w-full"
-                 resizeMode="cover"
-               />
+            <View className="relative justify-center items-center">
+              {/* Circular container for masking */}
+              <View 
+                className="h-28 w-28 overflow-hidden rounded-full bg-white/10 items-center justify-center"
+                style={{ overflow: 'hidden', borderRadius: 56 }}
+              >
+                 <Image
+                   source={{ uri: getBannerImage(item.id) }}
+                   className="h-24 w-24 rounded-full"
+                   style={{ width: 96, height: 96, borderRadius: 48 }}
+                   resizeMode="cover"
+                 />
+              </View>
             </View>
-          </View>
+          </LinearGradient>
         )}
       />
       <View className="mt-3 flex-row justify-center gap-1.5">
@@ -186,10 +238,12 @@ export function BannerCarousel({ items }: { items: any[] }) {
 }
 
 export function ProductCard({ item, cartQty, onAdd, onRemove }: any) {
+  const [isFavorite, setIsFavorite] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const price = item.unit_price || item.price || 0;
+  const mrp = item.mrp || (price > 0 ? Math.round(price * 1.15) : 0);
+  const discountPercent = mrp > price ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
-  // Placeholder mapping based on category or name for realistic images
   const getProductImage = (cat: string, name: string) => {
     const text = (cat + " " + name).toLowerCase();
     if (text.includes("milk")) return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png";
@@ -205,67 +259,103 @@ export function ProductCard({ item, cartQty, onAdd, onRemove }: any) {
     ]).start();
   };
 
-  // We are forcing the high-quality mock images because Android often blocks local http:// cleartext images.
   const productImageUrl = getProductImage(item.category || "", item.name || "");
 
   return (
     <Animated.View
-      className="mb-4 overflow-hidden rounded-[16px] bg-white"
-      style={{ width: PRODUCT_CARD_WIDTH, transform: [{ scale: scaleAnim }] }}
+      className="mb-4 rounded-[24px] bg-white border border-gray-100/70"
+      style={{
+        width: PRODUCT_CARD_WIDTH,
+        transform: [{ scale: scaleAnim }],
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.04,
+        shadowRadius: 8,
+        elevation: 2,
+      }}
     >
-      <TouchableOpacity activeOpacity={0.95} className="flex-1 rounded-[16px] border border-[#F0F0F0]">
+      <View className="flex-1 rounded-[24px] overflow-hidden">
         
-        {/* Top Half: Image */}
-        <View className="relative h-[130px] w-full bg-[#F8F9FA]">
+        {/* Top Half: Image Container */}
+        <View className="relative h-[135px] w-full bg-[#FAF9F5] overflow-hidden">
            <Image
               source={{ uri: productImageUrl }}
-              className="rounded-t-[16px]"
-              style={{ width: '100%', height: '100%', flex: 1 }}
+              className="h-full w-full"
               resizeMode="cover"
            />
-           <TouchableOpacity className="absolute right-2 top-2">
-             <Ionicons name="heart-outline" size={20} color="#F4C553" />
-           </TouchableOpacity>
            
-           {cartQty === 0 ? (
-             <TouchableOpacity
-                className="absolute bottom-2 right-2 flex-row items-center rounded-xl border border-[#0C5A35] bg-white px-4 py-1"
-                onPress={() => { pulse(); onAdd(); }}
-                activeOpacity={0.88}
-             >
-                <Text className="text-[12px] font-bold text-[#0C5A35]">Add</Text>
-             </TouchableOpacity>
-           ) : (
-             <View className="absolute bottom-2 right-2 flex-row items-center rounded-xl bg-[#0C5A35]">
-                <TouchableOpacity className="px-2 py-1" onPress={onRemove}>
-                  <Ionicons name="remove" size={16} color="#fff" />
-                </TouchableOpacity>
-                <Text className="px-1 text-[13px] font-bold text-white">{cartQty}</Text>
-                <TouchableOpacity className="px-2 py-1" onPress={() => { pulse(); onAdd(); }}>
-                  <Ionicons name="add" size={16} color="#fff" />
-                </TouchableOpacity>
+           {/* Glass Bottle Badge */}
+           {item.is_returnable && (
+             <View className="absolute left-2.5 top-2.5 flex-row items-center rounded-full bg-white/90 px-2.5 py-0.5 border border-gray-200/50 shadow-xs">
+               <Ionicons name="leaf" size={9} color="#0C5A35" />
+               <Text className="ml-1 text-[8px] font-bold text-[#0C5A35] uppercase tracking-wider">Glass Bottle</Text>
              </View>
            )}
+
+           {/* Heart/Favorite Overlay */}
+           <TouchableOpacity 
+             activeOpacity={0.7} 
+             onPress={() => setIsFavorite(!isFavorite)}
+             className="absolute right-2.5 top-2.5 h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm border border-gray-100"
+           >
+             <Ionicons 
+               name={isFavorite ? "heart" : "heart-outline"} 
+               size={14} 
+               color={isFavorite ? "#E11D48" : "#757575"} 
+             />
+           </TouchableOpacity>
         </View>
 
         {/* Bottom Half: Details */}
-        <View className="p-3">
-          <View className="mb-1 flex-row justify-between">
-             <Text className="text-[9px] text-gray-500 uppercase">Subscription</Text>
-             <Text className="text-[9px] text-gray-500">{item.unit || "1 Liter"}</Text>
+        <View className="p-3.5">
+          <View className="mb-1 flex-row justify-between items-center">
+             <Text className="text-[9px] font-bold text-[#0C5A35] uppercase tracking-widest">
+               {item.category || "DAIRY"}
+             </Text>
+             <Text className="text-[10px] font-semibold text-gray-500">
+               {item.unit || "500 ml"}
+             </Text>
           </View>
           
-          <Text className="mb-2 min-h-[36px] text-[13px] font-semibold leading-[18px] text-gray-800" numberOfLines={2}>
+          <Text className="mb-2.5 min-h-[38px] text-[13px] font-bold leading-[18px] text-gray-800" numberOfLines={2}>
             {item.name}
           </Text>
 
-          <View className="mt-auto flex-row items-center justify-between">
-             <Text className="text-sm font-bold text-gray-900">₹ {price}</Text>
-             <Text className="text-[10px] font-bold text-[#1B5E37]">10% off</Text>
+          <View className="mt-1 flex-row items-end justify-between">
+             <View>
+                {discountPercent > 0 && (
+                  <Text className="text-[10px] text-gray-400 line-through font-bold mb-0.5">
+                    ₹ {mrp}
+                  </Text>
+                )}
+                <Text className="text-base font-extrabold text-gray-900">₹ {price}</Text>
+             </View>
+
+             {/* Cart Controller */}
+             {cartQty === 0 ? (
+               <TouchableOpacity
+                  className="flex-row items-center rounded-full bg-[#0C5A35] px-3.5 py-1.5 shadow-sm active:opacity-90"
+                  onPress={() => { pulse(); onAdd(); }}
+                  activeOpacity={0.88}
+               >
+                  <Ionicons name="add" size={11} color="#fff" style={{ marginRight: 2 }} />
+                  <Text className="text-[11px] font-bold text-white uppercase tracking-wider">Add</Text>
+               </TouchableOpacity>
+             ) : (
+               <View className="flex-row items-center rounded-full bg-[#0C5A35] px-2 py-1.5 shadow-sm">
+                  <TouchableOpacity className="px-1.5" onPress={onRemove} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="remove" size={12} color="#fff" />
+                  </TouchableOpacity>
+                  <Text className="px-1.5 text-[12px] font-bold text-white">{cartQty}</Text>
+                  <TouchableOpacity className="px-1.5" onPress={() => { pulse(); onAdd(); }} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <Ionicons name="add" size={12} color="#fff" />
+                  </TouchableOpacity>
+               </View>
+             )}
           </View>
         </View>
 
-      </TouchableOpacity>
+      </View>
     </Animated.View>
   );
 }

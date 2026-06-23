@@ -54,8 +54,8 @@ const containerVariants = cva(
     variants: {
       variant: {
         filled: "bg-bg-input  border-transparent",
-        outline: "bg-transparent border-border-default",
-        ghost: "bg-transparent border-transparent border-b-border-default rounded-none",
+        outline: "bg-transparent border-neutral-500",
+        ghost: "bg-transparent border-transparent border-b-neutral-500 rounded-none",
       },
       size: {
         sm: "h-input-sm px-input-x",   // 40px — compact lists

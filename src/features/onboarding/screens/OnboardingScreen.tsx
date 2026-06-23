@@ -12,35 +12,23 @@ import {
     Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { onboardingSlides, OnboardingSlide } from "../data/onboardingData";
 import { onboardingUtils } from "../utils/onboardingUtils";
 import { ROUTES } from "@/constants/route";
 
 const { width, height } = Dimensions.get("window");
 
-type SlideSize = "sm" | "md" | "lg";
-
-const IMAGE_SIZE: Record<SlideSize, string> = {
-    sm: "w-48 h-48",
-    md: "w-64 h-64",
-    lg: "w-90 h-90",
-};
-
-const CONTAINER_SIZE: Record<SlideSize, string> = {
-    sm: "w-56 h-56",
-    md: "w-72 h-72",
-    lg: "w-90 h-90",
-};
-
 function AnimatedDot({ isActive }: { isActive: boolean }) {
-    const width = useRef(new Animated.Value(isActive ? 24 : 8)).current;
+    const widthAnim = useRef(new Animated.Value(isActive ? 24 : 8)).current;
     const opacity = useRef(new Animated.Value(isActive ? 1 : 0.4)).current;
 
     useEffect(() => {
         Animated.parallel([
-            Animated.spring(width, {
-                toValue: isActive ? 24 : 8,   // ← w-6 = 24, w-2 = 8
-                useNativeDriver: false,        // width can't use native driver
+            Animated.spring(widthAnim, {
+                toValue: isActive ? 24 : 8,
+                useNativeDriver: false,
                 damping: 18,
                 stiffness: 200,
                 mass: 0.8,
@@ -55,9 +43,9 @@ function AnimatedDot({ isActive }: { isActive: boolean }) {
 
     return (
         <Animated.View
-            className="rounded-full mx-1.5 h-2.5"
+            className="rounded-full mx-1.5 h-2"
             style={{
-                width,
+                width: widthAnim,
                 opacity,
                 borderRadius: 4,
                 backgroundColor: isActive ? "#1B5E37" : "#9c9c9c",
@@ -66,36 +54,32 @@ function AnimatedDot({ isActive }: { isActive: boolean }) {
     );
 }
 
-function OnboardingSlideItem({
-    item,
-    size = "lg"
-}: {
-    item: OnboardingSlide;
-    size?: SlideSize;
-}) {
-    return (
-        <View style={{ width, height }} className="items-center justify-center">
+function OnboardingSlideItem({ item }: { item: OnboardingSlide }) {
+    const computedImageHeight = Math.min(height * 0.42, 360);
 
-            {/* ── Image ─────────────────────────────────────────────── */}
-            <View className="items-center justify-center mb-8 h-[55%]">
-                <View
-                    className={`${CONTAINER_SIZE[size]} items-center justify-center overflow-hidden`}
-                    style={{ backgroundColor: item.bgColor }}
-                >
-                    <Image
-                        source={item.image}
-                        className={IMAGE_SIZE[size]}
-                        resizeMode="contain"
-                    />
-                </View>
+    return (
+        <View style={{ width }} className="flex-1 items-center justify-between p-6">
+            
+            {/* Illustration container */}
+            <View className="flex-1 w-full items-center justify-center">
+                <Image
+                    source={item.image}
+                    style={{
+                        width: "100%",
+                        height: computedImageHeight,
+                        maxHeight: 360,
+                    }}
+                    resizeMode="contain"
+                    fadeDuration={0}
+                />
             </View>
 
-            {/* ── Text ──────────────────────────────────────────────── */}
-            <View className="items-center px-8">
-                <Text className="text-3xl font-bold text-text-primary text-center mb-3">
+            {/* Typography */}
+            <View className="items-center px-4 w-full mt-4 mb-2">
+                <Text className="text-3xl font-bold text-text-primary text-center tracking-tight leading-snug">
                     {item.title}
                 </Text>
-                <Text className="text-base text-text-secondary text-center leading-6">
+                <Text className="text-base text-text-secondary text-center leading-relaxed mt-3 px-2">
                     {item.description}
                 </Text>
             </View>
@@ -141,38 +125,44 @@ export default function OnboardingScreen() {
     };
 
     return (
-        <View className="flex-1 bg-brand-light">
+        <SafeAreaView className="flex-1 bg-[#E8F5EE]">
+            <StatusBar style="dark" />
 
-            {/* ── Skip button ───────────────────────────────────────── */}
-            <TouchableOpacity
-                onPress={handleGetStarted}
-                disabled={loading}
-                className="absolute top-14 right-6 z-10"
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-                <Text className="text-brand-primary font-semibold text-base">
-                    Skip
-                </Text>
-            </TouchableOpacity>
+            {/* ── Top Header ────────────────────────────────────────── */}
+            <View className="flex-row justify-end items-center px-6 py-2 h-12">
+                {!isLastSlide && (
+                    <TouchableOpacity
+                        onPress={handleGetStarted}
+                        disabled={loading}
+                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    >
+                        <Text className="text-[#1B5E37] font-bold text-base tracking-wide">
+                            Skip
+                        </Text>
+                    </TouchableOpacity>
+                )}
+            </View>
 
             {/* ── Slides ────────────────────────────────────────────── */}
-            <FlatList
-                ref={flatListRef}
-                data={onboardingSlides}
-                renderItem={({ item, index }) => (
-                    <OnboardingSlideItem item={item} size={index === 0 ? "md" : "lg"} />
-                )}
-                keyExtractor={(item) => item.id}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onScroll={handleScroll}
-                scrollEventThrottle={16}
-                bounces={false}
-            />
+            <View className="flex-1">
+                <FlatList
+                    ref={flatListRef}
+                    data={onboardingSlides}
+                    renderItem={({ item }) => (
+                        <OnboardingSlideItem item={item} />
+                    )}
+                    keyExtractor={(item) => item.id}
+                    horizontal
+                    pagingEnabled
+                    showsHorizontalScrollIndicator={false}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
+                    bounces={false}
+                />
+            </View>
 
             {/* ── Bottom Controls ───────────────────────────────────── */}
-            <View className="pb-12 px-8 items-center gap-y-6">
+            <View className="pb-8 px-6 items-center gap-y-6">
 
                 {/* Animated Dots */}
                 <View className="flex-row items-center justify-center">
@@ -186,18 +176,18 @@ export default function OnboardingScreen() {
                     onPress={handleNext}
                     disabled={loading}
                     activeOpacity={0.85}
-                    className="w-full bg-brand-primary py-4 rounded-2xl items-center"
+                    className="w-full bg-[#1B5E37] py-4 rounded-full items-center shadow-lg shadow-[#1B5E37]/20"
                 >
                     {loading ? (
                         <ActivityIndicator color="#fff" />
                     ) : (
-                        <Text className="text-white font-bold text-lg">
-                            {isLastSlide ? "Get Started" : "Next →"}
+                        <Text className="text-white font-bold text-base uppercase tracking-wider">
+                            {isLastSlide ? "Get Started" : "Next"}
                         </Text>
                     )}
                 </TouchableOpacity>
 
             </View>
-        </View>
+        </SafeAreaView>
     );
 }

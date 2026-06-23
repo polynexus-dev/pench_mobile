@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo, useRef, useCallback } from "react";
-import { RefreshControl, ScrollView, View, Text, TouchableOpacity, Alert, ActivityIndicator } from "react-native";
+import { RefreshControl, View, Text, TouchableOpacity, Alert, ActivityIndicator, Image } from "react-native";
+import { ScrollView } from "react-native-gesture-handler";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import { useBottomTabPadding } from "@/hooks/useBottomTabPadding";
 import { router, useNavigation } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
@@ -9,14 +11,22 @@ import { productApi, Product } from "../api/productApi";
 import { orderApi } from "../api/orderApi";
 import { Calendar } from "react-native-calendars";
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
+import { StatusBar } from "expo-status-bar";
 import {
   HeaderSection,
   BannerCarousel,
-  CategoryBar,
   ProductCard,
 } from "../components/CustomerHomeComponents";
 
 import { BANNERS, CATEGORIES } from "@/data/mockData";
+
+const getProductThumbnail = (name: string) => {
+  const text = name.toLowerCase();
+  if (text.includes("milk")) return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png";
+  if (text.includes("paneer")) return "https://penchfoods.com/wp-content/uploads/2020/11/Paneer.png";
+  if (text.includes("ghee")) return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-22.png";
+  return "https://images.unsplash.com/photo-1628105652613-2d5fc2f3a6cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80";
+};
 
 export function CustomerDashboardScreen() {
   const { user } = useAuthStore();
@@ -24,11 +34,12 @@ export function CustomerDashboardScreen() {
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const insets = useSafeAreaInsets();
+  const bottomTabPadding = useBottomTabPadding(26);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState("all");
+
 
   // Bottom Sheet and Ordering states
   const cartSheetRef = useRef<BottomSheet>(null);
@@ -153,29 +164,23 @@ export function CustomerDashboardScreen() {
         appearsOnIndex={0}
         disappearsOnIndex={-1}
         opacity={0.5}
+        enableTouchThrough={!isSheetOpen}
+        pressBehavior="close"
       />
     ),
-    []
+    [isSheetOpen]
   );
 
-  const filteredProducts =
-    selectedCategory === "all"
-      ? products
-      : products.filter(
-        (p) => p.category?.toLowerCase().includes(selectedCategory.toLowerCase())
-      );
+  const filteredProducts = products;
 
   return (
     <View className="flex-1 bg-[#FDFDFD]">
-      <View style={{ paddingTop: insets.top }}>
+      <StatusBar style="dark" />
+      <View>
         <HeaderSection locationName={user?.city_name || "Nagpur, Maharashtra"} />
       </View>
-      <CategoryBar
-        categories={CATEGORIES}
-        selected={selectedCategory}
-        onSelect={setSelectedCategory}
-      />
       <ScrollView
+        className="flex-1"
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
         refreshControl={
@@ -220,30 +225,51 @@ export function CustomerDashboardScreen() {
       </ScrollView>
 
       {cartItems.length > 0 && !isSheetOpen && (
-        <TouchableOpacity
-          activeOpacity={0.85}
-          onPress={() => {
-            cartSheetRef.current?.snapToIndex(0);
-          }}
-          className="absolute bottom-6 right-6 h-14 w-14 items-center justify-center rounded-full bg-[#1B5E37] shadow-lg z-50"
-          style={{
-            shadowColor: "#1B5E37",
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.3,
-            shadowRadius: 6,
-            elevation: 6,
-          }}
+        <View 
+          pointerEvents="box-none"
+          className="absolute left-0 right-0 items-center z-50"
+          style={{ bottom: bottomTabPadding }}
         >
-          <Ionicons name="cart" size={26} color="white" />
-          <View
-            className="absolute -top-1.5 -right-1.5 h-6 w-6 items-center justify-center rounded-full bg-red-500 border border-white"
-            style={{ elevation: 2 }}
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => {
+              cartSheetRef.current?.snapToIndex(0);
+            }}
+            className="flex-row items-center rounded-full px-2 py-2 shadow-lg gap-2"
+            style={{
+              backgroundColor: "#178d2bff",
+              // borderColor: "#1b802c",
+              // borderWidth: 1,
+              // shadowColor: "#0c5a10",
+              // shadowOffset: { width: 0, height: 4 },
+              // shadowOpacity: 0.25,
+              // shadowRadius: 8,
+              // elevation: 6,
+            }}
           >
-            <Text className="text-[10px] font-black text-white">
-              {cartItems.reduce((acc, i) => acc + i.quantity, 0)}
-            </Text>
-          </View>
-        </TouchableOpacity>
+            {/* Left: Product Image Thumbnail */}
+            <View className="h-10 w-10 rounded-full bg-white items-center justify-center overflow-hidden p-1">
+               <Image
+                  source={{ uri: getProductThumbnail(cartItems[0]?.name || "") }}
+                  className="h-8 w-8"
+                  resizeMode="cover"
+               />
+            </View>
+
+            {/* Middle: Details */}
+            <View className="mx-3.5 pr-2 items-start justify-center">
+              <Text className="text-[13px] font-black text-white leading-none">View cart</Text>
+              <Text className="text-[10px] font-bold text-white/80 mt-1 leading-none">
+                {cartItems.reduce((acc, i) => acc + i.quantity, 0)} {cartItems.reduce((acc, i) => acc + i.quantity, 0) === 1 ? "item" : "items"}
+              </Text>
+            </View>
+
+            {/* Right: Chevron Circle */}
+            <View className="h-10 w-10 rounded-full bg-white/20 items-center justify-center">
+               <Ionicons name="chevron-forward" size={20} color="white" />
+            </View>
+          </TouchableOpacity>
+        </View>
       )}
 
       <BottomSheet
@@ -254,7 +280,7 @@ export function CustomerDashboardScreen() {
         onChange={(index) => {
           setIsSheetOpen(index !== -1);
         }}
-        backdropComponent={renderBackdrop}
+        backdropComponent={isSheetOpen ? renderBackdrop : undefined}
         backgroundStyle={{
           backgroundColor: "#FFFFFF",
           borderTopLeftRadius: 28,
@@ -279,7 +305,7 @@ export function CustomerDashboardScreen() {
           showsVerticalScrollIndicator={false}
         >
           {/* Header */}
-          <View className="mb-5 mt-2 flex-row items-center justify-between">
+          <View className="mb-2 mt-2 flex-row items-center justify-between">
             <View>
               <Text className="text-[20px] font-extrabold text-gray-900">
                 Your Cart

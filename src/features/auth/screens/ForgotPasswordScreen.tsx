@@ -1,7 +1,8 @@
 import React, { useState, useRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, KeyboardAvoidingView, Platform, ScrollView, TextInput } from "react-native";
 import { useRouter } from "expo-router";
-import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { StatusBar } from "expo-status-bar";
 import { useToast } from "@/hooks/useToast";
 import { Input } from "@/shared/ui/Input";
 import { useForgotPassword } from "../hooks/useForgotPassword";
@@ -153,32 +154,35 @@ export default function ForgotPasswordScreen() {
   };
 
   return (
-    <>
-      <ScreenWrapper className="flex-1 bg-white" disablePadding={true}>
-        <KeyboardAvoidingView
-          className="flex-1"
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+    <SafeAreaView className="flex-1 bg-[#F0EBE1]">
+      <StatusBar style="dark" />
+      <KeyboardAvoidingView
+        className="flex-1"
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+      >
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1 }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView
-            contentContainerClassName="flex-grow"
-            keyboardShouldPersistTaps="handled"
-            showsVerticalScrollIndicator={false}
-          >
-            {/* ── Top Bar ─────────────────────────────────────────────── */}
-            <View className="px-5 pt-14 pb-4">
-              <Pressable
-                onPress={handleBackPress}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                className="w-10 h-10 rounded-full bg-bg-surface items-center justify-center"
-              >
-                <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
-              </Pressable>
-            </View>
+          {/* ── Top Bar ─────────────────────────────────────────────── */}
+          <View className="px-5 pt-6 pb-4">
+            <Pressable
+              onPress={handleBackPress}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              className="w-10 h-10 rounded-full bg-white shadow-sm items-center justify-center"
+            >
+              <Ionicons name="arrow-back" size={20} color="#1A1A1A" />
+            </Pressable>
+          </View>
 
-            {/* ── Main Content ────────────────────────────────────────── */}
-            <View className="flex-1 px-6 pt-6">
+          {/* ── Main Content ────────────────────────────────────────── */}
+          <View className="flex-1 px-5 pb-12 justify-between items-center">
+            
+            {/* Header / Info section */}
+            <View className="items-center w-full">
               {/* Icon Badge */}
-              <View className="w-16 h-16 rounded-2xl bg-brand-primary/10 items-center justify-center mb-8">
+              <View className="w-16 h-16 rounded-2xl bg-brand-primary/10 items-center justify-center mb-6">
                 <Ionicons
                   name={step === 1 ? "lock-closed-outline" : "key-outline"}
                   size={32}
@@ -186,18 +190,17 @@ export default function ForgotPasswordScreen() {
                 />
               </View>
 
-              {/* Header */}
-              <Text className="text-3xl font-bold text-text-primary tracking-tight mb-2">
+              <Text className="text-3xl font-bold text-[#1A1A1A] tracking-tight mb-2 text-center">
                 {step === 1 ? "Forgot Password" : "Reset Password"}
               </Text>
               
               {step === 1 ? (
-                <Text className="text-base text-text-secondary leading-relaxed mb-8">
+                <Text className="text-sm font-semibold text-text-secondary text-center leading-relaxed">
                   Enter your registered phone number to receive an OTP code to reset your password.
                 </Text>
               ) : (
-                <View className="mb-8">
-                  <Text className="text-base text-text-secondary leading-relaxed mb-1">
+                <View className="items-center w-full">
+                  <Text className="text-sm font-semibold text-text-secondary text-center leading-relaxed mb-1">
                     Enter the OTP code and your new password for account recovery.
                   </Text>
                   <View className="flex-row items-center gap-x-2">
@@ -208,15 +211,17 @@ export default function ForgotPasswordScreen() {
                       onPress={resetStep}
                       hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
                     >
-                      <Text className="text-sm font-semibold text-brand-primary underline">
+                      <Text className="text-sm font-bold text-brand-primary underline">
                         Edit
                       </Text>
                     </TouchableOpacity>
                   </View>
                 </View>
               )}
+            </View>
 
-              {/* Input Form Fields */}
+            {/* Input Form Fields */}
+            <View className="w-full rounded-[24px] px-2 py-2 mb-6">
               <View className="w-full gap-y-4">
                 {step === 1 ? (
                   <Input
@@ -253,7 +258,7 @@ export default function ForgotPasswordScreen() {
                             style={{
                               flex: 1,
                               height: 56,
-                              borderRadius: 12,
+                              borderRadius: 16,
                               fontSize: 22,
                               fontWeight: "700",
                               color: "#1A1A1A",
@@ -324,7 +329,7 @@ export default function ForgotPasswordScreen() {
                 {/* Back to Login Link */}
                 <TouchableOpacity
                   activeOpacity={0.85}
-                  className="items-center mt-4 pb-8"
+                  className="items-center mt-4"
                   onPress={() => router.back()}
                 >
                   <Text className="text-sm font-bold text-brand-primary">
@@ -333,9 +338,10 @@ export default function ForgotPasswordScreen() {
                 </TouchableOpacity>
               </View>
             </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </ScreenWrapper>
-    </>
+
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

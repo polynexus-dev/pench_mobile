@@ -1,78 +1,3 @@
-// import React from "react";
-// import { Text, TouchableOpacity, View } from "react-native";
-// import { Ionicons } from "@expo/vector-icons";
-
-// interface Props {
-//     routeName: string;
-//     completed: number;
-//     total: number;
-//     eta: string;
-//     isTripStarted: boolean;
-//     loading: boolean;
-//     onToggle: () => void;
-//     disabled?: boolean;
-// }
-
-// export default function TripStatusBanner({
-//     routeName,
-//     completed,
-//     total,
-//     eta,
-//     isTripStarted,
-//     loading,
-//     onToggle,
-//     disabled = false,
-// }: Props) {
-//     const progress = total > 0 ? (completed / total) * 100 : 0;
-//     const isDisabled = loading || disabled;
-
-//     return (
-//         <View className="absolute left-4 right-4 top-12 z-20 rounded-card bg-bg-card p-4 shadow-xl">
-//             <View className="flex-row items-center justify-between">
-//                 <View className="flex-1 pr-3">
-//                     <Text className="text-caption tracking-widest text-text-muted uppercase">
-//                         Active Route
-//                     </Text>
-//                     <Text
-//                         className="mt-0.5 text-body-lg font-bold text-text-primary"
-//                         numberOfLines={1}
-//                     >
-//                         {routeName}
-//                     </Text>
-//                     <Text className="mt-0.5 text-caption text-text-secondary">
-//                         {completed} / {total} Deliveries · ETA {eta}
-//                     </Text>
-
-//                     <View className="mt-2 h-1.5 overflow-hidden rounded-full bg-border-disable">
-//                         <View
-//                             className="h-1.5 rounded-full bg-brand-primary"
-//                             style={{ width: `${progress}%` }}
-//                         />
-//                     </View>
-//                 </View>
-
-//                 <TouchableOpacity
-//                     onPress={isDisabled ? undefined : onToggle}
-//                     disabled={isDisabled}
-//                     activeOpacity={0.85}
-//                     className={`w-12 h-12 rounded-full items-center justify-center shadow-md ${isDisabled
-//                             ? "bg-gray-400 opacity-50"
-//                             : isTripStarted
-//                                 ? "bg-error"
-//                                 : "bg-brand-primary"
-//                         }`}
-//                 >
-//                     <Ionicons
-//                         name={isDisabled ? "remove-circle-outline" : loading ? "hourglass-outline" : isTripStarted ? "stop" : "play"}
-//                         size={20}
-//                         color="white"
-//                     />
-//                 </TouchableOpacity>
-//             </View>
-//         </View>
-//     );
-// }
-
 import React from "react";
 import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -82,7 +7,7 @@ interface Props {
     routeName: string;
     completed: number;
     total: number;
-    eta: string;
+    // eta: string;
     isTripStarted: boolean;
     loading: boolean;
     onToggle: () => void;
@@ -97,7 +22,7 @@ export default function TripStatusBanner({
     routeName,
     completed,
     total,
-    eta,
+    // eta,
     isTripStarted,
     loading,
     onToggle,
@@ -113,60 +38,61 @@ export default function TripStatusBanner({
 
     const topPosition = Platform.OS === "ios" ? insets.top + 20 : insets.top + 12;
 
+    const buttonBgClass = loading
+        ? "bg-gray-400 opacity-50"
+        : isTripStarted
+            ? (disabled ? "bg-[#D4872A] opacity-75" : "bg-error")
+            : (disabled ? "bg-gray-400 opacity-50" : "bg-brand-primary");
+
+    const iconName = loading
+        ? "hourglass-outline"
+        : isTripStarted
+            ? (disabled ? "car-outline" : "stop")
+            : (disabled ? "remove-circle-outline" : "play");
+
     return (
         <View 
             className="absolute left-4 right-4 z-20 rounded-card bg-bg-card shadow-2xl overflow-hidden"
             style={{ top: topPosition }}
         >
             {/* ── Main row: route name + play/stop button ── */}
-            <View className="flex-row items-center justify-between p-4">
-                <View className="flex-1 pr-3">
-                    {/* <Text className="text-caption tracking-widest text-text-muted uppercase">
-                        Active Route
-                    </Text> */}
-                    <Text
-                        className="mt-0.5 text-body-lg font-bold text-text-primary"
-                        numberOfLines={1}
-                    >
-                        {routeName}
-                    </Text>
-                    <Text className="mt-0.5 text-caption text-text-secondary">
-                        {completed} / {total} Deliveries · ETA {eta}
-                    </Text>
+            <View className="relative overflow-hidden">
+                {/* Progress background fill (only for main row) */}
+                <View 
+                    // className="absolute left-0 top-0 bottom-0 bg-[#D1E0D6]"
+                    className="absolute left-0 top-0 bottom-0 bg-[#a7c9b3]"
+                    style={{ width: `${progress}%` }}
+                />
 
-                    <View className="mt-2 h-1.5 overflow-hidden rounded-full bg-border-disable">
-                        <View
-                            className="h-1.5 rounded-full bg-brand-primary"
-                            style={{ width: `${progress}%` }}
-                        />
+                <View className="flex-row items-center justify-between p-3">
+                    <View className="flex-1 pr-3">
+                        {/* <Text className="text-caption tracking-widest text-text-muted uppercase">
+                            Active Route
+                        </Text> */}
+                        <Text
+                            className="mt-0.5 text-body-lg font-bold text-text-primary"
+                            numberOfLines={1}
+                        >
+                            {routeName}
+                        </Text>
+                        <Text className="mt-0.5 text-caption text-text-primary">
+                            {completed} / {total} Deliveries
+                        </Text>
                     </View>
-                </View>
 
-                <TouchableOpacity
-                    onPress={isDisabled ? undefined : onToggle}
-                    disabled={isDisabled}
-                    activeOpacity={0.85}
-                    className={`w-12 h-12 rounded-full items-center justify-center shadow-md ${isDisabled
-                            ? "bg-gray-400 opacity-50"
-                            : isTripStarted
-                                ? "bg-error"
-                                : "bg-brand-primary"
-                        }`}
-                >
-                    <Ionicons
-                        name={
-                            isDisabled
-                                ? "remove-circle-outline"
-                                : loading
-                                    ? "hourglass-outline"
-                                    : isTripStarted
-                                        ? "stop"
-                                        : "play"
-                        }
-                        size={20}
-                        color="white"
-                    />
-                </TouchableOpacity>
+                    <TouchableOpacity
+                        onPress={isDisabled ? undefined : onToggle}
+                        disabled={isDisabled}
+                        activeOpacity={0.85}
+                        className={`w-12 h-12 rounded-full items-center justify-center shadow-md ${buttonBgClass}`}
+                    >
+                        <Ionicons
+                            name={iconName}
+                            size={20}
+                            color="white"
+                        />
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* ── Navigation row: only visible when trip is active ── */}
