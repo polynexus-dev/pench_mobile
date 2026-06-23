@@ -16,6 +16,7 @@ import { useGeofenceStore } from "@store/geofenceStore";
 import { Text } from "@/shared/ui/Text/Text";
 import { Button } from "@/shared/ui";
 import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
+import { ROUTES } from "@/constants/route";
 
 type RouteStop = {
     id: string;
@@ -151,15 +152,16 @@ export default function CustomerListScreen() {
                 {stats.total > 0 && (
                     <View
                         style={CARD_SHADOW}
-                        className="mb-3 rounded-card border border-border-default bg-white p-4"
+                        className="mb-4 rounded-[24px] border border-border-default bg-white p-5"
                     >
-                        <View className="flex-row items-center justify-between mb-2.5">
+                        <View className="flex-row items-center justify-between mb-3">
                             <View>
                                 <Text
                                     variant="caption"
                                     transform="uppercase"
                                     color="muted"
                                     weight="bold"
+                                    className="tracking-wider"
                                 >
                                     Trip Progress
                                 </Text>
@@ -172,7 +174,7 @@ export default function CustomerListScreen() {
                                     {stats.completed} / {stats.total} Stops
                                 </Text>
                             </View>
-                            <View className="rounded-badge bg-brand-light px-3 py-1">
+                            <View className="rounded-full bg-brand-light px-3 py-1">
                                 <Text variant="body-sm" weight="bold" color="brand">
                                     {stats.percent}% Done
                                 </Text>
@@ -180,7 +182,7 @@ export default function CustomerListScreen() {
                         </View>
 
                         {/* Progress Bar */}
-                        <View className="h-2 w-full rounded-full bg-bg-input overflow-hidden mb-3">
+                        <View className="h-2.5 w-full rounded-full bg-bg-input overflow-hidden mb-4">
                             <View
                                 className="h-full rounded-full bg-brand-primary"
                                 style={{ width: `${stats.percent}%` }}
@@ -188,7 +190,7 @@ export default function CustomerListScreen() {
                         </View>
 
                         {/* Stats Breakdown Row */}
-                        <View className="flex-row justify-between border-t border-border-default pt-2.5">
+                        <View className="flex-row justify-between border-t border-border-subtle pt-3.5">
                             <View className="items-center flex-1">
                                 <View className="flex-row items-center">
                                     <Ionicons name="checkmark-circle" size={14} color="#1B5E37" />
@@ -204,14 +206,14 @@ export default function CustomerListScreen() {
                                 <Text
                                     variant="body"
                                     weight="bold"
-                                    color="primary"
+                                    color="success"
                                     className="mt-0.5"
                                 >
                                     {stats.completed}
                                 </Text>
                             </View>
 
-                            <View className="h-8 w-[1px] bg-border-default align-self-center" />
+                            <View className="h-8 w-[1px] bg-border-subtle align-self-center" />
 
                             <View className="items-center flex-1">
                                 <View className="flex-row items-center">
@@ -228,18 +230,18 @@ export default function CustomerListScreen() {
                                 <Text
                                     variant="body"
                                     weight="bold"
-                                    color="primary"
+                                    color="warning"
                                     className="mt-0.5"
                                 >
                                     {stats.pending}
                                 </Text>
                             </View>
 
-                            <View className="h-8 w-[1px] bg-border-default align-self-center" />
+                            <View className="h-8 w-[1px] bg-border-subtle align-self-center" />
 
                             <View className="items-center flex-1">
                                 <View className="flex-row items-center">
-                                    <Ionicons name="map" size={14} color="#4A4A4A" />
+                                    <Ionicons name="map" size={14} color="#757575" />
                                     <Text
                                         variant="caption"
                                         weight="semibold"
@@ -264,15 +266,15 @@ export default function CustomerListScreen() {
 
                 {/* Search Bar */}
                 {stats.total > 0 && (
-                    <View className="flex-row items-center bg-white rounded-input border border-border-default px-3 h-10 mb-3">
-                        <Ionicons name="search" size={18} color="#9E9E9E" />
+                    <View className="flex-row items-center bg-white rounded-2xl border border-border-default px-3.5 h-11 mb-4 shadow-xs">
+                        <Ionicons name="search" size={18} color="#757575" />
                         <TextInput
                             placeholder="Search customer or address..."
-                            placeholderTextColor="#9E9E9E"
+                            placeholderTextColor="#757575"
                             value={searchQuery}
                             onChangeText={setSearchQuery}
                             autoCorrect={false}
-                            className="flex-1 ml-2 text-text-primary text-[14px] font-sans py-0"
+                            className="flex-1 ml-2 text-text-primary text-[14px] font-sans py-0 text-body"
                             style={{ textAlignVertical: "center" }}
                         />
                         {searchQuery.length > 0 && (
@@ -280,7 +282,7 @@ export default function CustomerListScreen() {
                                 onPress={() => setSearchQuery("")}
                                 activeOpacity={0.7}
                             >
-                                <Ionicons name="close-circle" size={18} color="#9E9E9E" />
+                                <Ionicons name="close-circle" size={18} color="#757575" />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -292,10 +294,10 @@ export default function CustomerListScreen() {
                         /* Search Empty State */
                         <View
                             style={CARD_SHADOW}
-                            className="rounded-card border border-border-default bg-white p-8 items-center justify-center mt-4"
+                            className="rounded-[24px] border border-border-default bg-white p-8 items-center justify-center mt-4"
                         >
-                            <View className="h-14 w-14 items-center justify-center rounded-full bg-gray-100 mb-4">
-                                <Ionicons name="search-outline" size={26} color="#9E9E9E" />
+                            <View className="h-14 w-14 items-center justify-center rounded-full bg-neutral-100 mb-4">
+                                <Ionicons name="search-outline" size={26} color="#757575" />
                             </View>
                             <Text variant="body" weight="bold" color="primary" align="center">
                                 No Results Found
@@ -304,7 +306,7 @@ export default function CustomerListScreen() {
                                 variant="body-sm"
                                 color="muted"
                                 align="center"
-                                className="mt-1 mb-5 px-4"
+                                className="mt-2 mb-5 px-4"
                             >
                                 {`We couldn't find any customers or locations matching "${searchQuery}"`}
                             </Text>
@@ -319,7 +321,7 @@ export default function CustomerListScreen() {
                         /* Route Complete/No Customers Empty State */
                         <View
                             style={CARD_SHADOW}
-                            className="rounded-card border border-border-default bg-white p-8 items-center justify-center mt-4"
+                            className="rounded-[24px] border border-border-default bg-white p-8 items-center justify-center mt-4"
                         >
                             <View className="h-20 w-20 items-center justify-center rounded-full bg-brand-light mb-6">
                                 <Ionicons name="people-outline" size={38} color="#1B5E37" />
@@ -358,99 +360,111 @@ export default function CustomerListScreen() {
                         // If pending, make it yellow. If completed/other, make it green.
                         const bgClass = isPending ? "bg-[#FEFCE8]" : "bg-[#E8F5EE]";
                         const borderClass = isPending ? "border-[#FEF9C3]" : "border-[#C2E0CC]";
-                        const statusTextColor = isPending ? "text-warning" : "text-success";
 
                         return (
                             <View
                                 key={stop.id}
                                 style={CARD_SHADOW}
-                                className={`mb-3 rounded-card border ${borderClass} ${bgClass} p-3.5 flex-row items-center justify-between`}
+                                className={`mb-3.5 rounded-[20px] border ${borderClass} ${bgClass} p-4 flex-row items-start gap-x-3.5`}
                             >
-                                <View className="flex-row items-center flex-1 pr-3">
-                                    {/* Circular Sequence/Check Badge */}
-                                    <View
-                                        className={`h-7 w-7 items-center justify-center rounded-full ${
-                                            isDelivered ? "bg-success" : "bg-white"
-                                        }`}
-                                        style={{ marginRight: 8 }}
-                                    >
-                                        {isDelivered ? (
-                                            <Ionicons
-                                                name="checkmark"
-                                                size={13}
-                                                color="#FFFFFF"
-                                            />
-                                        ) : (
-                                            <Text variant="caption" weight="bold" color="brand">
-                                                {stop.sequence_number}
-                                            </Text>
-                                        )}
-                                    </View>
+                                {/* Left side: Sequence/Check Badge */}
+                                <View
+                                    className={`h-9 w-9 items-center justify-center rounded-full shadow-xs ${
+                                        isDelivered ? "bg-success" : "bg-white"
+                                    }`}
+                                >
+                                    {isDelivered ? (
+                                        <Ionicons
+                                            name="checkmark"
+                                            size={16}
+                                            color="#FFFFFF"
+                                        />
+                                    ) : (
+                                        <Text variant="body" weight="bold" color="brand">
+                                            {stop.sequence_number}
+                                        </Text>
+                                    )}
+                                </View>
 
-                                    {/* Customer Metadata */}
-                                    <View className="flex-1 flex-row items-center justify-between">
+                                {/* Details side */}
+                                <View className="flex-1">
+                                    {/* Top Row: Customer Name & Status Badge */}
+                                    <View className="flex-row items-center justify-between mb-1.5">
                                         <Text
-                                            variant="body-sm"
-                                            weight="semibold"
+                                            variant="body"
+                                            weight="bold"
                                             color="primary"
+                                            className="flex-1 pr-2"
+                                            lines={1}
                                         >
                                             {stop.customer_name}
                                         </Text>
-                                        <View className="flex-row items-center gap-x-2">
-                                            {stop.customer_phone ? (
-                                                <TouchableOpacity
-                                                    onPress={() => Linking.openURL(`tel:${stop.customer_phone}`)}
-                                                    className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs"
-                                                >
-                                                    <Ionicons name="call" size={15} color="#1B5E37" />
-                                                </TouchableOpacity>
-                                            ) : null}
-                                            <TouchableOpacity
-                                                onPress={() => Alert.alert("Customer Address", stop.address || "No address added")}
-                                                className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs"
+
+                                        <View
+                                            className={`rounded-full px-2.5 py-0.5 border ${
+                                                isDelivered
+                                                    ? "bg-white/95 border-success/20"
+                                                    : isPending
+                                                    ? "bg-white/95 border-warning/20"
+                                                    : "bg-white/95 border-border-default"
+                                            }`}
+                                        >
+                                            <Text
+                                                variant="caption-sm"
+                                                weight="bold"
+                                                color={isDelivered ? "success" : isPending ? "warning" : "muted"}
+                                                transform="capitalize"
+                                                className="text-[10px]"
                                             >
-                                                <Ionicons name="information-circle" size={17} color="#1B5E37" />
-                                            </TouchableOpacity>
+                                                {isDelivered ? "Delivered" : isPending ? "Pending" : stop.order_status}
+                                            </Text>
                                         </View>
                                     </View>
-                                </View>
 
-                                {/* Status Badge */}
-                                <View className="flex-row items-center">
-                                    {isDelivered ? (
-                                        <View className="rounded-badge bg-white/90 border border-success/20 px-2 py-0.5" style={{ marginRight: 4 }}>
-                                            <Text
-                                                variant="caption-sm"
-                                                weight="semibold"
-                                                color="success"
-                                                className="text-[10px] capitalize font-bold"
+                                    {/* Middle Row: Address */}
+                                    <View className="flex-row items-start gap-x-1.5 mb-3.5">
+                                        <Ionicons name="location-outline" size={14} color="#757575" className="mt-0.5" />
+                                        <Text variant="body-sm" color="secondary" className="flex-1 leading-relaxed">
+                                            {stop.address || "Address not available"}
+                                        </Text>
+                                    </View>
+
+                                    {/* Bottom Row: Actions */}
+                                    <View className="flex-row items-center gap-x-2.5">
+                                        {stop.customer_phone ? (
+                                            <TouchableOpacity
+                                                onPress={() => Linking.openURL(`tel:${stop.customer_phone}`)}
+                                                activeOpacity={0.7}
+                                                className="flex-row items-center gap-x-1.5 bg-white border border-border-default rounded-xl px-3 py-1.5 shadow-xs"
                                             >
-                                                Delivered
+                                                <Ionicons name="call-outline" size={14} color="#1B5E37" />
+                                                <Text variant="caption-sm" weight="semibold" color="brand">
+                                                    Call
+                                                </Text>
+                                            </TouchableOpacity>
+                                        ) : null}
+
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                useGeofenceStore.setState({
+                                                    selectedStopId: stop.id,
+                                                    navigationStopId: stop.id,
+                                                });
+                                                useGeofenceStore.getState().fetchNavigationPolyline();
+                                                router.push({
+                                                    pathname: ROUTES.DRIVER.MAP,
+                                                    params: { selectStopId: stop.id }
+                                                } as any);
+                                            }}
+                                            activeOpacity={0.7}
+                                            className="flex-row items-center gap-x-1.5 bg-white border border-border-default rounded-xl px-3 py-1.5 shadow-xs"
+                                        >
+                                            <Ionicons name="map-outline" size={14} color="#1B5E37" />
+                                            <Text variant="caption-sm" weight="semibold" color="brand">
+                                                Navigate
                                             </Text>
-                                        </View>
-                                    ) : isPending ? (
-                                        <View className="rounded-badge bg-white/90 border border-warning/20 px-2 py-0.5" style={{ marginRight: 4 }}>
-                                            <Text
-                                                variant="caption-sm"
-                                                weight="semibold"
-                                                color="warning"
-                                                className="text-[10px] capitalize font-bold"
-                                            >
-                                                Pending
-                                            </Text>
-                                        </View>
-                                    ) : (
-                                        <View className="rounded-badge bg-white/90 border border-border-default px-2 py-0.5" style={{ marginRight: 4 }}>
-                                            <Text
-                                                variant="caption-sm"
-                                                weight="semibold"
-                                                color="muted"
-                                                className="text-[10px] capitalize font-bold"
-                                            >
-                                                {stop.order_status}
-                                            </Text>
-                                        </View>
-                                    )}
+                                        </TouchableOpacity>
+                                    </View>
                                 </View>
                             </View>
                         );

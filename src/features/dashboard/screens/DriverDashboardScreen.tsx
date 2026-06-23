@@ -353,7 +353,7 @@ export function DriverDashboardScreen() {
                     {/* Rest of the content */}
                     <View className={screenX}>
 
-                        <View className="mt-4 flex-row justify-between gap-2.5">
+                        <View className="mt-5 flex-row justify-between gap-3">
                             <StatCard icon="water" label="Bottles" value="128" color="#1B5E37" />
                             <StatCard icon="restaurant" label="Special" value="16" color="#D4872A" />
                             <StatCard icon="return-down-back" label="Returns" value="52" color="#757575" />
@@ -361,38 +361,45 @@ export function DriverDashboardScreen() {
 
                         <View className="mt-5">
                             {activeStop ? (
-                                <View className="rounded-2xl border-l-4 border-l-brand-primary border-y border-r border-border-default bg-bg-card p-5 shadow-sm">
-                                    <View className="mb-3 flex-row items-center justify-between">
-                                        <Text
-                                            variant="caption"
-                                            color="brand"
-                                            weight="bold"
-                                            transform="uppercase"
-                                            className="tracking-widest"
-                                        >
-                                            Next Stop
-                                        </Text>
+                                <View className="rounded-[24px] border border-border-default bg-bg-card p-5 shadow-md relative overflow-hidden">
+                                    {/* Active left indicator bar */}
+                                    <View className="absolute left-0 top-0 bottom-0 w-1.5 bg-brand-primary" />
+                                    
+                                    <View className="mb-4 flex-row items-center justify-between pl-1">
+                                        <View className="flex-row items-center gap-x-2">
+                                            <View className="h-2 w-2 rounded-full bg-brand-primary" />
+                                            <Text
+                                                variant="caption"
+                                                color="brand"
+                                                weight="bold"
+                                                transform="uppercase"
+                                                className="tracking-widest"
+                                            >
+                                                Next Stop
+                                            </Text>
+                                        </View>
 
-                                        <View className="rounded-full bg-brand-light px-2.5 py-1">
+                                        <View className="rounded-full bg-brand-light px-3 py-1">
                                             <Text variant="caption-sm" color="brand" weight="bold">
                                                 Stop #{activeStop.sequence_number}
                                             </Text>
                                         </View>
                                     </View>
 
-                                    <Text variant="subhead" weight="bold" color="primary">
-                                        {activeStop.customer_name}
-                                    </Text>
+                                    <View className="pl-1">
+                                        <Text variant="subhead" weight="bold" color="primary">
+                                            {activeStop.customer_name}
+                                        </Text>
 
-                                    <Text variant="body-sm" color="secondary" className="mt-1">
-                                        {activeStop.address ? activeStop.address : "Address not available yet"}
-                                    </Text>
-                                    {/* 
-                                    <View className="mt-4 flex-row flex-wrap gap-2">
-                                        {activeStop.order ? <ItemBadge label={activeStop.order} /> : null}
-                                    </View> */}
+                                        <View className="mt-2.5 flex-row items-start gap-x-2">
+                                            <Ionicons name="location-outline" size={16} color="#757575" className="mt-0.5" />
+                                            <Text variant="body-sm" color="secondary" className="flex-1 leading-relaxed">
+                                                {activeStop.address ? activeStop.address : "Address not available yet"}
+                                            </Text>
+                                        </View>
+                                    </View>
 
-                                    <View className="mt-5">
+                                    <View className="mt-5 pl-1">
                                         <Button
                                             label={canMark ? "Mark Delivered" : "Move Closer to Enable"}
                                             intent="primary"
@@ -405,27 +412,28 @@ export function DriverDashboardScreen() {
                                     </View>
                                 </View>
                             ) : (
-                                <View className="rounded-2xl border border-border-default bg-bg-card p-5 shadow-sm">
-                                    <Text variant="subhead" weight="bold" color="primary">
-                                        No active stop
+                                <View className="rounded-[24px] border border-border-default bg-bg-card p-6 shadow-sm items-center">
+                                    <View className="h-12 w-12 items-center justify-center rounded-full bg-neutral-100 mb-4">
+                                        <Ionicons name="location-outline" size={24} color="#757575" />
+                                    </View>
+                                    <Text variant="subhead" weight="bold" color="primary" align="center">
+                                        No Active Stop
                                     </Text>
 
-                                    <Text variant="body-sm" color="secondary" className="mt-1">
+                                    <Text variant="body-sm" color="secondary" align="center" className="mt-2 mb-5 leading-relaxed">
                                         Go to your location and start approaching the next customer to see the highlighted card.
                                     </Text>
 
-                                    <View className="mt-5">
-                                        <Button
-                                            label="Go to Location"
-                                            intent="primary"
-                                            size="lg"
-                                            fullWidth
-                                            leftIcon={<Ionicons name="locate-outline" size={20} color="#fff" />}
-                                            onPress={() => {
-                                                mapRef.current?.centerOnUser();
-                                            }}
-                                        />
-                                    </View>
+                                    <Button
+                                        label="Go to Location"
+                                        intent="primary"
+                                        size="lg"
+                                        fullWidth
+                                        leftIcon={<Ionicons name="locate-outline" size={20} color="#fff" />}
+                                        onPress={() => {
+                                            mapRef.current?.centerOnUser();
+                                        }}
+                                    />
                                 </View>
                             )}
                         </View>
@@ -436,7 +444,7 @@ export function DriverDashboardScreen() {
                                 intent="secondary"
                                 size="lg"
                                 fullWidth
-                                className="mt-4"
+                                className="mt-4 bg-[#D1E0D6] active:bg-[#B8CFC0] border border-[#1B5E37]/15"
                                 leftIcon={<Ionicons name="people-outline" size={20} color="#1B5E37" />}
                                 onPress={() => router.push(ROUTES.DRIVER.ALL_CUSTOMERS as any)}
                             />
@@ -447,12 +455,12 @@ export function DriverDashboardScreen() {
                             color="primary"
                             weight="semibold"
                             transform="uppercase"
-                            className="mt-6 mb-3 tracking-widest"
+                            className="mt-6 mb-3.5 tracking-widest"
                         >
                             Quick Actions
                         </Text>
 
-                        <View className="flex-row flex-wrap justify-between gap-y-3">
+                        <View className="flex-row flex-wrap justify-between gap-y-3.5">
                             <QuickAction
                                 icon="map"
                                 label="Live Map"
@@ -491,37 +499,41 @@ export function DriverDashboardScreen() {
                             />
                         </View>
 
-                        <View className="mt-2 rounded-2xl border border-border-subtle bg-bg-card p-5 shadow-sm">
-                            <Text
-                                variant="caption"
-                                color="muted"
-                                transform="uppercase"
-                                weight="semibold"
-                                className="mb-3 tracking-widest"
-                            >
-                                Today's Summary
-                            </Text>
+                        <View className="mt-4 rounded-[24px] bg-bg-card p-5 shadow-sm">
+                            <View className="mb-4 flex-row items-center gap-x-2">
+                                <Ionicons name="stats-chart-outline" size={16} color="#1B5E37" />
+                                <Text
+                                    variant="caption"
+                                    color="muted"
+                                    transform="uppercase"
+                                    weight="semibold"
+                                    className="tracking-wider"
+                                >
+                                    Today's Summary
+                                </Text>
+                            </View>
 
                             <View className="flex-row items-center justify-between">
-                                <SummaryItem label="Delivered" value="38" />
+                                <SummaryItem label="Delivered" value="38" color="#1B5E37" />
                                 <View className="w-px h-8 bg-border-subtle" />
-                                <SummaryItem label="Pending" value="24" />
+                                <SummaryItem label="Pending" value="24" color="#D4872A" />
                                 <View className="w-px h-8 bg-border-subtle" />
-                                <SummaryItem label="COD" value="₹1,240" />
+                                <SummaryItem label="COD" value="₹1,240" color="#2E7D52" />
                             </View>
                         </View>
 
-                        <View className="mt-5 flex-row items-start gap-x-3 rounded-xl border border-warning/20 bg-warningLight/50 p-4">
-                            <Ionicons name="warning" size={20} color="#D4872A" />
+                        <View className="mt-5 flex-row items-start gap-x-3.5 rounded-[20px] border border-warning/20 bg-[#FDF3E7] p-4">
+                            <View className="h-8 w-8 items-center justify-center rounded-full bg-[#D4872A]/10">
+                                <Ionicons name="alert-circle" size={18} color="#D4872A" />
+                            </View>
                             <View className="flex-1">
                                 <Text variant="label" color="warning" weight="bold">
                                     Special Instruction
                                 </Text>
                                 <Text
                                     variant="body-sm"
-                                    color="warning"
-                                    className="mt-1"
-                                    style={{ opacity: 0.9 }}
+                                    color="secondary"
+                                    className="mt-1 leading-relaxed"
                                 >
                                     Customer Amit Kumar has requested early delivery before 8 AM.
                                 </Text>
@@ -530,93 +542,115 @@ export function DriverDashboardScreen() {
                     </View>
                 </Animated.ScrollView>
             </SafeAreaView>
-        </ScreenWrapper>
-    );
-}
+         </ScreenWrapper>
+     );
+ }
 
-function StatCard({
-    icon,
-    label,
-    value,
-    color,
-}: {
-    icon: any;
-    label: string;
-    value: string;
-    color: string;
-}) {
-    return (
-        <View className="flex-1 items-center rounded-xl border border-border-subtle bg-bg-card p-3.5 shadow-xs">
-            <View
-                className="mb-2 h-8 w-8 items-center justify-center rounded-full"
-                style={{ backgroundColor: color + "15" }}
-            >
-                <Ionicons name={icon} size={16} color={color} />
-            </View>
-            <Text variant="subhead" weight="bold" color="primary" lines={1}>
-                {value}
-            </Text>
-            <Text variant="caption-sm" color="muted" lines={1} className="mt-0.5">
-                {label}
-            </Text>
-        </View>
-    );
-}
+ function StatCard({
+     icon,
+     label,
+     value,
+     color,
+ }: {
+     icon: any;
+     label: string;
+     value: string;
+     color: string;
+ }) {
+     return (
+         <View className="flex-1 rounded-[20px] bg-bg-card p-4 shadow-sm relative overflow-hidden">
+             {/* Soft background shape */}
+             <View 
+                 className="absolute -right-3 -top-3 w-12 h-12 rounded-full opacity-[0.04]" 
+                 style={{ backgroundColor: color }} 
+             />
+             
+             <View
+                 className="mb-3.5 h-9 w-9 items-center justify-center rounded-xl"
+                 style={{ backgroundColor: color + "12" }}
+             >
+                 <Ionicons name={icon} size={18} color={color} />
+             </View>
+             
+             <Text variant="heading" weight="bold" color="primary" lines={1}>
+                 {value}
+             </Text>
+             
+             <Text variant="caption-sm" color="muted" weight="semibold" lines={1} className="mt-1">
+                 {label}
+             </Text>
+         </View>
+     );
+ }
 
-function ItemBadge({ label }: { label: string }) {
-    return (
-        <View className="rounded-full border border-brand/10 bg-brand-light px-3 py-1.5">
-            <Text variant="caption" color="brand" weight="semibold">
-                {label}
-            </Text>
-        </View>
-    );
-}
+ function ItemBadge({ label }: { label: string }) {
+     return (
+         <View className="rounded-full border border-brand/10 bg-brand-light px-3 py-1.5">
+             <Text variant="caption" color="brand" weight="semibold">
+                 {label}
+             </Text>
+         </View>
+     );
+ }
 
-function QuickAction({
-    icon,
-    label,
-    onPress,
-    color,
-}: {
-    icon: any;
-    label: string;
-    onPress: () => void;
-    color: string;
-}) {
-    return (
-        <TouchableOpacity
-            onPress={onPress}
-            className="mb-3 w-[48.5%] flex-row items-center gap-x-3 rounded-xl border border-border-subtle bg-bg-card p-3 shadow-xs"
-        >
-            <View
-                className="h-9 w-9 items-center justify-center rounded-lg"
-                style={{ backgroundColor: color + "15" }}
-            >
-                <Ionicons name={icon} size={18} color={color} />
-            </View>
-            <Text
-                variant="body-sm"
-                color="primary"
-                weight="semibold"
-                lines={1}
-                className="flex-1"
-            >
-                {label}
-            </Text>
-        </TouchableOpacity>
-    );
-}
+ function QuickAction({
+     icon,
+     label,
+     onPress,
+     color,
+ }: {
+     icon: any;
+     label: string;
+     onPress: () => void;
+     color: string;
+ }) {
+     return (
+         <TouchableOpacity
+             onPress={onPress}
+             activeOpacity={0.7}
+             className="w-[30.5%] items-center justify-center rounded-[20px] bg-bg-card p-3.5 shadow-sm border border-border-subtle/50"
+         >
+             <View
+                 className="mb-2.5 h-11 w-11 items-center justify-center rounded-full"
+                 style={{ backgroundColor: color + "10" }}
+             >
+                 <Ionicons name={icon} size={22} color={color} />
+             </View>
+             <Text
+                 variant="caption"
+                 color="primary"
+                 weight="bold"
+                 align="center"
+                 lines={1}
+             >
+                 {label}
+             </Text>
+         </TouchableOpacity>
+     );
+ }
 
-function SummaryItem({ label, value }: { label: string; value: string }) {
-    return (
-        <View className="flex-1 items-center">
-            <Text variant="subhead" weight="bold" color="primary" lines={1}>
-                {value}
-            </Text>
-            <Text variant="caption-sm" color="muted" lines={1} className="mt-1">
-                {label}
-            </Text>
-        </View>
-    );
-}
+ function SummaryItem({
+     label,
+     value,
+     color,
+ }: {
+     label: string;
+     value: string;
+     color?: string;
+ }) {
+     return (
+         <View className="flex-1 items-center">
+             <Text
+                 variant="subhead"
+                 weight="bold"
+                 lines={1}
+                 style={color ? { color } : undefined}
+             >
+                 {value}
+             </Text>
+             <Text variant="caption-sm" color="muted" lines={1} className="mt-1 uppercase tracking-wider">
+                 {label}
+             </Text>
+         </View>
+     );
+ }

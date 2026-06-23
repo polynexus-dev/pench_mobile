@@ -14,6 +14,7 @@ import { useTrackingStore } from "@store/trackingStore";
 export type OSMMapHandle = {
   centerOnUser: () => void;
   updateDriverHeading: (heading: number) => void;
+  zoomToStop: (lat: number, lng: number) => void;
 };
 
 type RouteStop = {
@@ -74,6 +75,18 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
       })();
       true;
     `);
+    },
+
+    zoomToStop: (lat: number, lng: number) => {
+      if (!webViewReady || !webRef.current) return;
+      webRef.current.injectJavaScript(`
+        (function() {
+          if (window.zoomToStop) {
+            window.zoomToStop(${Number(lat)}, ${Number(lng)});
+          }
+        })();
+        true;
+      `);
     },
 
   }));
@@ -340,6 +353,11 @@ const OSMMap = forwardRef<OSMMapHandle, OSMMapProps>(function OSMMap(
       if (userMarker) {
         userMarker.setIcon(makeDriverArrowIcon(currentHeading));
       }
+    };
+
+    window.zoomToStop = function(lat, lng) {
+      autoCenter = false;
+      map.flyTo([lat, lng], 17, { animate: true, duration: 1.5 });
     };
 
     map.on('dragstart', function() {

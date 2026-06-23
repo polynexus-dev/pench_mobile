@@ -77,30 +77,34 @@ export default function StopListItem({
   return (
     <Animated.View
       style={{ transform: [{ scale: pulse ? pulseAnim : 1 }] }}
-      className={`mb-3 rounded-3xl border p-4 shadow-sm ${
+      className={`mb-3 rounded-[20px] border p-4 shadow-sm ${
         isSelected
           ? "border-brand-primary bg-brand-light"
           : isCompleted
-            ? "border-border-default bg-bg-card opacity-70"
-            : "border-border-default bg-bg-card"
+            ? "border-border-subtle bg-bg-card opacity-70"
+            : "border-border-subtle bg-bg-card"
       }`}
     >
       <Container {...containerProps}>
-        <View className="flex-row items-start justify-between">
-          <View className="flex-row flex-1 items-center gap-x-3 pr-2">
+        <View className="flex-row items-center justify-between">
+          <View className="flex-row flex-1 items-center gap-x-3.5 pr-2">
             <View
-              className={`h-10 w-10 items-center justify-center rounded-full ${
+              className={`h-9 w-9 items-center justify-center rounded-full shadow-xs ${
                 isCompleted
-                  ? "bg-border-default"
+                  ? "bg-neutral-100"
                   : isSelected
                     ? "bg-brand-primary"
-                    : "bg-brand-primary"
+                    : "bg-brand-light"
               }`}
             >
               {isCompleted ? (
-                <Ionicons name="checkmark" size={16} color="#fff" />
+                <Ionicons name="checkmark-sharp" size={16} color="#1B5E37" />
               ) : (
-                <Text variant="caption" color="inverse" weight="bold">
+                <Text
+                  variant="body-sm"
+                  weight="bold"
+                  color={isSelected ? "inverse" : "brand"}
+                >
                   {sequenceNumber}
                 </Text>
               )}
@@ -110,21 +114,21 @@ export default function StopListItem({
               <Text
                 variant="body"
                 color="primary"
-                weight="semibold"
+                weight="bold"
                 lines={1}
               >
                 {customerName}
               </Text>
 
-              <Text variant="body-sm" color="muted" lines={1} className="mt-0.5">
+              <Text variant="caption" color="secondary" lines={1} className="mt-1">
                 {address}
               </Text>
 
               {items.length > 0 && (
-                <View className="mt-2 flex-row flex-wrap gap-1">
+                <View className="mt-2.5 flex-row flex-wrap gap-1">
                   {items.map((item) => (
-                    <View key={item} className="rounded-full bg-bg-input px-2 py-1">
-                      <Text variant="caption" color="secondary">
+                    <View key={item} className="rounded-full bg-bg-input px-2.5 py-0.5">
+                      <Text variant="caption-sm" color="secondary" weight="semibold">
                         {item}
                       </Text>
                     </View>
@@ -135,8 +139,8 @@ export default function StopListItem({
           </View>
 
           {showNearbyTag && isSelected && (
-            <View className="rounded-full bg-success px-3 py-1">
-              <Text variant="caption" color="inverse" weight="semibold">
+            <View className="rounded-full bg-success px-2.5 py-0.5 border border-success/15 shadow-xs">
+              <Text variant="caption-sm" color="inverse" weight="bold" className="text-[10px] uppercase tracking-wider">
                 Nearby
               </Text>
             </View>

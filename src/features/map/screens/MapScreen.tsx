@@ -13,7 +13,7 @@ import {
   BottomSheetScrollView,
 } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
-import { useFocusEffect, useRouter } from "expo-router";
+import { useFocusEffect, useRouter, useLocalSearchParams } from "expo-router";
 import OSMMap, { OSMMapHandle } from "../components/OSMMap";
 import { useAuthStore } from "@store/authStore";
 import { useTrackingStore } from "@store/trackingStore";
@@ -33,6 +33,7 @@ type RouteStop = {
   sequence_number: number;
   order: string | null;
   customer_name: string;
+  customer_phone?: string;
   address: string;
   latitude: number;
   longitude: number;
@@ -55,6 +56,7 @@ export default function MapScreen() {
   const mapRef = useRef<OSMMapHandle>(null);
   const lastSnappedGroupKey = useRef<string | null>(null);
   const insets = useSafeAreaInsets();
+  const { selectStopId } = useLocalSearchParams<{ selectStopId?: string }>();
 
   const isTripStarted = useTrackingStore((s) => s.isTripStarted);
   const trackingLoading = useTrackingStore((s) => s.loading);
@@ -169,13 +171,30 @@ export default function MapScreen() {
 
   useEffect(() => {
     if (!route) return;
+
+    if (selectStopId) {
+      const stop = route.stops?.find((s) => s.id === selectStopId);
+      if (stop) {
+        const key = getLocationKey(stop.latitude, stop.longitude);
+        setSelectedGroupKey(key);
+        setSelectedStopId(stop.id);
+
+        if (typeof stop.latitude === "number" && typeof stop.longitude === "number") {
+          setTimeout(() => {
+            mapRef.current?.zoomToStop(stop.latitude, stop.longitude);
+          }, 400);
+        }
+        return;
+      }
+    }
+
     const firstTransit = route.stops?.find((s) => s.order_status === "in_transit") ?? null;
     if (firstTransit && !selectedGroupKey) {
       const key = getLocationKey(firstTransit.latitude, firstTransit.longitude);
       setSelectedGroupKey(key);
       setSelectedStopId(firstTransit.id);
     }
-  }, [route, selectedGroupKey, setSelectedStopId]);
+  }, [route, selectedGroupKey, selectStopId, setSelectedStopId]);
 
   useEffect(() => {
     if (!nearStopId) {
@@ -657,6 +676,7 @@ export default function MapScreen() {
                     address={selectedStop.address}
                     items={[]}
                     orderId={selectedStop.order ?? ""}
+                    customerPhone={selectedStop.customer_phone}
                     disabled={!canActivateCard || !routeAvailable}
                     onMarkDelivered={handleMarkDelivered}
                     onMarkUndelivered={handleMarkUndelivered}
@@ -678,11 +698,12 @@ export default function MapScreen() {
           )}
 
           <Button
-            className="mt-6"
+            className="mt-6 bg-[#D1E0D6] active:bg-[#B8CFC0] border border-[#1B5E37]/15"
             label="Show all Customers"
             intent="secondary"
             fullWidth
             size="lg"
+            leftIcon={<Ionicons name="people-outline" size={20} color="#1B5E37" />}
             disabled={!routeAvailable}
             onPress={() => {
               if (!routeAvailable) return;

@@ -42,7 +42,7 @@ export function LoginTabBar({ active, onChange }: LoginTabBarProps) {
     return (
         <View
             onLayout={handleLayout}
-            className="flex-row w-full rounded-full bg-brand-light border border-[#ABBAAE] p-2 mb-6 relative"
+            className="flex-row w-full rounded-full bg-[#D1E0D6] border border-[#ABBAAE] p-2 mb-6 relative"
         >
             {/* ── Animated sliding pill ─────────────────────────────── */}
             <Animated.View
