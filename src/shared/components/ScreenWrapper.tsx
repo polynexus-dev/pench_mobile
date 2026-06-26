@@ -15,6 +15,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { cn } from "@/utils/cn";
 import { StatusBar } from "expo-status-bar";
+import { BlurView } from "expo-blur";
 
 type Props = {
     title?: string;
@@ -48,6 +49,7 @@ export function ScreenWrapper({
     const insets = useSafeAreaInsets();
     const router = useRouter();
     const bottomPadding = useBottomTabPadding();
+    const headerHeight = Platform.OS === "ios" ? insets.top + 50 : insets.top + 58;
 
     return (
         <View 
@@ -63,14 +65,31 @@ export function ScreenWrapper({
                 <View
                     style={[
                         styles.header,
-                        headerBgColor ? { backgroundColor: headerBgColor } : null,
                         {
                             paddingTop: Platform.OS === "ios"
                                 ? insets.top + 12
-                                : insets.top + 8,
+                                : insets.top + 16,
+                            paddingBottom: Platform.OS === "ios"
+                                ? 12
+                                : 16,
                         },
                     ]}
                 >
+                    {/* Frosted background blur overlay */}
+                    <View
+                        style={[
+                            StyleSheet.absoluteFillObject,
+                            {
+                                backgroundColor: headerBgColor
+                                    ? (headerBgColor.startsWith("#") && headerBgColor.length === 7
+                                        ? `${headerBgColor}d9`
+                                        : headerBgColor)
+                                    : "rgba(18, 18, 18, 0.85)",
+                            },
+                        ]}
+                    />
+                    <BlurView tint="dark" intensity={65} style={StyleSheet.absoluteFillObject} />
+
                     <View style={styles.side}>
                         {showBack && (
                             <Pressable onPress={() => onBack ? onBack() : router.back()} hitSlop={10}>
@@ -100,7 +119,7 @@ export function ScreenWrapper({
                         contentContainerStyle, 
                         !disablePadding && { 
                             paddingBottom: bottomPadding,
-                            paddingTop: showHeader ? 0 : insets.top + 16,
+                            paddingTop: showHeader ? headerHeight : insets.top + 16,
                         }
                     ]}
                     showsVerticalScrollIndicator={false}
@@ -112,7 +131,7 @@ export function ScreenWrapper({
                     style={[
                         { flex: 1 },
                         !disablePadding && { 
-                            paddingTop: showHeader ? 0 : insets.top + 16,
+                            paddingTop: showHeader ? headerHeight : insets.top + 16,
                             paddingBottom: bottomPadding,
                         }
                     ]}
@@ -130,12 +149,17 @@ const styles = StyleSheet.create({
     },
 
     header: {
+        position: "absolute",
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 50,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: 16,
         paddingBottom: 12,
-        backgroundColor: "#121212",
+        backgroundColor: "transparent",
     },
 
     title: {

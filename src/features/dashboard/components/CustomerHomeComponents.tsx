@@ -12,12 +12,18 @@ import {
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useRouter } from "expo-router";
+import { useCartStore } from "@/store/useCartStore";
 
 const { width } = Dimensions.get("window");
 const PRODUCT_CARD_WIDTH = (width - 40) / 2; // 2 columns with gaps
 
 export function HeaderSection({ locationName = "Bilzen, Tanjungbalai" }: { locationName?: string }) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const cartItems = useCartStore((s) => s.items);
+  const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+
   return (
     <LinearGradient
       colors={["#f5d591ff", "#FDFDFD"]}
@@ -40,8 +46,16 @@ export function HeaderSection({ locationName = "Bilzen, Tanjungbalai" }: { locat
             </View>
           </View>
         </View>
-        <TouchableOpacity className="h-10 w-10 items-center justify-center rounded-full border border-gray-400 bg-transparent">
-          <Ionicons name="person-outline" size={18} color="#333" />
+        <TouchableOpacity
+          onPress={() => router.push("/(customer)/cart")}
+          className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200/50 relative"
+        >
+          <Ionicons name="cart-outline" size={20} color="#0C5A35" />
+          {cartCount > 0 && (
+            <View className="absolute -top-1.5 -right-1.5 bg-[#E53E3E] rounded-full min-w-[18px] h-[18px] items-center justify-center px-1">
+              <Text className="text-white text-[10px] font-black">{cartCount}</Text>
+            </View>
+          )}
         </TouchableOpacity>
       </View>
 

@@ -1,29 +1,30 @@
+import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
+import { useRouter } from "expo-router";
 import React from "react";
 import {
   Alert,
+  Animated,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   View,
-  useWindowDimensions,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
 
-import { useAuthStore } from "@store/authStore";
-import { useLogout } from "@features/auth/hooks/useLogout";
-import { Input, Button } from "@/shared/ui";
-import { Text } from "@/shared/ui/Text/Text";
-import { httpClient } from "@/services/api/httpClient";
-import { buildUrl } from "@/services/api/buildUrl";
 import { useToast } from "@/hooks/useToast";
+import { buildUrl } from "@/services/api/buildUrl";
+import { httpClient } from "@/services/api/httpClient";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { Button, Input } from "@/shared/ui";
+import { Text } from "@/shared/ui/Text/Text";
+import { useLogout } from "@features/auth/hooks/useLogout";
+import { useAuthStore } from "@store/authStore";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  value?: string;
-  helper?: string;
   onPress?: () => void;
   danger?: boolean;
 }
@@ -31,8 +32,6 @@ interface MenuItemProps {
 function ProfileActionItem({
   icon,
   label,
-  value,
-  helper,
   onPress,
   danger,
 }: MenuItemProps) {
@@ -42,49 +41,30 @@ function ProfileActionItem({
       onPress={onPress}
       className="flex-row items-center justify-between px-4 py-4 bg-white"
     >
-      <View className="flex-row flex-1 items-center mr-4">
+      <View className="flex-row items-center flex-1">
         <Ionicons
           name={icon}
-          size={22}
-          color={danger ? "#DC2626" : "#4A4A4A"}
+          size={20}
+          color={danger ? "#E53E3E" : "#4A4A4A"}
         />
-        <View className="ml-4 flex-1">
-          <Text
-            className={`text-[15px] font-semibold ${danger ? "text-red-600 font-bold" : "text-text-primary"
-              }`}
-          >
-            {label}
-          </Text>
-          {helper ? (
-            <Text className="mt-0.5 text-xs text-text-muted">
-              {helper}
-            </Text>
-          ) : null}
-        </View>
+        <Text
+          className={`ml-3.5 text-[15px] font-semibold ${danger ? "text-[#E53E3E]" : "text-[#1A1A1A]"
+            }`}
+        >
+          {label}
+        </Text>
       </View>
-
-      <View className="flex-row items-center flex-shrink max-w-[50%]">
-        {value ? (
-          <Text
-            numberOfLines={1}
-            ellipsizeMode="tail"
-            className="text-[14px] text-text-secondary mr-2 font-medium flex-shrink"
-          >
-            {value}
-          </Text>
-        ) : null}
-        {!danger && (
-          <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
-        )}
-      </View>
+      {!danger && (
+        <Ionicons name="chevron-forward" size={16} color="#CCCCCC" />
+      )}
     </TouchableOpacity>
   );
 }
 
 function SectionTitle({ title }: { title: string }) {
   return (
-    <View className="mb-2 mt-6 px-1">
-      <Text className="text-[17px] font-bold text-text-primary">
+    <View className="mt-5 mb-2.5 px-1">
+      <Text className="text-[14px] font-bold text-[#4A4A4A]">
         {title}
       </Text>
     </View>
@@ -93,106 +73,30 @@ function SectionTitle({ title }: { title: string }) {
 
 function CardShell({ children }: { children: React.ReactNode }) {
   return (
-    <View className="overflow-hidden rounded-2xl bg-white border border-neutral-100 shadow-xs">
+    <View className="overflow-hidden rounded-2xl bg-white border border-[#F0F2F5] shadow-xs">
       {children}
     </View>
   );
 }
 
-interface ProfileCardProps {
-  initials: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  activeView: 'view' | 'edit_profile' | 'change_password';
-  openEditProfile: () => void;
+interface StatsCardProps {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
 }
 
-function ProfileCard({
-  initials,
-  fullName,
-  email,
-  phone,
-  activeView,
-  openEditProfile,
-}: ProfileCardProps) {
+function StatsCard({ icon, label, onPress }: StatsCardProps) {
   return (
-    <View className="bg-white rounded-3xl p-5 border border-neutral-100 shadow-xs mt-2">
-      {/* Top Row: Avatar + Details + Role Badge */}
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center flex-1">
-          {/* Avatar Box */}
-          <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-primary/10 border border-brand-primary/20">
-            <Text variant="heading" weight="bold" className="text-brand-primary text-xl">
-              {initials}
-            </Text>
-          </View>
-
-          {/* Meta */}
-          <View className="ml-4 flex-1">
-            <Text variant="heading" weight="bold" className="text-text-primary">
-              {fullName}
-            </Text>
-            <Text variant="body-sm" color="muted" className="mt-0.5" numberOfLines={1}>
-              {email}
-            </Text>
-            <View className="flex-row items-center border border-brand-primary/20 bg-brand-primary/5 px-2.5 py-1 rounded-full mt-2 self-start">
-              <Ionicons name="shield-checkmark-outline" size={12} color="#1B5E37" className="mr-1" />
-              <Text variant="caption-sm" color="brand" weight="bold">
-                Customer
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {activeView === "view" && (
-          <TouchableOpacity
-            onPress={openEditProfile}
-            className="flex-row items-center bg-brand-primary/10 border border-brand-primary/20 px-3 py-1.5 rounded-full"
-          >
-            <Ionicons name="pencil-outline" size={14} color="#1B5E37" className="mr-1" />
-            <Text variant="caption-sm" color="brand" weight="bold">
-              Edit
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {activeView === "view" && (
-        <>
-          {/* Divider */}
-          <View className="h-px bg-neutral-100 my-4" />
-
-          {/* Phone Info Chip */}
-          <TouchableOpacity
-            activeOpacity={phone ? 1 : 0.7}
-            onPress={!phone ? openEditProfile : undefined}
-            className="flex-row items-center justify-between bg-neutral-50 rounded-2xl p-3.5 border border-neutral-100"
-          >
-            <View className="flex-row items-center flex-1">
-              <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                <Ionicons name="call-outline" size={20} color="#1B5E37" />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text variant="caption" color="muted">
-                  Phone
-                </Text>
-                <Text
-                  variant="body"
-                  weight="semibold"
-                  className={phone ? "text-text-primary" : "text-brand-primary"}
-                >
-                  {phone ? phone : "Add phone number"}
-                </Text>
-              </View>
-            </View>
-            {!phone && (
-              <Ionicons name="add-circle-outline" size={18} color="#1B5E37" />
-            )}
-          </TouchableOpacity>
-        </>
-      )}
-    </View>
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      className="flex-1 bg-white rounded-[20px] py-5 items-center justify-center border border-[#F0F2F5] shadow-xs"
+    >
+      <Ionicons name={icon} size={24} color="#0A3925" className="mb-2" />
+      <Text className="text-[13px] font-semibold text-[#1A1A1A] text-center">
+        {label}
+      </Text>
+    </TouchableOpacity>
   );
 }
 
@@ -217,6 +121,22 @@ export function CustomerProfileScreen() {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+
+  const [showStickyHeader, setShowStickyHeader] = React.useState(false);
+  const stickyOpacity = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(stickyOpacity, {
+      toValue: showStickyHeader ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [showStickyHeader]);
+
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowStickyHeader(offsetY > 80);
+  };
 
   const openEditProfile = () => {
     setFirstName(user?.first_name ?? "");
@@ -339,321 +259,349 @@ export function CustomerProfileScreen() {
 
   const dashboard = user?.customer_dashboard;
 
-  const headerTitle = activeView === "view"
-    ? "Profile"
-    : activeView === "edit_profile"
-      ? "Edit Profile"
-      : "Change Password";
-
   return (
     <ScreenWrapper
-      title={headerTitle}
-      showHeader
-      showBack={router.canGoBack() || activeView !== "view"}
-      onBack={handleBackPress}
-      headerBgColor="#1B5E37"
+      showHeader={false}
       disablePadding
-      className="bg-[#1B5E37]"
+      className="bg-[#F7F9FA]"
+      screenBgColor="#F7F9FA"
     >
+      <Animated.View
+        pointerEvents={showStickyHeader ? "auto" : "none"}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          paddingTop: insets.top,
+          opacity: stickyOpacity,
+        }}
+      >
+        {/* Frosted translucent light green overlay */}
+        {/* <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(227, 245, 233, 0.85)" }]} /> */}
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "#a5beadd9" }]} />
+        <BlurView tint="light" intensity={60} style={StyleSheet.absoluteFillObject} />
+
+        {/* Header row content */}
+        <View className="flex-row justify-between items-center px-4 h-16">
+          {(router.canGoBack() || activeView !== "view") ? (
+            <TouchableOpacity
+              onPress={handleBackPress}
+              className="w-10 h-10 items-center justify-center"
+              hitSlop={10}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+            </TouchableOpacity>
+          ) : (
+            <View className="w-10" />
+          )}
+
+          <Text className="text-[16px] font-bold text-[#1A1A1A]">
+            {activeView === "view" ? "Profile" : (activeView === "edit_profile" ? "Edit Profile" : "Change Password")}
+          </Text>
+
+          {activeView === "view" ? (
+            <TouchableOpacity
+              onPress={openEditProfile}
+              className="h-10 justify-center items-end"
+              hitSlop={10}
+            >
+              <Text className="text-[16px] font-semibold text-[#1B5E37]">
+                Edit
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View className="w-10" />
+          )}
+        </View>
+      </Animated.View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 120 }}
-        className="bg-[#EAEEE4]"
+        className="bg-[#F7F9FA]"
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
       >
-        {/* Header Section */}
-        <View className="px-4 pt-6 relative">
-          {activeView === "view" ? (
-            <>
-              {/* Fused Profile & Active Status Card */}
-              <ProfileCard
-                initials={initials}
-                fullName={fullName}
-                email={user?.email ?? "—"}
-                phone={user?.phone ?? ""}
-                activeView={activeView}
-                openEditProfile={openEditProfile}
-              />
+        {/* Header Section with Linear Gradient */}
+        <LinearGradient
+          colors={["#E3F5E9", "#F7F9FA"]}
+          style={{ paddingTop: insets.top }}
+          className="pb-6"
+        >
+          {/* Custom Header Row */}
+          <View className="flex-row justify-between items-center px-4 h-16">
+            {(router.canGoBack() || activeView !== "view") ? (
+              <TouchableOpacity
+                onPress={handleBackPress}
+                className="w-10 h-10 items-center justify-center"
+                hitSlop={10}
+              >
+                <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            ) : (
+              <View className="w-10" />
+            )}
 
-              {/* Subscriptions Stats Panel */}
-              <View className="mt-4 flex-row justify-between rounded-3xl p-5 bg-white border border-neutral-100 shadow-xs">
-                <View className="flex-1 items-center">
-                  <Text variant="heading" weight="bold">
-                    {String(dashboard?.active_subscriptions ?? 0)}
-                  </Text>
-                  <Text variant="caption-sm" color="muted" className="mt-1">
-                    Subscriptions
-                  </Text>
-                </View>
-                <View className="w-px h-10 bg-neutral-100" />
-                <View className="flex-1 items-center">
-                  <Text variant="heading" weight="bold">
-                    {String(dashboard?.total_orders ?? 0)}
-                  </Text>
-                  <Text variant="caption-sm" color="muted" className="mt-1">
-                    Orders
-                  </Text>
-                </View>
-                <View className="w-px h-10 bg-neutral-100" />
-                <View className="flex-1 items-center">
-                  <Text variant="heading" weight="bold">
-                    ₹{dashboard?.pending_balance ?? 0}
-                  </Text>
-                  <Text variant="caption-sm" color="muted" className="mt-1">
-                    Balance
-                  </Text>
-                </View>
-              </View>
-            </>
-          ) : (
-            <View className="items-center mt-2 pb-4">
-              <Text variant="heading" weight="bold" color="primary" align="center">
+            {activeView !== "view" && (
+              <Text className="text-[18px] font-bold text-[#1A1A1A]">
                 {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
               </Text>
-              <Text variant="body-sm" color="muted" align="center" className="mt-1">
-                {activeView === "edit_profile" ? "Update your personal details" : "Update account security"}
+            )}
+
+            {activeView === "view" ? (
+              <TouchableOpacity
+                onPress={openEditProfile}
+                className="h-10 justify-center items-end"
+                hitSlop={10}
+              >
+                <Text className="text-[16px] font-semibold text-[#1B5E37]">
+                  Edit
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View className="w-10" />
+            )}
+          </View>
+
+          {activeView === "view" && (
+            <View className="items-center mt-3">
+              <View className="w-20 h-20 rounded-full bg-[#0A3925] items-center justify-center shadow-xs">
+                <Text className="text-white text-[24px] font-bold">
+                  {initials}
+                </Text>
+              </View>
+              <Text className="text-[26px] font-bold text-[#1A1A1A] mt-4">
+                {fullName}
+              </Text>
+              <Text className="text-[14px] text-[#757575] mt-1">
+                {user?.email ?? "—"}
               </Text>
             </View>
           )}
-        </View>
+        </LinearGradient>
 
-          {/* Main Content Area */}
-          <View className="px-4 mt-4">
-            {activeView === "view" && (
-              <>
-                <SectionTitle title="Contact Information" />
-                <CardShell>
-                  <ProfileActionItem
-                    icon="call-outline"
-                    label="Phone"
-                    value={user?.phone ?? "—"}
+        <View className="px-4">
+          {activeView === "view" && (
+            <>
+              {/* Row of 3 card buttons */}
+              <View className="flex-row justify-between mt-2 mb-4 gap-x-3">
+                <StatsCard
+                  icon="time-outline"
+                  label="Your orders"
+                  onPress={() => router.push("/(customer)/(tabs)/orders")}
+                />
+                <StatsCard
+                  icon="wallet-outline"
+                  label="Pench Money"
+                  onPress={() =>
+                    Alert.alert(
+                      "Pench Money",
+                      `Your current balance is ₹${dashboard?.pending_balance ?? 0}.`
+                    )
+                  }
+                />
+                <StatsCard
+                  icon="headset-outline"
+                  label="Need help?"
+                  onPress={() =>
+                    Alert.alert(
+                      "Support",
+                      "Support helpline: support@penchfoods.in"
+                    )
+                  }
+                />
+              </View>
+
+              {/* Sections */}
+              <SectionTitle title="Your information" />
+              <CardShell>
+                <ProfileActionItem
+                  icon="person-outline"
+                  label="Personal Details"
+                  onPress={openEditProfile}
+                />
+                <View className="h-px bg-neutral-100 ml-12" />
+                <ProfileActionItem
+                  icon="location-outline"
+                  label="Address book"
+                  onPress={() =>
+                    Alert.alert("Address Book", "Address management coming soon.")
+                  }
+                />
+              </CardShell>
+
+              <SectionTitle title="Settings & Activity" />
+              <CardShell>
+                <ProfileActionItem
+                  icon="calendar-outline"
+                  label="Subscription Plans"
+                  onPress={() => router.push("/(customer)/(tabs)/subscriptions")}
+                />
+                <View className="h-px bg-neutral-100 ml-12" />
+                <ProfileActionItem
+                  icon="receipt-outline"
+                  label="Invoices & Billing"
+                  onPress={() =>
+                    Alert.alert(
+                      "Invoices",
+                      "Invoices billing details coming soon."
+                    )
+                  }
+                />
+                <View className="h-px bg-neutral-100 ml-12" />
+                <ProfileActionItem
+                  icon="lock-closed-outline"
+                  label="Change Password"
+                  onPress={openChangePassword}
+                />
+              </CardShell>
+
+              <SectionTitle title="More" />
+              <CardShell>
+                <ProfileActionItem
+                  icon="information-circle-outline"
+                  label="About Pench Foods"
+                  onPress={() =>
+                    Alert.alert(
+                      "About Us",
+                      "Pench Foods: Pure, fresh milk delivered straight to your doorstep."
+                    )
+                  }
+                />
+                <View className="h-px bg-neutral-100 ml-12" />
+                <ProfileActionItem
+                  icon="shield-checkmark-outline"
+                  label="Privacy Policy"
+                  onPress={() =>
+                    Alert.alert(
+                      "Privacy Policy",
+                      "For full terms, please visit penchfoods.in/privacy"
+                    )
+                  }
+                />
+                <View className="h-px bg-neutral-100 ml-12" />
+                <ProfileActionItem
+                  icon="log-out-outline"
+                  label="Logout"
+                  danger
+                  onPress={handleLogout}
+                />
+              </CardShell>
+            </>
+          )}
+
+          {activeView === "edit_profile" && (
+            <View className="mt-4 gap-y-4">
+              <CardShell>
+                <View className="p-4 gap-y-4">
+                  <Input
+                    label="First Name"
+                    placeholder="Enter first name"
+                    value={firstName}
+                    onChangeText={setFirstName}
                   />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="mail-outline"
+                  <Input
+                    label="Last Name"
+                    placeholder="Enter last name"
+                    value={lastName}
+                    onChangeText={setLastName}
+                  />
+                  <Input
                     label="Email"
-                    value={user?.email ?? "—"}
+                    placeholder="Enter email address"
+                    value={email}
+                    onChangeText={setEmail}
+                    keyboardType="email-address"
+                    autoCapitalize="none"
                   />
-                </CardShell>
-
-                <SectionTitle title="Account Settings" />
-                <CardShell>
-                  <ProfileActionItem
-                    icon="person-outline"
-                    label="Edit Profile"
-                    helper="Update your personal details"
-                    onPress={openEditProfile}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="lock-closed-outline"
-                    label="Change Password"
-                    helper="Update account security"
-                    onPress={openChangePassword}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="notifications-outline"
-                    label="Notifications"
-                    helper="Manage delivery and route alerts"
-                    onPress={() => Alert.alert("Notifications", "Notification settings coming soon.")}
-                  />
-                </CardShell>
-
-                <SectionTitle title="Subscriptions" />
-                <CardShell>
-                  <ProfileActionItem
-                    icon="refresh-outline"
-                    label="My Subscriptions"
-                    helper="View active daily plans"
-                    onPress={() => router.push("/(customer)/(tabs)/subscriptions")}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="calendar-outline"
-                    label="Delivery Calendar"
-                    helper="Pause or skip deliveries"
-                    onPress={() => router.push("/(customer)/(tabs)/subscriptions")}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="add-circle-outline"
-                    label="New Subscription"
-                    helper="Subscribe to new fresh items"
-                    onPress={() => Alert.alert("New Subscription", "Please contact support to start a new subscription.")}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="receipt-outline"
-                    label="Invoices & Billing"
-                    helper="Check recent statement charges"
-                    onPress={() => Alert.alert("Invoices", "Invoices billing details coming soon.")}
-                  />
-                </CardShell>
-
-                <SectionTitle title="Orders" />
-                <CardShell>
-                  <ProfileActionItem
-                    icon="cart-outline"
-                    label="Order History"
-                    helper="View past deliveries and status"
-                    onPress={() => router.push("/(customer)/(tabs)/orders")}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="cube-outline"
-                    label="Special Orders"
-                    helper="One-time bulk order requests"
-                    onPress={() => Alert.alert("Special Orders", "Special order features coming soon.")}
-                  />
-                </CardShell>
-
-                <SectionTitle title="Support & Info" />
-                <CardShell>
-                  <ProfileActionItem
-                    icon="help-circle-outline"
-                    label="Help & Support"
-                    helper="Talk to customer support"
-                    onPress={() => Alert.alert("Support", "Support helpline: support@penchfoods.in")}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="information-circle-outline"
-                    label="About Pench Foods"
-                    helper="Learn more about our fresh farm model"
-                    onPress={() => Alert.alert("About Us", "Pench Foods: Pure, fresh milk delivered straight to your doorstep.")}
-                  />
-                  <View className="h-px bg-neutral-100/80 ml-14" />
-                  <ProfileActionItem
-                    icon="shield-checkmark-outline"
-                    label="Privacy Policy"
-                    helper="View user data privacy terms"
-                    onPress={() => Alert.alert("Privacy Policy", "For full terms, please visit penchfoods.in/privacy")}
-                  />
-                </CardShell>
-
-                <SectionTitle title="Session" />
-                <CardShell>
-                  <ProfileActionItem
-                    icon="log-out-outline"
-                    label="Logout"
-                    helper="Sign out from this device"
-                    onPress={handleLogout}
-                    danger
-                  />
-                </CardShell>
-              </>
-            )}
-
-            {activeView === "edit_profile" && (
-              <View className="mt-4 gap-y-4">
-                <CardShell>
-                  <View className="p-4 gap-y-4">
-                    <Input
-                      label="First Name"
-                      placeholder="Enter first name"
-                      value={firstName}
-                      onChangeText={setFirstName}
-                    />
-                    <Input
-                      label="Last Name"
-                      placeholder="Enter last name"
-                      value={lastName}
-                      onChangeText={setLastName}
-                    />
-                    <Input
-                      label="Email"
-                      placeholder="Enter email address"
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                    />
-                    <Input
-                      label="Phone Number"
-                      placeholder="Enter phone number"
-                      value={phone}
-                      onChangeText={setPhone}
-                      keyboardType="phone-pad"
-                    />
-                  </View>
-                </CardShell>
-
-                <View className="flex-row gap-x-3 mt-4 pb-10">
-                  <Button
-                    intent="outline"
-                    label="Cancel"
-                    onPress={() => setActiveView("view")}
-                    className="flex-1"
-                    disabled={isSavingProfile}
-                  />
-                  <Button
-                    intent="primary"
-                    label="Save"
-                    onPress={handleSaveProfile}
-                    className="flex-1 bg-[#1B5E37]"
-                    loading={isSavingProfile}
+                  <Input
+                    label="Phone Number"
+                    placeholder="Enter phone number"
+                    value={phone}
+                    onChangeText={setPhone}
+                    keyboardType="phone-pad"
                   />
                 </View>
-              </View>
-            )}
+              </CardShell>
 
-            {activeView === "change_password" && (
-              <View className="mt-4 gap-y-4">
-                <CardShell>
-                  <View className="p-4 gap-y-4">
-                    {user?.has_password && (
-                      <Input
-                        label="Current Password"
-                        placeholder="Enter current password"
-                        value={currentPassword}
-                        onChangeText={setCurrentPassword}
-                        isPassword
-                        autoCapitalize="none"
-                      />
-                    )}
+              <View className="flex-row gap-x-3 mt-4 pb-10">
+                <Button
+                  intent="outline"
+                  label="Cancel"
+                  onPress={() => setActiveView("view")}
+                  className="flex-1"
+                  disabled={isSavingProfile}
+                />
+                <Button
+                  intent="primary"
+                  label="Save"
+                  onPress={handleSaveProfile}
+                  className="flex-1 bg-[#1B5E37]"
+                  loading={isSavingProfile}
+                />
+              </View>
+            </View>
+          )}
+
+          {activeView === "change_password" && (
+            <View className="mt-4 gap-y-4">
+              <CardShell>
+                <View className="p-4 gap-y-4">
+                  {user?.has_password && (
                     <Input
-                      label="New Password"
-                      placeholder="Min 8 characters"
-                      value={newPassword}
-                      onChangeText={setNewPassword}
+                      label="Current Password"
+                      placeholder="Enter current password"
+                      value={currentPassword}
+                      onChangeText={setCurrentPassword}
                       isPassword
                       autoCapitalize="none"
                     />
-                    <Input
-                      label="Confirm Password"
-                      placeholder="Confirm new password"
-                      value={confirmPassword}
-                      onChangeText={setConfirmPassword}
-                      isPassword
-                      autoCapitalize="none"
-                    />
-                  </View>
-                </CardShell>
-
-                <View className="flex-row gap-x-3 mt-4 pb-10">
-                  <Button
-                    intent="outline"
-                    label="Cancel"
-                    onPress={() => setActiveView("view")}
-                    className="flex-1"
-                    disabled={isSavingPassword}
+                  )}
+                  <Input
+                    label="New Password"
+                    placeholder="Min 8 characters"
+                    value={newPassword}
+                    onChangeText={setNewPassword}
+                    isPassword
+                    autoCapitalize="none"
                   />
-                  <Button
-                    intent="primary"
-                    label="Save"
-                    onPress={handleSavePassword}
-                    className="flex-1 bg-[#1B5E37]"
-                    loading={isSavingPassword}
+                  <Input
+                    label="Confirm Password"
+                    placeholder="Confirm new password"
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    isPassword
+                    autoCapitalize="none"
                   />
                 </View>
-              </View>
-            )}
+              </CardShell>
 
-            <Text className="pb-5 pt-6 text-center text-xs text-text-muted">
-              © 2026 Pench Foods
-            </Text>
-          </View>
-        </ScrollView>
-      </ScreenWrapper>
+              <View className="flex-row gap-x-3 mt-4 pb-10">
+                <Button
+                  intent="outline"
+                  label="Cancel"
+                  onPress={() => setActiveView("view")}
+                  className="flex-1"
+                  disabled={isSavingPassword}
+                />
+                <Button
+                  intent="primary"
+                  label="Save"
+                  onPress={handleSavePassword}
+                  className="flex-1 bg-[#1B5E37]"
+                  loading={isSavingPassword}
+                />
+              </View>
+            </View>
+          )}
+
+          <Text className="pb-5 pt-10 text-center text-xs text-text-muted">
+            © 2026 Pench Foods
+          </Text>
+        </View>
+      </ScrollView>
+    </ScreenWrapper>
   );
 }

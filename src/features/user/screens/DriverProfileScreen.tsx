@@ -1,28 +1,31 @@
-import { Text } from "@/shared/ui/Text/Text";
 import { Ionicons } from "@expo/vector-icons";
-import { useLogout } from "@features/auth/hooks/useLogout";
-import { useAuthStore } from "@store/authStore";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
-
 import React from "react";
 import {
   Alert,
+  Animated,
   ScrollView,
+  StyleSheet,
   TouchableOpacity,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
-import { Input, Button } from "@/shared/ui";
-import { httpClient } from "@/services/api/httpClient";
-import { buildUrl } from "@/services/api/buildUrl";
-import { useToast } from "@/hooks/useToast";
 
-interface ActionItemProps {
+import { useToast } from "@/hooks/useToast";
+import { buildUrl } from "@/services/api/buildUrl";
+import { httpClient } from "@/services/api/httpClient";
+import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { Button, Input } from "@/shared/ui";
+import { Text } from "@/shared/ui/Text/Text";
+import { useLogout } from "@features/auth/hooks/useLogout";
+import { useAuthStore } from "@store/authStore";
+
+interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string;
-  helper?: string;
   onPress?: () => void;
   danger?: boolean;
 }
@@ -31,45 +34,37 @@ function ProfileActionItem({
   icon,
   label,
   value,
-  helper,
   onPress,
   danger,
-}: ActionItemProps) {
+}: MenuItemProps) {
   return (
     <TouchableOpacity
-      activeOpacity={0.7}
+      activeOpacity={onPress ? 0.7 : 1}
       onPress={onPress}
       className="flex-row items-center justify-between px-4 py-4 bg-white"
     >
-      <View className="flex-row flex-1 items-center mr-4">
+      <View className="flex-row items-center flex-1 mr-4">
         <Ionicons
           name={icon}
-          size={22}
-          color={danger ? "#DC2626" : "#4A4A4A"}
+          size={20}
+          color={danger ? "#E53E3E" : "#4A4A4A"}
         />
-        <View className="ml-4 flex-1">
-          <Text
-            className={`text-[15px] font-semibold ${danger ? "text-red-600 font-bold" : "text-text-primary"
-              }`}
-          >
-            {label}
-          </Text>
-          {helper ? (
-            <Text className="mt-0.5 text-xs text-text-muted">
-              {helper}
-            </Text>
-          ) : null}
-        </View>
+        <Text
+          className={`ml-3.5 text-[15px] font-semibold ${danger ? "text-[#E53E3E]" : "text-[#1A1A1A]"
+            }`}
+        >
+          {label}
+        </Text>
       </View>
 
       <View className="flex-row items-center">
         {value ? (
-          <Text className="text-[14px] text-text-secondary mr-2 font-medium">
+          <Text className="text-[14px] text-[#757575] mr-2 font-medium">
             {value}
           </Text>
         ) : null}
-        {!danger && (
-          <Ionicons name="chevron-forward" size={16} color="#BDBDBD" />
+        {!danger && onPress && (
+          <Ionicons name="chevron-forward" size={16} color="#CCCCCC" />
         )}
       </View>
     </TouchableOpacity>
@@ -78,8 +73,8 @@ function ProfileActionItem({
 
 function SectionTitle({ title }: { title: string }) {
   return (
-    <View className="mb-2 mt-6 px-1">
-      <Text className="text-[17px] font-bold text-text-primary">
+    <View className="mt-5 mb-2.5 px-1">
+      <Text className="text-[14px] font-bold text-[#4A4A4A]">
         {title}
       </Text>
     </View>
@@ -96,14 +91,12 @@ function MetricCard({
   icon: keyof typeof Ionicons.glyphMap;
 }) {
   return (
-    <View className="flex-1 items-center justify-center rounded-2xl bg-white py-4 border border-neutral-100/60 shadow-xs">
-      <View className="mb-2 h-12 w-12 items-center justify-center rounded-xl bg-neutral-50 border border-neutral-100">
-        <Ionicons name={icon} size={24} color="#1B5E37" />
-      </View>
-      <Text className="text-[13px] font-medium text-text-secondary text-center">
+    <View className="flex-1 bg-white rounded-[20px] py-4 items-center justify-center border border-[#F0F2F5] shadow-xs">
+      <Ionicons name={icon} size={22} color="#0A3925" className="mb-1" />
+      <Text className="text-[12px] font-semibold text-[#757575] text-center">
         {label}
       </Text>
-      <Text className="mt-0.5 text-[15px] font-bold text-text-primary text-center">
+      <Text className="text-[15px] font-bold text-[#1A1A1A] text-center mt-0.5">
         {value}
       </Text>
     </View>
@@ -112,129 +105,8 @@ function MetricCard({
 
 function CardShell({ children }: { children: React.ReactNode }) {
   return (
-    <View className="overflow-hidden rounded-2xl bg-white border border-neutral-100 shadow-xs">
+    <View className="overflow-hidden rounded-2xl bg-white border border-[#F0F2F5] shadow-xs">
       {children}
-    </View>
-  );
-}
-
-interface ProfileCardProps {
-  initials: string;
-  fullName: string;
-  email: string;
-  phone: string;
-  activeView: 'view' | 'edit_profile' | 'change_password';
-  openEditProfile: () => void;
-  cityDisplay: string;
-}
-
-function ProfileCard({
-  initials,
-  fullName,
-  email,
-  phone,
-  activeView,
-  openEditProfile,
-  cityDisplay,
-}: ProfileCardProps) {
-  return (
-    <View className="bg-white rounded-3xl p-5 border border-neutral-100 shadow-xs mt-2">
-      {/* Top Row: Avatar + Details + LIVE Badge */}
-      <View className="flex-row items-center justify-between">
-        <View className="flex-row items-center flex-1">
-          {/* Avatar Box */}
-          <View className="h-16 w-16 items-center justify-center rounded-full bg-brand-primary/10 border border-brand-primary/20">
-            <Text variant="heading" weight="bold" className="text-brand-primary text-xl">
-              {initials}
-            </Text>
-          </View>
-
-          {/* User Details */}
-          <View className="ml-4 flex-1">
-            <Text variant="heading" weight="bold" className="text-text-primary">
-              {fullName}
-            </Text>
-            <Text variant="body-sm" color="muted" className="mt-0.5" numberOfLines={1}>
-              {email}
-            </Text>
-            <View className="flex-row items-center border border-success/20 bg-successLight/40 px-2.5 py-1 rounded-full mt-2 self-start">
-              <View className="h-2 w-2 rounded-full bg-success mr-1.5" />
-              <Text variant="caption-sm" color="success" weight="bold">
-                LIVE
-              </Text>
-            </View>
-          </View>
-        </View>
-
-        {activeView === "view" && (
-          <TouchableOpacity
-            onPress={openEditProfile}
-            className="flex-row items-center bg-brand-primary/10 border border-brand-primary/20 px-3 py-1.5 rounded-full"
-          >
-            <Ionicons name="pencil-outline" size={14} color="#1B5E37" className="mr-1" />
-            <Text variant="caption-sm" color="brand" weight="bold">
-              Edit
-            </Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {activeView === "view" && (
-        <>
-          {/* Divider */}
-          <View className="h-px bg-neutral-100 my-4" />
-
-          {/* Phone Info Chip */}
-          <TouchableOpacity
-            activeOpacity={phone ? 1 : 0.7}
-            onPress={!phone ? openEditProfile : undefined}
-            className="flex-row items-center justify-between bg-neutral-50 rounded-2xl p-3.5 border border-neutral-100"
-          >
-            <View className="flex-row items-center flex-1">
-              <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                <Ionicons name="call-outline" size={20} color="#1B5E37" />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text variant="caption" color="muted">
-                  Phone
-                </Text>
-                <Text
-                  variant="body"
-                  weight="semibold"
-                  className={phone ? "text-text-primary" : "text-brand-primary"}
-                >
-                  {phone ? phone : "Add phone number"}
-                </Text>
-              </View>
-            </View>
-            {!phone && (
-              <Ionicons name="add-circle-outline" size={18} color="#1B5E37" />
-            )}
-          </TouchableOpacity>
-
-          {/* Shift/Hub Status Card */}
-          <View className="h-px bg-neutral-100 my-4" />
-          <TouchableOpacity
-            activeOpacity={0.8}
-            className="flex-row items-center justify-between bg-brand-primary/5 rounded-2xl p-3.5 border border-brand-primary/10"
-          >
-            <View className="flex-row items-center flex-1">
-              <View className="h-10 w-10 items-center justify-center rounded-xl bg-brand-primary/10">
-                <Ionicons name="bicycle-outline" size={22} color="#1B5E37" />
-              </View>
-              <View className="ml-3 flex-1">
-                <Text variant="body" weight="semibold" className="text-brand-primary">
-                  Active Delivery Driver
-                </Text>
-                <Text variant="caption" color="muted" className="mt-0.5">
-                  {cityDisplay} Hub
-                </Text>
-              </View>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color="#1B5E37" />
-          </TouchableOpacity>
-        </>
-      )}
     </View>
   );
 }
@@ -260,6 +132,22 @@ export function DriverProfileScreen() {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+
+  const [showStickyHeader, setShowStickyHeader] = React.useState(false);
+  const stickyOpacity = React.useRef(new Animated.Value(0)).current;
+
+  React.useEffect(() => {
+    Animated.timing(stickyOpacity, {
+      toValue: showStickyHeader ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  }, [showStickyHeader]);
+
+  const handleScroll = (event: any) => {
+    const offsetY = event.nativeEvent.contentOffset.y;
+    setShowStickyHeader(offsetY > 80);
+  };
 
   const openEditProfile = () => {
     setFirstName(user?.first_name ?? "");
@@ -380,65 +268,140 @@ export function DriverProfileScreen() {
     ? user.tenant_schema.charAt(0).toUpperCase() + user.tenant_schema.slice(1)
     : "Nagpur";
 
-  const headerTitle = activeView === "view"
-    ? "Profile"
-    : activeView === "edit_profile"
-      ? "Edit Profile"
-      : "Change Password";
-
   return (
     <ScreenWrapper
-      title={headerTitle}
-      showHeader
-      showBack={router.canGoBack() || activeView !== "view"}
-      onBack={handleBackPress}
-      headerBgColor="#1B5E37"
+      showHeader={false}
       disablePadding
-      className="bg-[#1B5E37]"
+      className="bg-[#F7F9FA]"
+      screenBgColor="#F7F9FA"
     >
+      <Animated.View
+        pointerEvents={showStickyHeader ? "auto" : "none"}
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          paddingTop: insets.top,
+          opacity: stickyOpacity,
+        }}
+      >
+        {/* Frosted translucent light green overlay */}
+        {/* <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(227, 245, 233, 0.85)" }]} /> */}
+        <View style={[StyleSheet.absoluteFillObject, { backgroundColor: "rgba(187, 243, 206, 0.85)" }]} />
+        <BlurView tint="light" intensity={60} style={StyleSheet.absoluteFillObject} />
+
+        {/* Header row content */}
+        <View className="flex-row justify-between items-center px-4 h-16">
+          {(router.canGoBack() || activeView !== "view") ? (
+            <TouchableOpacity
+              onPress={handleBackPress}
+              className="w-10 h-10 items-center justify-center"
+              hitSlop={10}
+            >
+              <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+            </TouchableOpacity>
+          ) : (
+            <View className="w-10" />
+          )}
+
+          <Text className="text-[16px] font-bold text-[#1A1A1A]">
+            {activeView === "view" ? "Profile" : (activeView === "edit_profile" ? "Edit Profile" : "Change Password")}
+          </Text>
+
+          {activeView === "view" ? (
+            <TouchableOpacity
+              onPress={openEditProfile}
+              className="h-10 justify-center items-end"
+              hitSlop={10}
+            >
+              <Text className="text-[16px] font-semibold text-[#1B5E37]">
+                Edit
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View className="w-10" />
+          )}
+        </View>
+      </Animated.View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: 70 }}
-        className="bg-[#EAEEE4]"
+        contentContainerStyle={{ paddingBottom: 120 }}
+        className="bg-[#F7F9FA]"
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
       >
-        {/* Header Section */}
-        <View className="px-4 pt-6 relative">
-          {activeView === "view" ? (
-            <>
-              {/* Fused Profile & Active Status Card */}
-              <ProfileCard
-                initials={initials}
-                fullName={fullName}
-                email={user?.email ?? "—"}
-                phone={user?.phone ?? ""}
-                activeView={activeView}
-                openEditProfile={openEditProfile}
-                cityDisplay={cityDisplay}
-              />
+        {/* Header Section with Linear Gradient */}
+        <LinearGradient
+          colors={["#E3F5E9", "#F7F9FA"]}
+          style={{ paddingTop: insets.top }}
+          className="pb-6"
+        >
+          {/* Custom Header Row */}
+          <View className="flex-row justify-between items-center px-4 h-16">
+            {(router.canGoBack() || activeView !== "view") ? (
+              <TouchableOpacity
+                onPress={handleBackPress}
+                className="w-10 h-10 items-center justify-center"
+                hitSlop={10}
+              >
+                <Ionicons name="arrow-back" size={24} color="#1A1A1A" />
+              </TouchableOpacity>
+            ) : (
+              <View className="w-10" />
+            )}
 
+            {activeView !== "view" && (
+              <Text className="text-[18px] font-bold text-[#1A1A1A]">
+                {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
+              </Text>
+            )}
+
+            {activeView === "view" ? (
+              <TouchableOpacity
+                onPress={openEditProfile}
+                className="h-10 justify-center items-end"
+                hitSlop={10}
+              >
+                <Text className="text-[16px] font-semibold text-[#1B5E37]">
+                  Edit
+                </Text>
+              </TouchableOpacity>
+            ) : (
+              <View className="w-10" />
+            )}
+          </View>
+
+          {activeView === "view" && (
+            <View className="items-center mt-3">
+              <View className="w-20 h-20 rounded-full bg-[#0A3925] items-center justify-center shadow-xs">
+                <Text className="text-white text-[24px] font-bold">
+                  {initials}
+                </Text>
+              </View>
+              <Text className="text-[26px] font-bold text-[#1A1A1A] mt-4">
+                {fullName}
+              </Text>
+              <Text className="text-[14px] text-[#757575] mt-1">
+                {user?.email ?? "—"}
+              </Text>
+            </View>
+          )}
+        </LinearGradient>
+
+        <View className="px-4">
+          {activeView === "view" && (
+            <>
               {/* Metric Action Cards */}
-              <View className="mt-4 flex-row gap-3">
+              <View className="mt-2 mb-4 flex-row gap-3">
                 <MetricCard label="Today" value="38" icon="checkmark-done-outline" />
                 <MetricCard label="Stops Left" value="24" icon="location-outline" />
                 <MetricCard label="Cash" value="₹1,240" icon="cash-outline" />
               </View>
-            </>
-          ) : (
-            <View className="items-center mt-2 pb-4">
-              <Text variant="heading" weight="bold" color="primary" align="center">
-                {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
-              </Text>
-              <Text variant="body-sm" color="muted" align="center" className="mt-1">
-                {activeView === "edit_profile" ? "Update your personal details" : "Update account security"}
-              </Text>
-            </View>
-          )}
-        </View>
 
-        {/* Main Content Area */}
-        <View className="px-4 mt-1">
-          {activeView === "view" && (
-            <>
+              {/* Sections */}
               <SectionTitle title="Contact Information" />
               <CardShell>
                 <ProfileActionItem
@@ -446,13 +409,13 @@ export function DriverProfileScreen() {
                   label="Phone"
                   value={user?.phone ?? "—"}
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="mail-outline"
                   label="Email"
                   value={user?.email ?? "—"}
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="location-outline"
                   label="City"
@@ -466,21 +429,18 @@ export function DriverProfileScreen() {
                   icon="time-outline"
                   label="Shift Timing"
                   value="06:00 AM - 02:00 PM"
-                  helper="Today’s active schedule"
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="map-outline"
                   label="Assigned Route"
                   value="Nagpur Express Delivery"
-                  helper="Current route allocation"
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="car-outline"
                   label="Vehicle"
                   value="MH 31 AB 1234"
-                  helper="Assigned delivery vehicle"
                 />
               </CardShell>
 
@@ -489,19 +449,19 @@ export function DriverProfileScreen() {
                 <ProfileActionItem
                   icon="notifications-outline"
                   label="Notifications"
-                  helper="Manage route and delivery alerts"
+                  onPress={() => Alert.alert("Notifications", "Notification settings coming soon.")}
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="shield-checkmark-outline"
                   label="Privacy Policy"
-                  helper="View app privacy details"
+                  onPress={() => Alert.alert("Privacy Policy", "For terms, please visit penchfoods.in/privacy")}
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="help-circle-outline"
                   label="Support"
-                  helper="Get help from operations team"
+                  onPress={() => Alert.alert("Support", "Please contact the operations manager at +91 9876543210")}
                 />
               </CardShell>
 
@@ -510,14 +470,12 @@ export function DriverProfileScreen() {
                 <ProfileActionItem
                   icon="person-outline"
                   label="Edit Profile"
-                  helper="Update your personal details"
                   onPress={openEditProfile}
                 />
-                <View className="h-px bg-neutral-100/80 ml-14" />
+                <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="lock-closed-outline"
                   label="Change Password"
-                  helper="Update account security"
                   onPress={openChangePassword}
                 />
               </CardShell>
@@ -527,9 +485,8 @@ export function DriverProfileScreen() {
                 <ProfileActionItem
                   icon="log-out-outline"
                   label="Logout"
-                  helper="Sign out from this device"
-                  onPress={handleLogout}
                   danger
+                  onPress={handleLogout}
                 />
               </CardShell>
             </>
@@ -640,7 +597,7 @@ export function DriverProfileScreen() {
             </View>
           )}
 
-          <Text className="pb-5 pt-6 text-center text-xs text-text-muted">
+          <Text className="pb-5 pt-10 text-center text-xs text-text-muted">
             © 2026 Pench Foods
           </Text>
         </View>
