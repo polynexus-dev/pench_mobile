@@ -16,6 +16,11 @@ import {
 } from "../components/CustomerHomeComponents";
 
 import { BANNERS, CATEGORIES } from "@/data/mockData";
+import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBottomSheet";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { asyncStorage } from "../../../services/storage/asyncStorage";
+import { httpClient } from "../../../services/api/httpClient";
+import { buildUrl } from "../../../services/api/buildUrl";
 
 const getProductThumbnail = (name: string) => {
   const text = name.toLowerCase();
@@ -33,11 +38,57 @@ export function CustomerDashboardScreen() {
   const insets = useSafeAreaInsets();
   const bottomTabPadding = useBottomTabPadding(26);
 
+  const locationSheetRef = useRef<BottomSheetModal>(null);
+  const [hasCheckedLocation, setHasCheckedLocation] = useState(false);
+
+  useEffect(() => {
+    const checkLocation = async () => {
+      try {
+        const savedLoc = await asyncStorage.getItem("pench_customer_location");
+        const isNotSet = !savedLoc || savedLoc === "null" || savedLoc === "undefined";
+        if (isNotSet && !hasCheckedLocation) {
+          setHasCheckedLocation(true);
+          locationSheetRef.current?.present();
+        }
+      } catch (err) {
+        console.warn("Error checking customer location:", err);
+      }
+    };
+    if (user && !hasCheckedLocation) {
+      checkLocation();
+    }
+  }, [user, hasCheckedLocation]);
+
+  const handleLocationConfirm = async (loc: { lat: number; lng: number; address: string; profile: string }) => {
+    try {
+      await asyncStorage.setItem("pench_customer_location", JSON.stringify(loc));
+
+      // Save to location profiles dictionary
+      const savedStr = await asyncStorage.getItem("pench_customer_location_profiles");
+      const currentProfiles = savedStr ? JSON.parse(savedStr) : {};
+      currentProfiles[loc.profile] = { lat: loc.lat, lng: loc.lng, address: loc.address };
+      await asyncStorage.setItem("pench_customer_location_profiles", JSON.stringify(currentProfiles));
+
+      // Update ERP profile with city/address info
+      const url = buildUrl(domainName, "/api/accounts/me/");
+      const response = await httpClient.patch(url, {
+        city_name: `${loc.profile}: ${loc.address.split(",")[0]?.trim() || "Nagpur"}`,
+      });
+      useAuthStore.getState().setUser(response as any);
+    } catch (err) {
+      console.warn("Failed to save location/patch profile:", err);
+    } finally {
+      locationSheetRef.current?.dismiss();
+    }
+  };
+
+  const handleLocationSkip = () => {
+    locationSheetRef.current?.dismiss();
+  };
+
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  // No Bottom Sheet and Ordering states needed here anymore
 
   const domainName = useAuthStore((s) => s.domain_name) || "";
 
@@ -84,7 +135,65 @@ export function CustomerDashboardScreen() {
       >
         <BannerCarousel items={BANNERS} />
 
-        <View className="px-4 mt-2 mb-4 flex-row items-end justify-between">
+        {/* Flexible Subscription Model Section */}
+        <View className="mx-4 mt-4 mb-2 p-5 rounded-2xl bg-[#F3F9F6] border border-[#0C5A35]/15 shadow-sm">
+          <View className="flex-row items-center gap-2.5 mb-4">
+            <View className="h-9 w-9 rounded-xl bg-[#0C5A35]/10 items-center justify-center">
+              <Ionicons name="repeat-outline" size={18} color="#0C5A35" />
+            </View>
+            <View className="flex-1">
+              <Text className="text-[14px] font-black text-gray-900 leading-none">
+                Flexible Milk Subscriptions
+              </Text>
+              <Text className="text-[11px] font-semibold text-gray-500 mt-1.5 leading-none">
+                Customized schedules, zero commitments
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row justify-between gap-3 mt-1">
+            {/* Feature 1 */}
+            <View className="flex-1 items-start">
+              <View className="h-7 w-7 rounded-lg bg-white shadow-sm items-center justify-center mb-2">
+                <Ionicons name="calendar-outline" size={14} color="#0C5A35" />
+              </View>
+              <Text className="text-[11px] font-black text-gray-800 leading-none">Custom Plans</Text>
+              <Text className="text-[9px] font-semibold text-gray-500 mt-1.5 leading-normal">Daily or alternate deliveries</Text>
+            </View>
+
+            {/* Feature 2 */}
+            <View className="flex-1 items-start">
+              <View className="h-7 w-7 rounded-lg bg-white shadow-sm items-center justify-center mb-2">
+                <Ionicons name="pause-circle-outline" size={14} color="#0C5A35" />
+              </View>
+              <Text className="text-[11px] font-black text-gray-800 leading-none">Pause / Resume</Text>
+              <Text className="text-[9px] font-semibold text-gray-500 mt-1.5 leading-normal">Going out? Stop delivery instantly</Text>
+            </View>
+
+            {/* Feature 3 */}
+            <View className="flex-1 items-start">
+              <View className="h-7 w-7 rounded-lg bg-white shadow-sm items-center justify-center mb-2">
+                <Ionicons name="notifications-off-outline" size={14} color="#0C5A35" />
+              </View>
+              <Text className="text-[11px] font-black text-gray-800 leading-none">No Ring Delivery</Text>
+              <Text className="text-[9px] font-semibold text-gray-500 mt-1.5 leading-normal">Silent morning doorstep drop</Text>
+            </View>
+          </View>
+
+          {/* Action button to navigate to Subscription Page */}
+          <TouchableOpacity
+            activeOpacity={0.8}
+            onPress={() => router.push("/(customer)/(tabs)/subscriptions" as any)}
+            className="mt-4 bg-[#0C5A35] flex-row items-center justify-center py-2.5 rounded-xl active:opacity-90"
+          >
+            <Text className="text-[12px] font-black text-white uppercase tracking-wider">
+              Subscribe Now
+            </Text>
+            <Ionicons name="arrow-forward-outline" size={14} color="#ffffff" style={{ marginLeft: 6 }} />
+          </TouchableOpacity>
+        </View>
+
+        <View className="px-4 mt-4 mb-4 flex-row items-end justify-between">
           <View>
             <Text className="text-[18px] font-bold text-gray-900">Fresh Today</Text>
             <Text className="text-[12px] text-gray-500 mt-0.5">Pure farm-fresh essentials</Text>
@@ -159,6 +268,14 @@ export function CustomerDashboardScreen() {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* Location Select Bottom Sheet */}
+      <LocationSelectBottomSheet
+        ref={locationSheetRef}
+        onClose={handleLocationSkip}
+        onConfirm={handleLocationConfirm}
+        onSkip={handleLocationSkip}
+      />
     </View>
   );
 }

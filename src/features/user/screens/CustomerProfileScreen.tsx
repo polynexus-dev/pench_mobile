@@ -21,6 +21,9 @@ import { Button, Input } from "@/shared/ui";
 import { Text } from "@/shared/ui/Text/Text";
 import { useLogout } from "@features/auth/hooks/useLogout";
 import { useAuthStore } from "@store/authStore";
+import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBottomSheet";
+import { BottomSheetModal } from "@gorhom/bottom-sheet";
+import { asyncStorage } from "../../../services/storage/asyncStorage";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -121,6 +124,52 @@ export function CustomerProfileScreen() {
   const [newPassword, setNewPassword] = React.useState("");
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
+  const locationSheetRef = React.useRef<BottomSheetModal>(null);
+
+  const [profiles, setProfiles] = React.useState<Record<string, { lat: number; lng: number; address: string }>>({});
+
+  const loadLocationProfiles = React.useCallback(async () => {
+    try {
+      const savedStr = await asyncStorage.getItem("pench_customer_location_profiles");
+      if (savedStr) {
+        setProfiles(JSON.parse(savedStr));
+      }
+    } catch (e) {
+      console.warn("Failed to load profiles:", e);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadLocationProfiles();
+  }, [loadLocationProfiles]);
+
+  const handleLocationConfirm = async (loc: { lat: number; lng: number; address: string; profile: string }) => {
+    try {
+      await asyncStorage.setItem("pench_customer_location", JSON.stringify(loc));
+
+      const savedStr = await asyncStorage.getItem("pench_customer_location_profiles");
+      const currentProfiles = savedStr ? JSON.parse(savedStr) : {};
+      currentProfiles[loc.profile] = { lat: loc.lat, lng: loc.lng, address: loc.address };
+      await asyncStorage.setItem("pench_customer_location_profiles", JSON.stringify(currentProfiles));
+      setProfiles(currentProfiles);
+
+      const url = buildUrl(domain_name, "/api/accounts/me/");
+      const response = await httpClient.patch(url, {
+        city_name: `${loc.profile}: ${loc.address.split(",")[0]?.trim() || "Nagpur"}`,
+      });
+      setUser(response as any);
+      show({ message: `Saved to ${loc.profile} profile.`, type: "success" });
+    } catch (err) {
+      console.warn("Failed to save location/patch profile:", err);
+      show({ message: "Failed to update location.", type: "error" });
+    } finally {
+      locationSheetRef.current?.dismiss();
+    }
+  };
+
+  const handleLocationSkip = () => {
+    // Already dismissed by library, no-op
+  };
 
   const [showStickyHeader, setShowStickyHeader] = React.useState(false);
   const stickyOpacity = React.useRef(new Animated.Value(0)).current;
@@ -425,11 +474,55 @@ export function CustomerProfileScreen() {
                 <View className="h-px bg-neutral-100 ml-12" />
                 <ProfileActionItem
                   icon="location-outline"
-                  label="Address book"
-                  onPress={() =>
-                    Alert.alert("Address Book", "Address management coming soon.")
-                  }
+                  label="Set Delivery Location"
+                  onPress={() => locationSheetRef.current?.present()}
                 />
+                {Object.keys(profiles).length > 0 && (
+                  <View className="bg-gray-50/50 px-4 pb-4 pt-2 border-t border-neutral-100">
+                    <Text className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">
+                      Saved Profiles
+                    </Text>
+                    <View className="flex-row flex-wrap gap-2">
+                      {Object.entries(profiles).map(([name, data]) => (
+                        <TouchableOpacity
+                          key={name}
+                          onPress={async () => {
+                            try {
+                              const activeLoc = { lat: data.lat, lng: data.lng, address: data.address, profile: name };
+                              await asyncStorage.setItem("pench_customer_location", JSON.stringify(activeLoc));
+                              const url = buildUrl(domain_name, "/api/accounts/me/");
+                              const response = await httpClient.patch(url, {
+                                city_name: `${name}: ${data.address.split(",")[0]?.trim() || "Nagpur"}`,
+                              });
+                              setUser(response as any);
+                              show({ message: `Switched active location to ${name}.`, type: "success" });
+                            } catch (e) {
+                              show({ message: "Failed to switch active location.", type: "error" });
+                            }
+                          }}
+                          className={`px-3 py-2 rounded-lg border flex-row items-center gap-1.5 ${
+                            user?.city_name?.startsWith(name + ":")
+                              ? "bg-[#0C5A35]/10 border-[#0C5A35]"
+                              : "bg-white border-neutral-200"
+                          }`}
+                        >
+                          <Ionicons
+                            name={name === "Home" ? "home" : name === "Work" ? "briefcase" : "pin"}
+                            size={12}
+                            color={user?.city_name?.startsWith(name + ":") ? "#0C5A35" : "#6B7280"}
+                          />
+                          <Text
+                            className={`text-[12px] font-semibold ${
+                              user?.city_name?.startsWith(name + ":") ? "text-[#0C5A35]" : "text-gray-700"
+                            }`}
+                          >
+                            {name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
               </CardShell>
 
               <SectionTitle title="Settings & Activity" />
@@ -602,6 +695,14 @@ export function CustomerProfileScreen() {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Location Select Bottom Sheet */}
+      <LocationSelectBottomSheet
+        ref={locationSheetRef}
+        onClose={handleLocationSkip}
+        onConfirm={handleLocationConfirm}
+        onSkip={handleLocationSkip}
+      />
     </ScreenWrapper>
   );
 }
