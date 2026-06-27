@@ -16,12 +16,15 @@ import {
     useWindowDimensions,
     View,
     ActivityIndicator,
+    RefreshControl,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { useEffect, useState, useRef, useMemo } from "react";
+import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { asyncStorage } from "@services/storage/asyncStorage";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
+import { buildUrl } from "@/services/api/buildUrl";
+import { httpClient } from "@/services/api/httpClient";
 
 export function DriverDashboardScreen() {
     const { isLoading: isRouteLoading } = useFetchMyRoute();
@@ -106,6 +109,47 @@ export function DriverDashboardScreen() {
         };
     }, []);
 
+    const domainName = useAuthStore((s) => s.domain_name) || "";
+    const [summary, setSummary] = useState<{
+        date: string;
+        has_route: boolean;
+        route: any;
+        total_orders: number;
+        pending_orders: number;
+        delivered_orders: number;
+        undelivered_orders: number;
+        special_orders: number;
+        bottles_to_carry: any[];
+        total_bottles_to_carry: number;
+        bottles_to_collect: any[];
+        total_bottles_to_collect: number;
+    } | null>(null);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    const fetchSummary = useCallback(async () => {
+        if (!domainName) return;
+        try {
+            const url = buildUrl(domainName, "/api/orders/driver/today-summary/");
+            const data = await httpClient.get(url);
+            setSummary(data as any);
+        } catch (e) {
+            console.warn("Failed to fetch driver summary:", e);
+        }
+    }, [domainName]);
+
+    useEffect(() => {
+        fetchSummary();
+    }, [fetchSummary]);
+
+    const handleRefresh = async () => {
+        setIsRefreshing(true);
+        try {
+            await fetchSummary();
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     const handleTripToggle = async () => {
         const { startTrip, stopTrip, isTripStarted } = useTrackingStore.getState();
         const { accessToken, route_id } = useAuthStore.getState();
@@ -143,9 +187,8 @@ export function DriverDashboardScreen() {
     const dateMatch = rawDate.match(/\d{4}-\d{2}-\d{2}/);
     const deliveryDate = dateMatch ? dateMatch[0] : rawDate.split('#')[0].trim();
 
-    const totalStops = route?.stops?.length ?? 0;
-    const deliveredStops =
-        route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0;
+    const totalStops = summary ? summary.total_orders : (route?.stops?.length ?? 0);
+    const deliveredStops = summary ? summary.delivered_orders : (route?.stops?.filter((s) => s.order_status === "delivered").length ?? 0);
 
     const deliveryProgress =
         totalStops > 0
@@ -227,6 +270,9 @@ export function DriverDashboardScreen() {
                         [{ nativeEvent: { contentOffset: { y: scrollYAnimated } } }],
                         { useNativeDriver: true }
                     )}
+                    refreshControl={
+                        <RefreshControl refreshing={isRefreshing} onRefresh={handleRefresh} />
+                    }
                 >
                     {/* Header Green Block */}
                     <View
@@ -354,9 +400,9 @@ export function DriverDashboardScreen() {
                     <View className={screenX}>
 
                         <View className="mt-5 flex-row justify-between gap-3">
-                            <StatCard icon="water" label="Bottles" value="128" color="#1B5E37" />
-                            <StatCard icon="restaurant" label="Special" value="16" color="#D4872A" />
-                            <StatCard icon="return-down-back" label="Returns" value="52" color="#757575" />
+                            <StatCard icon="water" label="Bottles" value={summary ? String(summary.total_bottles_to_carry) : "0"} color="#1B5E37" />
+                            <StatCard icon="restaurant" label="Special" value={summary ? String(summary.special_orders) : "0"} color="#D4872A" />
+                            <StatCard icon="return-down-back" label="Returns" value={summary ? String(summary.total_bottles_to_collect) : "0"} color="#757575" />
                         </View>
 
                         <View className="mt-5">
@@ -514,11 +560,11 @@ export function DriverDashboardScreen() {
                             </View>
 
                             <View className="flex-row items-center justify-between">
-                                <SummaryItem label="Delivered" value="38" color="#1B5E37" />
+                                <SummaryItem label="Delivered" value={summary ? String(summary.delivered_orders) : "0"} color="#1B5E37" />
                                 <View className="w-px h-8 bg-border-subtle" />
-                                <SummaryItem label="Pending" value="24" color="#D4872A" />
+                                <SummaryItem label="Pending" value={summary ? String(summary.pending_orders) : "0"} color="#D4872A" />
                                 <View className="w-px h-8 bg-border-subtle" />
-                                <SummaryItem label="COD" value="₹1,240" color="#2E7D52" />
+                                <SummaryItem label="Undelivered" value={summary ? String(summary.undelivered_orders) : "0"} color="#E53E3E" />
                             </View>
                         </View>
 

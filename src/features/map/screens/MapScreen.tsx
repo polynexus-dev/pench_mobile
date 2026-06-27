@@ -1,12 +1,14 @@
 
 
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { View, TouchableOpacity as RNTouchableOpacity } from "react-native";
 import { TouchableOpacity } from "react-native-gesture-handler";
 import {
   useSafeAreaInsets,
 } from "react-native-safe-area-context";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
+import { buildUrl } from "@/services/api/buildUrl";
+import { httpClient } from "@/services/api/httpClient";
 import {
   BottomSheetBackdrop,
   BottomSheetModal,
@@ -76,6 +78,31 @@ export default function MapScreen() {
   const fetchNavigationPolyline = useGeofenceStore((s) => s.fetchNavigationPolyline);
 
   const routeAvailable = !!route;
+  const domainName = useAuthStore((s) => s.domain_name) || "";
+  const [summary, setSummary] = useState<{
+    total_bottles_to_carry: number;
+    special_orders: number;
+    total_bottles_to_collect: number;
+    delivered_orders: number;
+    pending_orders: number;
+    undelivered_orders: number;
+  } | null>(null);
+
+  const fetchSummary = useCallback(async () => {
+    if (!domainName) return;
+    try {
+      const url = buildUrl(domainName, "/api/orders/driver/today-summary/");
+      const data = await httpClient.get(url);
+      setSummary(data as any);
+    } catch (e) {
+      console.warn("Failed to fetch driver summary in map:", e);
+    }
+  }, [domainName]);
+
+  useEffect(() => {
+    fetchSummary();
+  }, [fetchSummary]);
+
   const [selectedGroupKey, setSelectedGroupKey] = React.useState<string | null>(null);
   const [expandedGroupKey, setExpandedGroupKey] = React.useState<string | null>(null);
 
@@ -268,6 +295,7 @@ export default function MapScreen() {
 
   useFocusEffect(
     useCallback(() => {
+      fetchSummary();
       const currentRoute = useGeofenceStore.getState().route;
       const inTransitStops = (currentRoute?.stops ?? []).filter(
         (s) => s.order_status === "in_transit"
@@ -340,6 +368,7 @@ export default function MapScreen() {
       selectedStopId,
       setActiveStopId,
       setSelectedStopId,
+      fetchSummary,
     ])
   );
   useEffect(() => {
@@ -620,10 +649,10 @@ export default function MapScreen() {
 
           <RouteStatRow
             stats={[
-              { icon: "water-outline", label: "Bottles", value: "128", color: "#1B5E37" },
-              { icon: "restaurant-outline", label: "Special", value: "16", color: "#D4872A" },
-              { icon: "return-down-back", label: "Returns", value: "52", color: "#4A4A4A" },
-              { icon: "cash-outline", label: "COD", value: "₹640", color: "#1B5E37" },
+              { icon: "water-outline", label: "Bottles", value: summary ? String(summary.total_bottles_to_carry) : "0", color: "#1B5E37" },
+              { icon: "restaurant-outline", label: "Special", value: summary ? String(summary.special_orders) : "0", color: "#D4872A" },
+              { icon: "return-down-back", label: "Returns", value: summary ? String(summary.total_bottles_to_collect) : "0", color: "#4A4A4A" },
+              { icon: "time-outline", label: "Pending", value: summary ? String(summary.pending_orders) : "0", color: "#D4872A" },
             ]}
           />
 
