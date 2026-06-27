@@ -1,340 +1,22 @@
-import { subscriptionApi, SubscriptionSummary, DailySummary } from "@/features/dashboard/api/subscriptionApi";
+import { subscriptionApi } from "@/features/ecommerce/api/subscriptionApi";
+import { DailySummary, SubscriptionSummary } from "@/features/ecommerce/types/ecommerce.types";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import { useAuthStore } from "@/store/authStore";
+import { useCartStore } from "@/store/useCartStore";
 import { Ionicons } from "@expo/vector-icons";
-import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
-import { ActivityIndicator, Alert, RefreshControl, ScrollView, Text, TouchableOpacity, View, Modal, Animated, Easing } from "react-native";
-import { BottomSheetModal, BottomSheetView, BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
-import { Calendar, DateData } from "react-native-calendars";
-import { StatusBar } from "expo-status-bar";
+import { BottomSheetBackdrop, BottomSheetModal, BottomSheetScrollView, BottomSheetView } from "@gorhom/bottom-sheet";
 import { useIsFocused } from "@react-navigation/native";
+import { useRouter } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Alert, Animated, Easing, FlatList, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { Calendar, DateData } from "react-native-calendars";
+import { useBottomTabPadding } from "@/hooks/useBottomTabPadding";
+import { SubscriptionDetailsCard } from "@/features/ecommerce/components/SubscriptionDetailsCard";
+import { SubscriptionModelCard } from "@/features/ecommerce/components/SubscriptionModelCard";
+import { CalendarSkeleton } from "@/features/ecommerce/components/CalendarSkeleton";
 
-function SubscriptionDetailsCard({
-    sub,
-}: {
-    sub: SubscriptionSummary;
-}) {
-    const isPaused = sub.is_paused;
-    const items = sub.items || [];
-    const productName = items[0]?.product_name || "Milk Delivery Plan";
-    const quantity = items[0]?.quantity || 1;
-
-    return (
-        <View
-            className="mb-4 overflow-hidden rounded-2xl bg-white p-4 border border-neutral-100 shadow-sm"
-            style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 2,
-            }}
-        >
-            {/* Top row with Title & Badge */}
-            <View className="mb-4 flex-row items-start justify-between">
-                <View className="flex-row items-center gap-2.5 flex-1 pr-2">
-                    <View className="h-9 w-9 items-center justify-center rounded-full bg-[#E8F5EE]">
-                        <Ionicons name="water" size={18} color="#1B5E37" />
-                    </View>
-                    <View className="flex-1">
-                        <Text className="text-[15px] font-bold text-gray-900 leading-tight">
-                            {productName}
-                        </Text>
-                        <Text className="text-[11px] text-gray-500 font-semibold mt-0.5">
-                            {sub.frequency_display} Delivery
-                        </Text>
-                    </View>
-                </View>
-                <View className={`rounded-full px-2.5 py-1 ${isPaused ? "bg-amber-100" : "bg-green-100"}`}>
-                    <Text className={`text-[10px] font-bold ${isPaused ? "text-amber-700" : "text-green-700"}`}>
-                        {isPaused ? "PAUSED" : "ACTIVE"}
-                    </Text>
-                </View>
-            </View>
-
-            {/* Details Section */}
-            <View className="border-t border-gray-50 pt-3 flex-row flex-wrap justify-between gap-y-3">
-                <View className="w-[48%]">
-                    <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Start Date</Text>
-                    <Text className="text-xs font-semibold text-gray-800 mt-0.5">
-                        {sub.subscription_start || "—"}
-                    </Text>
-                </View>
-                <View className="w-[48%] items-end">
-                    <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">End Date</Text>
-                    <Text className="text-xs font-semibold text-gray-800 mt-0.5">
-                        {sub.subscription_end || "Continuous"}
-                    </Text>
-                </View>
-                <View className="w-[48%]">
-                    <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Quantity</Text>
-                    <Text className="text-xs font-semibold text-gray-800 mt-0.5">
-                        {quantity} {sub.items?.[0]?.product_id ? "Litre(s)" : ""}
-                    </Text>
-                </View>
-                <View className="w-[48%] items-end">
-                    <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Status</Text>
-                    <Text className="text-xs font-semibold text-gray-800 mt-0.5 capitalize">
-                        {sub.status}
-                    </Text>
-                </View>
-            </View>
-
-            {/* Items List (if more than 1 item) */}
-            {items.length > 1 && (
-                <View className="mt-3 border-t border-gray-50 pt-3">
-                    <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-1.5">
-                        All Items in Plan
-                    </Text>
-                    {items.map((item, idx) => (
-                        <View key={idx} className="flex-row justify-between items-center py-1.5 border-b border-neutral-50 last:border-b-0">
-                            <View className="flex-row items-center gap-1.5 flex-1 pr-2">
-                                <Ionicons name="cube-outline" size={14} color="#6B7280" />
-                                <Text className="text-xs font-semibold text-gray-700 leading-tight" numberOfLines={1}>
-                                    {item.product_name}
-                                </Text>
-                            </View>
-                            <Text className="text-xs font-bold text-gray-600 bg-gray-100 px-1.5 py-0.5 rounded">
-                                Qty: {item.quantity}
-                            </Text>
-                        </View>
-                    ))}
-                </View>
-            )}
-
-            {/* Delivery Details: Address & Special Instructions (if exist on summary object) */}
-            {((sub as any).delivery_address || (sub as any).special_instructions) && (
-                <View className="mt-3 border-t border-gray-50 pt-3">
-                    {(sub as any).delivery_address && (
-                        <View className="mb-2">
-                            <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Delivery Address</Text>
-                            <Text className="text-xs text-gray-600 mt-0.5 leading-normal">
-                                {(sub as any).delivery_address}
-                            </Text>
-                        </View>
-                    )}
-                    {(sub as any).special_instructions && (
-                        <View>
-                            <Text className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Special Instructions</Text>
-                            <Text className="text-xs text-amber-700 font-medium mt-0.5 leading-normal">
-                                {(sub as any).special_instructions}
-                            </Text>
-                        </View>
-                    )}
-                </View>
-            )}
-        </View>
-    );
-}
-
-function SubscriptionModelCard({
-    model,
-    onSubscribe,
-}: {
-    model: any;
-    onSubscribe: (model: any) => void;
-}) {
-    return (
-        <View 
-            className="mb-4 overflow-hidden rounded-2xl bg-white p-4 border border-neutral-100 shadow-sm"
-            style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 2,
-            }}
-        >
-            <View className="flex-row items-center gap-3">
-                <View className="h-9 w-9 items-center justify-center rounded-full bg-[#E8F5EE]">
-                    <Ionicons name="water" size={18} color="#1B5E37" />
-                </View>
-                <View className="flex-1">
-                    <Text className="text-[14px] font-bold text-gray-900 leading-tight">
-                        {model.product_name}
-                    </Text>
-                    <View className="flex-row items-center gap-2 mt-1">
-                        <View className="bg-gray-100 rounded px-1.5 py-0.5">
-                            <Text className="text-[9px] font-bold text-gray-600 uppercase tracking-wider">
-                                {model.frequency_display}
-                            </Text>
-                        </View>
-                        <Text className="text-xs text-gray-500 font-semibold">
-                            Qty: {model.quantity} ({model.unit})
-                        </Text>
-                    </View>
-                </View>
-            </View>
-
-            <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-gray-50">
-                <Text className="text-[11px] text-gray-400 font-semibold">
-                    🔥 {model.count} customers subscribed
-                </Text>
-                <TouchableOpacity
-                    onPress={() => onSubscribe(model)}
-                    activeOpacity={0.8}
-                    className="bg-[#1B5E37] px-3.5 py-1.5 rounded-xl shadow-xs"
-                >
-                    <Text className="text-white text-[11px] font-bold">
-                        Subscribe
-                    </Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-}
-
-function CalendarSkeleton() {
-    const pulseAnim = React.useRef(new Animated.Value(0.3)).current;
-
-    React.useEffect(() => {
-        const pulse = Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, {
-                    toValue: 0.7,
-                    duration: 1000,
-                    easing: Easing.inOut(Easing.ease),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulseAnim, {
-                    toValue: 0.3,
-                    duration: 1000,
-                    easing: Easing.inOut(Easing.ease),
-                    useNativeDriver: true,
-                }),
-            ])
-        );
-        pulse.start();
-        return () => pulse.stop();
-    }, [pulseAnim]);
-
-    const daysOfWeek = Array.from({ length: 7 });
-    const gridRows = Array.from({ length: 5 });
-
-    return (
-        <View
-            className="mb-4 rounded-2xl bg-white p-4 border border-gray-100"
-            style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 2,
-                elevation: 2,
-            }}
-        >
-            {/* Header placeholder */}
-            <View className="flex-row justify-between items-center mb-6">
-                <Animated.View style={{ opacity: pulseAnim }} className="h-6 w-6 rounded bg-gray-200" />
-                <Animated.View style={{ opacity: pulseAnim }} className="h-6 w-32 rounded bg-gray-200" />
-                <Animated.View style={{ opacity: pulseAnim }} className="h-6 w-6 rounded bg-gray-200" />
-            </View>
-
-            {/* Days of the week row */}
-            <View className="flex-row justify-between mb-4">
-                {daysOfWeek.map((_, idx) => (
-                    <Animated.View
-                        key={idx}
-                        style={{ opacity: pulseAnim }}
-                        className="h-3 w-8 rounded bg-gray-200"
-                    />
-                ))}
-            </View>
-
-            {/* Calendar grid rows */}
-            <View className="gap-y-4">
-                {gridRows.map((_, rowIdx) => (
-                    <View key={rowIdx} className="flex-row justify-between">
-                        {daysOfWeek.map((_, colIdx) => (
-                            <Animated.View
-                                key={colIdx}
-                                style={{ opacity: pulseAnim }}
-                                className="h-8 w-8 rounded-full bg-gray-200"
-                            />
-                        ))}
-                    </View>
-                ))}
-            </View>
-        </View>
-    );
-}
-
-function getStatusDetails(status: string) {
-    switch (status) {
-        case "delivered":
-            return {
-                title: "Delivered",
-                icon: "checkmark-circle" as const,
-                bgClass: "bg-green-50 border-green-100",
-                iconColor: "#22C55E",
-                textColor: "text-green-800",
-                description: "Your delivery was completed successfully.",
-                sheetBg: "#E8F5EE",
-            };
-        case "scheduled":
-            return {
-                title: "Scheduled",
-                icon: "calendar" as const,
-                bgClass: "bg-blue-50 border-blue-100",
-                iconColor: "#3B82F6",
-                textColor: "text-blue-800",
-                description: "This delivery is scheduled and will arrive on time.",
-                sheetBg: "#EFF6FF",
-            };
-        case "vacation":
-            return {
-                title: "Vacation Pause",
-                icon: "pause-circle" as const,
-                bgClass: "bg-amber-50 border-amber-100",
-                iconColor: "#F59E0B",
-                textColor: "text-amber-800",
-                description: "Delivery is temporarily paused for your vacation gap.",
-                sheetBg: "#FFFBEB",
-            };
-        case "skipped":
-        case "undelivered":
-            return {
-                title: "Skipped / Undelivered",
-                icon: "close-circle" as const,
-                bgClass: "bg-red-50 border-red-100",
-                iconColor: "#EF4444",
-                textColor: "text-red-800",
-                description: "Delivery was skipped or could not be completed on this day.",
-                sheetBg: "#FEF2F2",
-            };
-        case "in_transit":
-            return {
-                title: "In Transit",
-                icon: "bicycle" as const,
-                bgClass: "bg-purple-50 border-purple-100",
-                iconColor: "#A855F7",
-                textColor: "text-purple-800",
-                description: "Your order is in transit and on the way to you.",
-                sheetBg: "#FAF5FF",
-            };
-        case "pending":
-            return {
-                title: "Pending",
-                icon: "hourglass-outline" as const,
-                bgClass: "bg-neutral-50 border-neutral-200",
-                iconColor: "#737373",
-                textColor: "text-neutral-700",
-                description: "The delivery status is currently pending update.",
-                sheetBg: "#FAFAFA",
-            };
-        case "off_day":
-        case "not_active":
-        default:
-            return {
-                title: "No Delivery",
-                icon: "remove-circle-outline" as const,
-                bgClass: "bg-gray-50 border-gray-100",
-                iconColor: "#9CA3AF",
-                textColor: "text-gray-600",
-                description: "No delivery is scheduled for this day.",
-                sheetBg: "#F5F8F6",
-            };
-    }
-}
+import { getStatusDetails } from "@/features/ecommerce/data/statusData";
 
 function formatDateString(dateStr: string): string {
     if (!dateStr) return "";
@@ -356,6 +38,14 @@ function formatDateString(dateStr: string): string {
     }
 }
 
+const getProductThumbnail = (name: string) => {
+  const text = name.toLowerCase();
+  if (text.includes("milk")) return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-21.png";
+  if (text.includes("paneer")) return "https://penchfoods.com/wp-content/uploads/2020/11/Paneer.png";
+  if (text.includes("ghee")) return "https://penchfoods.com/wp-content/uploads/2020/11/Untitled-design-22.png";
+  return "https://images.unsplash.com/photo-1628105652613-2d5fc2f3a6cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80";
+};
+
 export default function SubscriptionsScreen() {
     const { user } = useAuthStore();
     const isFocused = useIsFocused();
@@ -366,11 +56,22 @@ export default function SubscriptionsScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
 
+    const router = useRouter();
+    const cartItems = useCartStore((s) => s.items);
+    const addToCart = useCartStore((s) => s.addToCart);
+    const bottomTabPadding = useBottomTabPadding(26);
+
+    // States for custom subscription configuration
+    const [subscribingModel, setSubscribingModel] = useState<any>(null);
+    const [selectedFrequency, setSelectedFrequency] = useState<string>("daily");
+    const [selectedQty, setSelectedQty] = useState<number>(0.5);
+    const [activeTab, setActiveTab] = useState<"predefined" | "custom">("predefined");
+
     // Bottom Sheet Refs & Snap Points
-    const addPlanSheetRef = useRef<BottomSheetModal>(null);
     const statusSheetRef = useRef<BottomSheetModal>(null);
-    const addPlanSnapPoints = useMemo(() => ["80%"], []);
+    const configureSubSheetRef = useRef<BottomSheetModal>(null);
     const statusSnapPoints = useMemo(() => ["75%"], []);
+    const configureSubSnapPoints = useMemo(() => ["90%"], []);
 
     const renderBackdrop = useCallback(
         (props: any) => (
@@ -401,22 +102,22 @@ export default function SubscriptionsScreen() {
         }
         try {
             const targetId = user.customer_uuid || user.id.toString();
-            
+
             let summaryData: any = { subscriptions: [] };
             let modelsData: any[] = [];
-            
+
             try {
                 summaryData = await subscriptionApi.getCustomerMonthlySummary(domainName, targetId, currentYear, currentMonth);
             } catch (err) {
                 console.warn("Failed to fetch monthly summary:", err);
             }
-            
+
             try {
                 modelsData = await subscriptionApi.getGroupedSummary(domainName);
             } catch (err) {
                 console.warn("Failed to fetch subscription models:", err);
             }
-            
+
             const subList: SubscriptionSummary[] = summaryData.subscriptions || [];
             setSubs(subList);
             setModels(modelsData || []);
@@ -449,20 +150,11 @@ export default function SubscriptionsScreen() {
     };
 
     const handleSubscribe = (model: any) => {
-        Alert.alert(
-            "Subscribe to Plan",
-            `Would you like to subscribe to:\n${model.label}?`,
-            [
-                { text: "Cancel", style: "cancel" },
-                {
-                    text: "Subscribe",
-                    onPress: () => {
-                        Alert.alert("Success", "Your subscription request has been submitted successfully! Our team will contact you shortly to activate it.");
-                        addPlanSheetRef.current?.dismiss();
-                    }
-                }
-            ]
-        );
+        setSubscribingModel(model);
+        setSelectedFrequency(model.frequency || "daily");
+        setSelectedQty(model.quantity || 0.5);
+        setActiveTab("custom");
+        configureSubSheetRef.current?.present();
     };
 
     const selectedSub = subs.find((s) => s.subscription_id === selectedSubId);
@@ -548,8 +240,8 @@ export default function SubscriptionsScreen() {
                 }
 
                 if (color) {
-                    marked[dayInfo.date] = { 
-                        selected: true, 
+                    marked[dayInfo.date] = {
+                        selected: true,
                         selectedColor: color,
                         selectedTextColor: textColor,
                         color: color,
@@ -592,9 +284,9 @@ export default function SubscriptionsScreen() {
                 current.setDate(current.getDate() + 1);
                 while (current < end) {
                     const dateStr = current.toISOString().split("T")[0];
-                    marked[dateStr] = { 
+                    marked[dateStr] = {
                         selected: true,
-                        color: "#A5B4FC", 
+                        color: "#A5B4FC",
                         textColor: "white",
                         selectedColor: "#A5B4FC",
                         selectedTextColor: "white",
@@ -616,7 +308,7 @@ export default function SubscriptionsScreen() {
     };
 
     return (
-        <ScreenWrapper 
+        <ScreenWrapper
             showHeader={true}
             title="Subscriptions"
             headerBgColor="#1B5E37"
@@ -666,9 +358,9 @@ export default function SubscriptionsScreen() {
                                     <Text className="mb-2 text-[12px] font-bold text-gray-400 uppercase tracking-wider">
                                         Select Plan
                                     </Text>
-                                    <ScrollView 
-                                        horizontal 
-                                        showsHorizontalScrollIndicator={false} 
+                                    <ScrollView
+                                        horizontal
+                                        showsHorizontalScrollIndicator={false}
                                         contentContainerStyle={{ paddingRight: 16 }}
                                         className="flex-row mb-2"
                                     >
@@ -685,11 +377,10 @@ export default function SubscriptionsScreen() {
                                                         setVacationEnd(null);
                                                     }}
                                                     activeOpacity={0.8}
-                                                    className={`px-4 py-2 rounded-full mr-2 border ${
-                                                        isSelected 
-                                                            ? "bg-[#1B5E37] border-[#1B5E37]" 
+                                                    className={`px-4 py-2 rounded-full mr-2 border ${isSelected
+                                                            ? "bg-[#1B5E37] border-[#1B5E37]"
                                                             : "bg-white border-neutral-200"
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <Text className={`text-[12px] font-bold ${isSelected ? "text-white" : "text-gray-600"}`}>
                                                         {title} ({item.frequency_display})
@@ -713,16 +404,27 @@ export default function SubscriptionsScreen() {
 
                             {/* Add Subscription Button */}
                             <TouchableOpacity
-                                onPress={() => addPlanSheetRef.current?.present()}
+                                onPress={() => {
+                                    if (models && models.length > 0) {
+                                        setSubscribingModel(models[0]);
+                                        setSelectedFrequency(models[0].frequency || "daily");
+                                        setSelectedQty(models[0].quantity || 0.5);
+                                        setActiveTab("predefined");
+                                        configureSubSheetRef.current?.present();
+                                    } else {
+                                        Alert.alert("No Plans Available", "No subscription plans are available at this time.");
+                                    }
+                                }}
                                 activeOpacity={0.8}
-                                className="mb-6 flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-[#1B5E37] py-3.5 bg-[#E8F5EE]/40"
+                                style={{ backgroundColor: "rgba(232, 245, 238, 0.4)" }}
+                                className="mb-6 flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-[#1B5E37] py-3.5"
                             >
                                 <Ionicons name="add" size={18} color="#1B5E37" />
                                 <Text className="text-[14px] font-bold text-[#1B5E37]">
                                     Add New Subscription
                                 </Text>
                             </TouchableOpacity>
-                            
+
 
                             {/* Delivery Calendar for selected subscription */}
                             {selectedSub && (
@@ -823,49 +525,7 @@ export default function SubscriptionsScreen() {
                 </ScrollView>
             )}
 
-            {/* Modal for Adding New Subscription */}
-            <BottomSheetModal
-                ref={addPlanSheetRef}
-                index={0}
-                snapPoints={addPlanSnapPoints}
-                enablePanDownToClose
-                backdropComponent={renderBackdrop}
-                backgroundStyle={{ backgroundColor: "#F5F8F6" }}
-                handleIndicatorStyle={{ backgroundColor: "#D1D5DB" }}
-            >
-                <BottomSheetView style={{ flex: 1 }}>
-                    <View className="flex-1 p-6">
-                        {/* Modal Header */}
-                        <View className="flex-row justify-between items-center mb-5">
-                            <Text className="text-[18px] font-bold text-gray-900">
-                                Add New Plan
-                            </Text>
-                            <TouchableOpacity
-                                onPress={() => addPlanSheetRef.current?.dismiss()}
-                                className="h-8 w-8 rounded-full bg-gray-200/60 items-center justify-center"
-                            >
-                                <Ionicons name="close" size={18} color="#4A4A4A" />
-                            </TouchableOpacity>
-                        </View>
 
-                        {/* List of Models */}
-                        <BottomSheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
-                            {models.map((model, idx) => (
-                                <SubscriptionModelCard
-                                    key={idx}
-                                    model={model}
-                                    onSubscribe={handleSubscribe}
-                                />
-                            ))}
-                            {models.length === 0 && (
-                                <Text className="text-center text-gray-500 italic mt-6">
-                                    No subscription plans available at this time.
-                                </Text>
-                            )}
-                        </BottomSheetScrollView>
-                    </View>
-                </BottomSheetView>
-            </BottomSheetModal>
 
             {/* Modal for Delivery Status Details */}
             <BottomSheetModal
@@ -896,8 +556,8 @@ export default function SubscriptionsScreen() {
                                         </View>
                                         <TouchableOpacity
                                             onPress={() => statusSheetRef.current?.dismiss()}
-                                            className="h-8 w-8 rounded-full bg-gray-200/60 items-center justify-center"
                                             activeOpacity={0.7}
+                                            style={{ backgroundColor: "rgba(229, 229, 229, 0.6)", height: 32, width: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
                                         >
                                             <Ionicons name="close" size={18} color="#4A4A4A" />
                                         </TouchableOpacity>
@@ -906,7 +566,17 @@ export default function SubscriptionsScreen() {
                                     <BottomSheetScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
                                         {/* Status Card */}
                                         <View className={`rounded-2xl p-4 border flex-row items-center gap-4 mb-5 ${details.bgClass}`}>
-                                            <View className="h-12 w-12 rounded-full bg-white/80 items-center justify-center shadow-xs">
+                                            <View
+                                                style={{
+                                                    backgroundColor: "rgba(255, 255, 255, 0.8)",
+                                                    shadowColor: "#000",
+                                                    shadowOffset: { width: 0, height: 1 },
+                                                    shadowOpacity: 0.05,
+                                                    shadowRadius: 1,
+                                                    elevation: 1,
+                                                }}
+                                                className="h-12 w-12 rounded-full items-center justify-center"
+                                            >
                                                 <Ionicons name={details.icon} size={26} color={details.iconColor} />
                                             </View>
                                             <View className="flex-1">
@@ -955,11 +625,10 @@ export default function SubscriptionsScreen() {
                                             {items.length > 0 ? (
                                                 <View className="bg-white border border-neutral-100 rounded-2xl overflow-hidden">
                                                     {items.map((item: any, idx: number) => (
-                                                        <View 
-                                                            key={idx} 
-                                                            className={`flex-row justify-between items-center px-4 py-3.5 ${
-                                                                idx > 0 ? "border-t border-neutral-50" : ""
-                                                            }`}
+                                                        <View
+                                                            key={idx}
+                                                            className={`flex-row justify-between items-center px-4 py-3.5 ${idx > 0 ? "border-t border-neutral-50" : ""
+                                                                }`}
                                                         >
                                                             <View className="flex-row items-center gap-2.5 flex-1 pr-2">
                                                                 <View className="h-7 w-7 rounded-full bg-[#E8F5EE] items-center justify-center">
@@ -1004,6 +673,361 @@ export default function SubscriptionsScreen() {
                     </View>
                 </BottomSheetView>
             </BottomSheetModal>
+
+            {/* Modal for Configuring Subscription */}
+            <BottomSheetModal
+                ref={configureSubSheetRef}
+                index={0}
+                snapPoints={configureSubSnapPoints}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={{ backgroundColor: "#F5F8F6" }}
+                handleIndicatorStyle={{ backgroundColor: "#D1D5DB" }}
+            >
+                <BottomSheetScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ padding: 24, paddingBottom: 50 }}
+                >
+                    {subscribingModel && (
+                        <>
+                            {/* Modal Header */}
+                            <View className="flex-row justify-between items-center mb-5">
+                                <View>
+                                    <Text className="text-[18px] font-bold text-gray-900">
+                                        Configure Subscription
+                                    </Text>
+                                    <Text className="text-xs text-gray-500 font-semibold mt-0.5">
+                                        {subscribingModel.product_name}
+                                    </Text>
+                                </View>
+                                 <TouchableOpacity
+                                     onPress={() => configureSubSheetRef.current?.dismiss()}
+                                     style={{ backgroundColor: "rgba(229, 229, 229, 0.6)", height: 32, width: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
+                                 >
+                                    <Ionicons name="close" size={18} color="#4A4A4A" />
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* Tabs Switcher */}
+                            <View className="flex-row rounded-2xl p-1.5 mb-6 border border-neutral-200 bg-neutral-150 bg-neutral-100">
+                                <TouchableOpacity
+                                    onPress={() => setActiveTab("predefined")}
+                                    style={activeTab === "predefined" ? {
+                                        shadowColor: "#000",
+                                        shadowOffset: { width: 0, height: 1 },
+                                        shadowOpacity: 0.05,
+                                        shadowRadius: 1,
+                                        elevation: 1,
+                                    } : undefined}
+                                    className={`flex-1 py-3 rounded-xl items-center justify-center border ${
+                                        activeTab === "predefined" ? "bg-white border-neutral-200" : "bg-transparent border-transparent"
+                                    }`}
+                                >
+                                    <Text className={`text-[13px] font-bold ${activeTab === "predefined" ? "text-gray-900" : "text-gray-500"}`}>
+                                        Predefined Plans
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={() => setActiveTab("custom")}
+                                    style={activeTab === "custom" ? {
+                                        shadowColor: "#000",
+                                        shadowOffset: { width: 0, height: 1 },
+                                        shadowOpacity: 0.05,
+                                        shadowRadius: 1,
+                                        elevation: 1,
+                                    } : undefined}
+                                    className={`flex-1 py-3 rounded-xl items-center justify-center border ${
+                                        activeTab === "custom" ? "bg-white border-neutral-200" : "bg-transparent border-transparent"
+                                    }`}
+                                >
+                                    <Text className={`text-[13px] font-bold ${activeTab === "custom" ? "text-gray-900" : "text-gray-500"}`}>
+                                        Custom Subscription
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+
+                            {/* PREDEFINED PLANS TAB */}
+                            {activeTab === "predefined" && (
+                                <View className="gap-y-4">
+                                    <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-1">
+                                        Select a Predefined Plan
+                                    </Text>
+                                    <FlatList
+                                        data={models}
+                                        keyExtractor={(item, index) => item.id?.toString() || index.toString()}
+                                        scrollEnabled={false}
+                                        renderItem={({ item }) => (
+                                            <SubscriptionModelCard
+                                                model={item}
+                                                onSubscribe={(selectedModel) => {
+                                                    const frequencyLabels: { [key: string]: string } = {
+                                                        daily: "Daily",
+                                                        alternate: "Alternate Days",
+                                                        mon_wed_fri: "Mon, Wed, Fri",
+                                                        tue_thu_sat: "Tue, Thu, Sat",
+                                                        weekends: "Weekends Only"
+                                                    };
+                                                    const freqLabel = frequencyLabels[selectedModel.frequency] || selectedModel.frequency_display || selectedModel.frequency || "Daily";
+                                                    const unitPrice = Number(selectedModel.unit_price || selectedModel.price || 45);
+                                                    const costPerDelivery = unitPrice * (selectedModel.quantity || 1);
+
+                                                    addToCart({
+                                                        id: `sub_${selectedModel.product_id || selectedModel.id || 'milk'}_predefined_${selectedModel.frequency || 'daily'}`,
+                                                        name: `${selectedModel.product_name} (${freqLabel} Plan - ${selectedModel.quantity || 1}${selectedModel.unit || 'L'})`,
+                                                        price: costPerDelivery,
+                                                        quantity: 1
+                                                    });
+
+                                                    configureSubSheetRef.current?.dismiss();
+
+                                                    Alert.alert(
+                                                        "Added to Cart",
+                                                        `Predefined subscription plan added to your cart successfully!`,
+                                                        [
+                                                            { text: "Continue", style: "cancel" },
+                                                            {
+                                                                text: "View Cart",
+                                                                onPress: () => {
+                                                                    router.push("/(customer)/cart");
+                                                                }
+                                                            }
+                                                        ]
+                                                    );
+                                                }}
+                                            />
+                                        )}
+                                        ListEmptyComponent={
+                                            <Text className="text-center text-gray-500 italic py-6">
+                                                No subscription plans available at this time.
+                                            </Text>
+                                        }
+                                    />
+                                </View>
+                            )}
+
+                            {/* CUSTOM PLANS TAB */}
+                            {activeTab === "custom" && (
+                                <>
+
+
+                                    {/* Frequency Option Selection */}
+                                    <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                                        Select Delivery Frequency
+                                    </Text>
+                                    <View className="flex-row flex-wrap gap-2 mb-6">
+                                        {[
+                                            { id: "daily", label: "Daily" },
+                                            { id: "alternate", label: "Alternate Days" },
+                                            { id: "mon_wed_fri", label: "Mon, Wed, Fri" },
+                                            { id: "tue_thu_sat", label: "Tue, Thu, Sat" },
+                                            { id: "weekends", label: "Weekends Only" }
+                                        ].map((freq) => {
+                                            const isSelected = selectedFrequency === freq.id;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={freq.id}
+                                                    onPress={() => setSelectedFrequency(freq.id)}
+                                                    activeOpacity={0.8}
+                                                    className={`px-4 py-2.5 rounded-xl border ${isSelected
+                                                            ? "bg-[#1B5E37] border-[#1B5E37]"
+                                                            : "bg-white border-neutral-200"
+                                                        }`}
+                                                >
+                                                    <Text className={`text-[12px] font-bold ${isSelected ? "text-white" : "text-gray-600"}`}>
+                                                        {freq.label}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+
+                                    {/* Quantity Stepper */}
+                                    <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                                        Daily Quantity (Litre)
+                                    </Text>
+                                    
+                                    {/* Preset Buttons for Quick Select */}
+                                    <View className="flex-row gap-2 mb-3">
+                                        {[0.5, 1.0, 1.5, 2.0].map((val) => {
+                                            const isSelected = selectedQty === val;
+                                            return (
+                                                <TouchableOpacity
+                                                    key={val}
+                                                    onPress={() => setSelectedQty(val)}
+                                                    activeOpacity={0.8}
+                                                    style={isSelected ? { backgroundColor: "rgba(27, 94, 55, 0.1)" } : undefined}
+                                                    className={`flex-1 py-2 rounded-lg border items-center ${isSelected
+                                                            ? "border-[#1B5E37]"
+                                                            : "bg-white border-neutral-200"
+                                                        }`}
+                                                >
+                                                    <Text className={`text-[12px] font-bold ${isSelected ? "text-[#1B5E37]" : "text-gray-600"}`}>
+                                                        {val} L
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            );
+                                        })}
+                                    </View>
+
+                                    {/* Numeric Stepper Controller */}
+                                    <View className="flex-row items-center justify-between bg-white border border-neutral-200 rounded-2xl p-4 mb-6">
+                                        <Text className="text-[14px] font-bold text-gray-800">
+                                            Adjust Quantity
+                                        </Text>
+                                        <View className="flex-row items-center gap-4 bg-gray-50 border border-gray-100 rounded-full p-1.5">
+                                            <TouchableOpacity
+                                                onPress={() => setSelectedQty(prev => prev > 0.5 ? parseFloat((prev - 0.5).toFixed(1)) : 0.5)}
+                                                style={{
+                                                    shadowColor: "#000",
+                                                    shadowOffset: { width: 0, height: 1 },
+                                                    shadowOpacity: 0.05,
+                                                    shadowRadius: 1,
+                                                    elevation: 1,
+                                                }}
+                                                className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                                                disabled={selectedQty <= 0.5}
+                                            >
+                                                <Ionicons name="remove" size={16} color={selectedQty <= 0.5 ? "#D1D5DB" : "#1B5E37"} />
+                                            </TouchableOpacity>
+                                            <Text className="w-12 text-center text-[15px] font-black text-gray-800">
+                                                {selectedQty} L
+                                            </Text>
+                                            <TouchableOpacity
+                                                onPress={() => setSelectedQty(prev => parseFloat((prev + 0.5).toFixed(1)))}
+                                                style={{
+                                                    shadowColor: "#000",
+                                                    shadowOffset: { width: 0, height: 1 },
+                                                    shadowOpacity: 0.05,
+                                                    shadowRadius: 1,
+                                                    elevation: 1,
+                                                }}
+                                                className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                                            >
+                                                <Ionicons name="add" size={16} color="#1B5E37" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+
+                                    {/* Pricing & Cost Details */}
+                                    <View
+                                        style={{ borderColor: "rgba(229, 229, 229, 0.5)" }}
+                                        className="bg-[#FAF9F6] border rounded-2xl p-4 mb-6"
+                                    >
+                                        <View className="flex-row justify-between mb-2">
+                                            <Text className="text-[12px] font-semibold text-gray-500">Rate</Text>
+                                            <Text className="text-[12px] font-bold text-gray-800">
+                                                ₹{subscribingModel.unit_price || subscribingModel.price || 45}/Litre
+                                            </Text>
+                                        </View>
+                                        <View
+                                            style={{ borderTopColor: "rgba(229, 229, 229, 0.4)" }}
+                                            className="flex-row justify-between border-t pt-2 items-center"
+                                        >
+                                            <Text className="text-[13px] font-bold text-gray-800">Per-Delivery Cost</Text>
+                                            <Text className="text-[16px] font-black text-[#1B5E37]">
+                                                ₹{((subscribingModel.unit_price || subscribingModel.price || 45) * selectedQty).toFixed(2)}
+                                            </Text>
+                                        </View>
+                                    </View>
+
+                                    {/* Add to Cart Button */}
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            const frequencyLabels: { [key: string]: string } = {
+                                                daily: "Daily",
+                                                alternate: "Alternate Days",
+                                                mon_wed_fri: "Mon, Wed, Fri",
+                                                tue_thu_sat: "Tue, Thu, Sat",
+                                                weekends: "Weekends Only"
+                                            };
+                                            const freqLabel = frequencyLabels[selectedFrequency] || selectedFrequency;
+                                            const unitPrice = Number(subscribingModel.unit_price || subscribingModel.price || 45);
+                                            const costPerDelivery = unitPrice * selectedQty;
+
+                                            addToCart({
+                                                id: `sub_${subscribingModel.product_id || subscribingModel.id || 'milk'}_${selectedFrequency}`,
+                                                name: `${subscribingModel.product_name} (Sub: ${freqLabel} - ${selectedQty}L)`,
+                                                price: costPerDelivery,
+                                                quantity: 1
+                                            });
+
+                                            configureSubSheetRef.current?.dismiss();
+
+                                            Alert.alert(
+                                                "Added to Cart",
+                                                `Subscription added to your cart successfully!`,
+                                                [
+                                                    { text: "Continue", style: "cancel" },
+                                                    {
+                                                        text: "View Cart",
+                                                        onPress: () => {
+                                                            router.push("/(customer)/cart");
+                                                        }
+                                                    }
+                                                ]
+                                            );
+                                        }}
+                                        activeOpacity={0.85}
+                                        className="bg-[#1B5E37] py-4 rounded-2xl items-center justify-center shadow-md"
+                                        style={{
+                                            shadowColor: "#1B5E37",
+                                            shadowOffset: { width: 0, height: 4 },
+                                            shadowOpacity: 0.15,
+                                            shadowRadius: 6,
+                                            elevation: 3,
+                                        }}
+                                    >
+                                        <Text className="text-white text-sm font-bold uppercase tracking-wider">
+                                            Add Subscription to Cart
+                                        </Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
+                        </>
+                    )}
+                </BottomSheetScrollView>
+            </BottomSheetModal>
+
+            {cartItems.length > 0 && (
+                <View 
+                    pointerEvents="box-none"
+                    className="absolute left-0 right-0 items-center z-50"
+                    style={{ bottom: bottomTabPadding }}
+                >
+                    <TouchableOpacity
+                        activeOpacity={0.9}
+                        onPress={() => {
+                            router.push("/(customer)/cart");
+                        }}
+                        className="flex-row items-center rounded-full px-2 py-2 shadow-lg gap-1"
+                        style={{
+                            backgroundColor: "#178d2bff",
+                        }}
+                    >
+                        {/* Left: Product Image Thumbnail */}
+                        <View className="h-10 w-10 rounded-full bg-white items-center justify-center overflow-hidden p-1">
+                            <Image
+                                source={{ uri: getProductThumbnail(cartItems[0]?.name || "") }}
+                                className="h-8 w-8"
+                                resizeMode="cover"
+                            />
+                        </View>
+
+                        {/* Middle: Details */}
+                        <View className="mx-3.5 pr-2 items-start justify-center">
+                            <Text className="text-[13px] font-black text-white leading-none">View cart</Text>
+                            <Text className="text-[10px] font-bold text-white/80 mt-1 leading-none">
+                                {cartItems.reduce((acc, i) => acc + i.quantity, 0)} {cartItems.reduce((acc, i) => acc + i.quantity, 0) === 1 ? "item" : "items"}
+                            </Text>
+                        </View>
+
+                        {/* Right: Chevron Circle */}
+                        <View className="h-10 w-10 rounded-full bg-white/20 items-center justify-center">
+                            <Ionicons name="chevron-forward" size={20} color="white" />
+                        </View>
+                    </TouchableOpacity>
+                </View>
+            )}
         </ScreenWrapper>
     );
 }

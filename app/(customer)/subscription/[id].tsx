@@ -1,18 +1,18 @@
+import { subscriptionApi } from "@/features/ecommerce/api/subscriptionApi";
+import { useAuthStore } from "@/store/authStore";
+import { Ionicons } from "@expo/vector-icons";
+import { router, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
   ActivityIndicator,
   Alert,
   ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
-import { SafeAreaView } from "react-native-safe-area-context";
 import { Calendar, DateData } from "react-native-calendars";
-import { useAuthStore } from "@/store/authStore";
-import { subscriptionApi } from "@/features/dashboard/api/subscriptionApi";
-import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function SubscriptionDetailsScreen() {
   const { id, year, month } = useLocalSearchParams();
@@ -268,9 +268,8 @@ export default function SubscriptionDetailsScreen() {
                   <TouchableOpacity
                     onPress={submitVacation}
                     disabled={!vacationStart}
-                    className={`flex-1 rounded-lg py-2.5 items-center ${
-                      vacationStart ? "bg-[#1B5E37]" : "bg-gray-400"
-                    }`}
+                    className={`flex-1 rounded-lg py-2.5 items-center ${vacationStart ? "bg-[#1B5E37]" : "bg-gray-400"
+                      }`}
                   >
                     <Text className="text-[14px] font-bold text-white">
                       Confirm

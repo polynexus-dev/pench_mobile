@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
+  LayoutAnimation,
+  Platform,
   ScrollView,
   Text,
   TouchableOpacity,
+  UIManager,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -25,6 +29,186 @@ const getProductThumbnail = (name: string) => {
   return "https://images.unsplash.com/photo-1628105652613-2d5fc2f3a6cb?ixlib=rb-1.2.1&auto=format&fit=crop&w=300&q=80";
 };
 
+const parseSubscriptionDetails = (name: string) => {
+  const subRegex = /\((?:Sub: )?([^-\)]+)-\s*([^\)]+)\)/i;
+  const match = name.match(subRegex);
+  if (match) {
+    return {
+      frequency: match[1].trim(),
+      quantity: match[2].trim(),
+    };
+  }
+  return null;
+};
+
+interface CartItemRowProps {
+  item: any;
+  isExpanded: boolean;
+  onToggleExpand: () => void;
+  addToCart: (item: any) => void;
+  removeFromCart: (id: string | number) => void;
+}
+
+const CartItemRow = React.memo(({
+  item,
+  isExpanded,
+  onToggleExpand,
+  addToCart,
+  removeFromCart
+}: CartItemRowProps) => {
+  const isSub = typeof item.id === "string" && item.id.startsWith("sub_");
+  const subDetails = isSub ? parseSubscriptionDetails(item.name) : null;
+  const cleanName = isSub ? item.name.split(" (")[0] : item.name;
+
+  const animatedHeight = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
+
+  useEffect(() => {
+    Animated.timing(animatedHeight, {
+      toValue: isExpanded ? 1 : 0,
+      duration: 220,
+      useNativeDriver: false,
+    }).start();
+  }, [isExpanded]);
+
+  const heightStyle = {
+    height: animatedHeight.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 98],
+    }),
+    opacity: animatedHeight.interpolate({
+      inputRange: [0, 1],
+      outputRange: [0, 1],
+    }),
+    overflow: "hidden" as const,
+  };
+
+  return (
+    <View
+      className="mb-4 rounded-2xl bg-white p-3.5 border border-gray-100/70"
+      style={{
+        shadowColor: "#000000",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.02,
+        shadowRadius: 6,
+        elevation: 1.5,
+      }}
+    >
+      <View className="flex-row items-center justify-between">
+        <TouchableOpacity
+          activeOpacity={isSub ? 0.7 : 1.0}
+          onPress={() => isSub && onToggleExpand()}
+          className="flex-row items-center flex-1 pr-3"
+        >
+          <View className="h-12 w-12 rounded-xl bg-gray-50 items-center justify-center overflow-hidden border border-gray-100 p-1 mr-3">
+            <Image
+              source={{ uri: getProductThumbnail(item.name) }}
+              className="h-9 w-9"
+              resizeMode="cover"
+            />
+          </View>
+          <View className="flex-1">
+            <View className="flex-row items-center gap-1.5 flex-wrap">
+              <Text className="text-[14px] font-bold text-gray-900" numberOfLines={2}>
+                {cleanName}
+              </Text>
+              {isSub && (
+                <View 
+                  style={{ backgroundColor: "rgba(27, 94, 55, 0.08)", borderColor: "rgba(27, 94, 55, 0.15)" }} 
+                  className="px-1.5 py-0.5 rounded-md border"
+                >
+                  <Text className="text-[8px] font-black text-[#1B5E37] uppercase tracking-wider">
+                    Subscription
+                  </Text>
+                </View>
+              )}
+            </View>
+            
+            <View className="flex-row items-center gap-2 mt-1">
+              <Text className="text-[13px] font-extrabold text-[#1B5E37]">
+                ₹{item.price}
+              </Text>
+              
+              {isSub && (
+                <View
+                  className="flex-row items-center gap-0.5 py-0.5 px-1.5 bg-gray-50 border border-gray-100 rounded-md"
+                >
+                  <Text className="text-[9px] font-bold text-gray-500">Details</Text>
+                  <Ionicons 
+                    name={isExpanded ? "chevron-up-outline" : "chevron-down-outline"} 
+                    size={9} 
+                    color="#6B7280" 
+                  />
+                </View>
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+
+        {/* Action Controls */}
+        {isSub ? (
+          <TouchableOpacity
+            onPress={() => removeFromCart(item.id)}
+            className="h-9 w-9 items-center justify-center rounded-full bg-red-50 border border-red-100"
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Ionicons name="trash-outline" size={16} color="#DC2626" />
+          </TouchableOpacity>
+        ) : (
+          <View className="flex-row items-center rounded-full bg-[#0C5A35]/5 border border-[#0C5A35]/10 p-1">
+            <TouchableOpacity
+              onPress={() => removeFromCart(item.id)}
+              className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs border border-gray-200/40"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="remove" size={14} color="#0C5A35" />
+            </TouchableOpacity>
+            <Text className="w-9 text-center text-[13px] font-black text-gray-800">
+              {item.quantity}
+            </Text>
+            <TouchableOpacity
+              onPress={() =>
+                addToCart({
+                  id: item.id,
+                  name: item.name,
+                  price: item.price,
+                  quantity: 1,
+                })
+              }
+              className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs border border-gray-200/40"
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="add" size={14} color="#0C5A35" />
+            </TouchableOpacity>
+          </View>
+        )}
+      </View>
+
+      {/* Expandable Subscription Details Section */}
+      {isSub && (
+        <Animated.View style={heightStyle}>
+          <View 
+            style={{ backgroundColor: "rgba(250, 249, 246, 0.8)", borderColor: "rgba(229, 229, 229, 0.4)" }} 
+            className="mt-3 p-3 rounded-xl border border-dashed gap-y-1.5"
+          >
+            <View className="flex-row justify-between">
+              <Text className="text-[13px] font-semibold text-gray-500">Frequency</Text>
+              <Text className="text-[13px] font-bold text-gray-800">{subDetails?.frequency || "Standard Plan"}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-[13px] font-semibold text-gray-500">Volume per Delivery</Text>
+              <Text className="text-[13px] font-bold text-gray-800">{subDetails?.quantity || "1.0 L"}</Text>
+            </View>
+            <View className="flex-row justify-between">
+              <Text className="text-[13px] font-semibold text-gray-500">Rate (₹ / Delivery)</Text>
+              <Text className="text-[13px] font-black text-[#1B5E37]">₹{item.price}</Text>
+            </View>
+          </View>
+        </Animated.View>
+      )}
+    </View>
+  );
+});
+
 export function CartScreen() {
   const { user } = useAuthStore();
   const domainName = useAuthStore((s) => s.domain_name) || "";
@@ -37,6 +221,14 @@ export function CartScreen() {
   const [showCalendar, setShowCalendar] = useState(false);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
+  const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
+
+  const toggleExpand = (id: string | number) => {
+    setExpandedItems((prev) => ({
+      ...prev,
+      [id]: !prev[id],
+    }));
+  };
 
   const getLocalDateString = (date: Date) => {
     const year = date.getFullYear();
@@ -106,7 +298,23 @@ export function CartScreen() {
     }
   };
 
-  const totalAmount = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const totalAmount = cartItems.reduce((sum, item) => {
+    const isSub = typeof item.id === "string" && item.id.startsWith("sub_");
+    let multiplier = 1;
+    if (isSub) {
+      const idStr = String(item.id).toLowerCase();
+      if (idStr.includes("alternate")) {
+        multiplier = 15;
+      } else if (idStr.includes("mon_wed_fri") || idStr.includes("tue_thu_sat")) {
+        multiplier = 13;
+      } else if (idStr.includes("weekends")) {
+        multiplier = 8;
+      } else {
+        multiplier = 30;
+      }
+    }
+    return sum + item.price * item.quantity * multiplier;
+  }, 0);
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top", "bottom"]}>
@@ -159,68 +367,21 @@ export function CartScreen() {
             </Text>
 
             {cartItems.map((item) => (
-              <View
+              <CartItemRow
                 key={item.id}
-                className="mb-4 flex-row items-center justify-between rounded-2xl bg-white p-3.5 border border-gray-100/70"
-                style={{
-                  shadowColor: "#000000",
-                  shadowOffset: { width: 0, height: 2 },
-                  shadowOpacity: 0.02,
-                  shadowRadius: 6,
-                  elevation: 1.5,
-                }}
-              >
-                <View className="flex-row items-center flex-1 pr-3">
-                  <View className="h-12 w-12 rounded-xl bg-gray-50 items-center justify-center overflow-hidden border border-gray-100 p-1 mr-3">
-                    <Image
-                      source={{ uri: getProductThumbnail(item.name) }}
-                      className="h-9 w-9"
-                      resizeMode="cover"
-                    />
-                  </View>
-                  <View className="flex-1">
-                    <Text className="text-[14px] font-bold text-gray-900" numberOfLines={2}>
-                      {item.name}
-                    </Text>
-                    <Text className="mt-1 text-[13px] font-extrabold text-[#1B5E37]">
-                      ₹{item.price}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Stepper */}
-                <View className="flex-row items-center rounded-full bg-[#0C5A35]/5 border border-[#0C5A35]/10 p-1">
-                  <TouchableOpacity
-                    onPress={() => removeFromCart(item.id)}
-                    className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs border border-gray-200/40"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="remove" size={14} color="#0C5A35" />
-                  </TouchableOpacity>
-                  <Text className="w-9 text-center text-[13px] font-black text-gray-800">
-                    {item.quantity}
-                  </Text>
-                  <TouchableOpacity
-                    onPress={() =>
-                      addToCart({
-                        id: item.id,
-                        name: item.name,
-                        price: item.price,
-                        quantity: 1,
-                      })
-                    }
-                    className="h-8 w-8 items-center justify-center rounded-full bg-white shadow-xs border border-gray-200/40"
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  >
-                    <Ionicons name="add" size={14} color="#0C5A35" />
-                  </TouchableOpacity>
-                </View>
-              </View>
+                item={item}
+                isExpanded={expandedItems[item.id] || false}
+                onToggleExpand={() => toggleExpand(item.id)}
+                addToCart={addToCart}
+                removeFromCart={removeFromCart}
+              />
             ))}
 
             {/* Delivery Date */}
             <Text className="mt-6 mb-3 text-[14px] font-black text-gray-900 uppercase tracking-wider">
-              Delivery Date
+              {cartItems.some((item) => typeof item.id === "string" && item.id.startsWith("sub_"))
+                ? "Subscription Start Date"
+                : "Delivery Date"}
             </Text>
 
             <TouchableOpacity
@@ -353,6 +514,19 @@ export function CartScreen() {
               </TouchableOpacity>
             </View>
 
+            {/* Morning Delivery Notice (Only for one-time products) */}
+            {cartItems.some((item) => typeof item.id !== "string" || !item.id.startsWith("sub_")) && (
+              <View 
+                style={{ backgroundColor: "rgba(254, 243, 199, 0.4)", borderColor: "rgba(252, 211, 77, 0.4)" }} 
+                className="mb-6 flex-row items-center gap-2.5 rounded-2xl border p-4"
+              >
+                <Ionicons name="time-outline" size={18} color="#D97706" />
+                <Text className="text-[12px] font-bold text-amber-800 leading-normal flex-1">
+                  Note: Delivery for one-time products is only available during morning hours (6:30 AM to 9:00 AM).
+                </Text>
+              </View>
+            )}
+
             {/* Price Details Card */}
             <View className="rounded-2xl border border-gray-100 bg-[#FAF9F6] p-4 mb-4">
               <Text className="text-[12px] font-black text-gray-800 uppercase tracking-wider mb-3">
@@ -400,17 +574,19 @@ export function CartScreen() {
             </View>
 
             <TouchableOpacity
-              onPress={handlePlaceOrder}
-              disabled={isPlacingOrder}
-              className="w-full rounded-2xl bg-[#0C5A35] py-4 items-center justify-center shadow-md active:opacity-90"
+              disabled={true}
+              className="w-full rounded-2xl bg-gray-200 py-4 items-center justify-center"
+              style={{
+                shadowColor: "#000",
+                shadowOffset: { width: 0, height: 1 },
+                shadowOpacity: 0.05,
+                shadowRadius: 1,
+                elevation: 1,
+              }}
             >
-              {isPlacingOrder ? (
-                <ActivityIndicator size="small" color="white" />
-              ) : (
-                <Text className="text-[16px] font-bold text-white uppercase tracking-wider">
-                  Confirm & Place Order
-                </Text>
-              )}
+              <Text className="text-[15px] font-bold text-gray-400 uppercase tracking-wider">
+                No Payment Gateway Added
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
