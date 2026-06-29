@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { StatusBar } from "expo-status-bar";
 import React from "react";
 import {
   Alert,
@@ -121,6 +122,15 @@ export function DriverProfileScreen() {
   const { show } = useToast();
 
   const [activeView, setActiveView] = React.useState<'view' | 'edit_profile' | 'change_password'>('view');
+
+  const [isFocused, setIsFocused] = React.useState(false);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      setIsFocused(true);
+      return () => setIsFocused(false);
+    }, [])
+  );
 
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
@@ -275,6 +285,7 @@ export function DriverProfileScreen() {
       className="bg-[#F7F9FA]"
       screenBgColor="#F7F9FA"
     >
+      {isFocused && <StatusBar style="dark" />}
       <Animated.View
         pointerEvents={showStickyHeader ? "auto" : "none"}
         style={{

@@ -1,6 +1,10 @@
 export type SubmitDeliveryPayload = {
-  bottles_issued: number;
-  bottles_returned: number;
+  bottle_transactions: Array<{
+    bottle_type_id: string;
+    issued: number;
+    returned: number;
+    broken: number;
+  }>;
 };
 
 export type SubmitDeliveryResponse = {

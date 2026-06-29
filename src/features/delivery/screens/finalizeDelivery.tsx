@@ -29,6 +29,7 @@ export function FinalizeDeliveryScreen() {
 
     const [issued, setIssued] = useState("0");
     const [returned, setReturned] = useState("0");
+    const [broken, setBroken] = useState("0");
     const { mutateAsync: submitDelivery, isPending: isSubmitting } = useSubmitDelivery();
 
     const currentStop = useMemo(() => {
@@ -36,12 +37,23 @@ export function FinalizeDeliveryScreen() {
         return route.stops.find((s) => s.order === orderId) ?? null;
     }, [route?.stops, orderId]);
 
+    const bottleTypeId = useMemo(() => {
+        if (currentStop?.bottles_to_deliver?.[0]?.bottle_type_id) {
+            return currentStop.bottles_to_deliver[0].bottle_type_id;
+        }
+        if (currentStop?.bottles_to_take_back?.[0]?.bottle_type_id) {
+            return currentStop.bottles_to_take_back[0].bottle_type_id;
+        }
+        return "00000000-0000-0000-0000-000000000000";
+    }, [currentStop]);
+
     React.useEffect(() => {
         if (currentStop) {
             const deliverTotal = currentStop.bottles_to_deliver?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
             const takeBackTotal = currentStop.bottles_to_take_back?.reduce((sum, item) => sum + (item.quantity || 0), 0) ?? 0;
             setIssued(String(deliverTotal));
             setReturned(String(takeBackTotal));
+            setBroken("0");
         }
     }, [currentStop]);
 
@@ -83,8 +95,14 @@ export function FinalizeDeliveryScreen() {
                 domainName: domain_name,
                 orderId,
                 payload: {
-                    bottles_issued: Number(issued),
-                    bottles_returned: Number(returned),
+                    bottle_transactions: [
+                        {
+                            bottle_type_id: bottleTypeId,
+                            issued: Number(issued),
+                            returned: Number(returned),
+                            broken: Number(broken),
+                        }
+                    ]
                 },
             });
             markStopDelivered(orderId);
@@ -273,67 +291,99 @@ export function FinalizeDeliveryScreen() {
                         Adjust numbers to reflect actual quantities transferred:
                     </Text>
 
-                    <View className="flex-row gap-x-4">
-                        {/* Bottles Issued */}
-                        <View className="flex-1 bg-bg-screen rounded-2xl p-4 border border-border-default/40 items-center justify-center">
-                            <Text
-                                variant="caption"
-                                weight="bold"
-                                color="muted"
-                                className="mb-3 text-[10px] uppercase tracking-wider text-center"
-                            >
-                                Bottles Issued
-                            </Text>
+                    <View className="gap-y-3.5">
+                        {/* Row 1: Bottles Issued */}
+                        <View className="flex-row items-center justify-between bg-bg-screen rounded-2xl px-4 py-3 border border-border-default/30">
+                            <View className="flex-row items-center gap-x-2.5">
+                                <View className="h-8 w-8 rounded-full bg-brand-primary/10 items-center justify-center">
+                                    <Ionicons name="water-outline" size={16} color="#1B5E37" />
+                                </View>
+                                <Text variant="body-sm" weight="semibold" color="primary">
+                                    Bottles Issued
+                                </Text>
+                            </View>
 
-                            <View className="flex-row items-center justify-between w-full px-1">
+                            <View className="flex-row items-center gap-x-4">
                                 <TouchableOpacity
                                     onPress={() => decrement(issued, setIssued)}
-                                    className="h-9 w-9 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
                                 >
-                                    <Ionicons name="remove" size={16} color="#1A1A1A" />
+                                    <Ionicons name="remove" size={14} color="#1A1A1A" />
                                 </TouchableOpacity>
 
-                                <Text variant="body-lg" weight="extrabold" color="primary">
+                                <Text variant="body" weight="extrabold" color="primary" style={{ minWidth: 20, textAlign: "center" }}>
                                     {issued}
                                 </Text>
 
                                 <TouchableOpacity
                                     onPress={() => increment(issued, setIssued)}
-                                    className="h-9 w-9 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
                                 >
-                                    <Ionicons name="add" size={16} color="#1A1A1A" />
+                                    <Ionicons name="add" size={14} color="#1A1A1A" />
                                 </TouchableOpacity>
                             </View>
                         </View>
 
-                        {/* Bottles Returned */}
-                        <View className="flex-1 bg-bg-screen rounded-2xl p-4 border border-border-default/40 items-center justify-center">
-                            <Text
-                                variant="caption"
-                                weight="bold"
-                                color="muted"
-                                className="mb-3 text-[10px] uppercase tracking-wider text-center"
-                            >
-                                Bottles Returned
-                            </Text>
+                        {/* Row 2: Bottles Returned */}
+                        <View className="flex-row items-center justify-between bg-bg-screen rounded-2xl px-4 py-3 border border-border-default/30">
+                            <View className="flex-row items-center gap-x-2.5">
+                                <View className="h-8 w-8 rounded-full bg-amber-500/10 items-center justify-center">
+                                    <Ionicons name="return-down-back-outline" size={16} color="#D4872A" />
+                                </View>
+                                <Text variant="body-sm" weight="semibold" color="primary">
+                                    Bottles Returned
+                                </Text>
+                            </View>
 
-                            <View className="flex-row items-center justify-between w-full px-1">
+                            <View className="flex-row items-center gap-x-4">
                                 <TouchableOpacity
                                     onPress={() => decrement(returned, setReturned)}
-                                    className="h-9 w-9 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
                                 >
-                                    <Ionicons name="remove" size={16} color="#1A1A1A" />
+                                    <Ionicons name="remove" size={14} color="#1A1A1A" />
                                 </TouchableOpacity>
 
-                                <Text variant="body-lg" weight="extrabold" color="primary">
+                                <Text variant="body" weight="extrabold" color="primary" style={{ minWidth: 20, textAlign: "center" }}>
                                     {returned}
                                 </Text>
 
                                 <TouchableOpacity
                                     onPress={() => increment(returned, setReturned)}
-                                    className="h-9 w-9 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
                                 >
-                                    <Ionicons name="add" size={16} color="#1A1A1A" />
+                                    <Ionicons name="add" size={14} color="#1A1A1A" />
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+
+                        {/* Row 3: Broken Bottles */}
+                        <View className="flex-row items-center justify-between bg-bg-screen rounded-2xl px-4 py-3 border border-border-default/30">
+                            <View className="flex-row items-center gap-x-2.5">
+                                <View className="h-8 w-8 rounded-full bg-red-500/10 items-center justify-center">
+                                    <Ionicons name="close-circle-outline" size={16} color="#EF4444" />
+                                </View>
+                                <Text variant="body-sm" weight="semibold" color="primary">
+                                    Broken Bottles
+                                </Text>
+                            </View>
+
+                            <View className="flex-row items-center gap-x-4">
+                                <TouchableOpacity
+                                    onPress={() => decrement(broken, setBroken)}
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
+                                >
+                                    <Ionicons name="remove" size={14} color="#1A1A1A" />
+                                </TouchableOpacity>
+
+                                <Text variant="body" weight="extrabold" color="primary" style={{ minWidth: 20, textAlign: "center" }}>
+                                    {broken}
+                                </Text>
+
+                                <TouchableOpacity
+                                    onPress={() => increment(broken, setBroken)}
+                                    className="h-8 w-8 items-center justify-center rounded-full border border-border-default bg-white shadow-sm active:bg-gray-50"
+                                >
+                                    <Ionicons name="add" size={14} color="#1A1A1A" />
                                 </TouchableOpacity>
                             </View>
                         </View>

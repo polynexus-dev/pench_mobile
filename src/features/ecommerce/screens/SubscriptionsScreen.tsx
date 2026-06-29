@@ -9,7 +9,7 @@ import { useIsFocused } from "@react-navigation/native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, Animated, Easing, FlatList, Image, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Alert, Animated, Easing, FlatList, Image, Modal, RefreshControl, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
 import { useBottomTabPadding } from "@/hooks/useBottomTabPadding";
 import { SubscriptionDetailsCard } from "@/features/ecommerce/components/SubscriptionDetailsCard";
@@ -64,14 +64,22 @@ export default function SubscriptionsScreen() {
     // States for custom subscription configuration
     const [subscribingModel, setSubscribingModel] = useState<any>(null);
     const [selectedFrequency, setSelectedFrequency] = useState<string>("daily");
-    const [selectedQty, setSelectedQty] = useState<number>(0.5);
-    const [activeTab, setActiveTab] = useState<"predefined" | "custom">("predefined");
+    const [selectedQty, setSelectedQty] = useState<number>(1.0);
+    const [selectedModel, setSelectedModel] = useState<any>(null);
+    const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
+    const [startDate, setStartDate] = useState<Date>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 1);
+        return d;
+    });
 
     // Bottom Sheet Refs & Snap Points
     const statusSheetRef = useRef<BottomSheetModal>(null);
-    const configureSubSheetRef = useRef<BottomSheetModal>(null);
+    const predefinedSheetRef = useRef<BottomSheetModal>(null);
+    const customSheetRef = useRef<BottomSheetModal>(null);
+    
     const statusSnapPoints = useMemo(() => ["75%"], []);
-    const configureSubSnapPoints = useMemo(() => ["90%"], []);
+    const configureSubSnapPoints = useMemo(() => ["95%"], []);
 
     const renderBackdrop = useCallback(
         (props: any) => (
@@ -151,10 +159,9 @@ export default function SubscriptionsScreen() {
 
     const handleSubscribe = (model: any) => {
         setSubscribingModel(model);
-        setSelectedFrequency(model.frequency || "daily");
-        setSelectedQty(model.quantity || 0.5);
-        setActiveTab("custom");
-        configureSubSheetRef.current?.present();
+        setSelectedFrequency("daily");
+        setSelectedQty(1.0);
+        customSheetRef.current?.present();
     };
 
     const selectedSub = subs.find((s) => s.subscription_id === selectedSubId);
@@ -328,102 +335,188 @@ export default function SubscriptionsScreen() {
                 >
                     {subs.length === 0 ? (
                         <View className="mt-4">
-                            <Text className="mb-3 text-[14px] font-bold text-gray-500 uppercase tracking-wider">
-                                Recommended Plans
-                            </Text>
-                            {models.map((model, idx) => (
-                                <SubscriptionModelCard
-                                    key={idx}
-                                    model={model}
-                                    onSubscribe={handleSubscribe}
-                                />
-                            ))}
-                            {models.length === 0 && (
-                                <View className="mt-12 items-center justify-center px-4">
-                                    <Ionicons name="calendar-outline" size={64} color="#D1D5DB" />
-                                    <Text className="mt-4 text-center text-[16px] font-bold text-gray-900">
-                                        No active subscriptions
-                                    </Text>
-                                    <Text className="mt-2 text-center text-[14px] text-gray-500">
-                                        You don't have any active subscriptions yet.
-                                    </Text>
+                            {/* Empty state visual */}
+                            <View className="mb-6 items-center justify-center px-4 py-8 bg-white border border-gray-100 rounded-3xl">
+                                <View className="h-16 w-16 bg-[#E8F5EE] rounded-full items-center justify-center mb-4">
+                                    <Ionicons name="calendar-outline" size={32} color="#1B5E37" />
                                 </View>
-                            )}
+                                <Text className="text-center text-[16px] font-black text-gray-900">
+                                    No Active Subscriptions
+                                </Text>
+                                <Text className="mt-1.5 text-center text-[12px] text-gray-500 leading-normal max-w-[240px]">
+                                    You don't have any active subscriptions yet. Select from our plans below to set up daily deliveries.
+                                </Text>
+                            </View>
+
+                            {/* Two Trigger Components */}
+                            <Text className="mb-3 text-[12px] font-black text-gray-400 uppercase tracking-widest">
+                                Subscribe to Pench Fresh
+                            </Text>
+                            
+                            <View className="flex-row gap-3 mb-6">
+                                {/* Component 1: Existing Plans */}
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (models && models.length > 0) {
+                                            setSelectedModel(null);
+                                            predefinedSheetRef.current?.present();
+                                        } else {
+                                            Alert.alert("No Plans Available", "No subscription plans are available at this time.");
+                                        }
+                                    }}
+                                    activeOpacity={0.88}
+                                    className="flex-1 bg-white border border-gray-150 p-5 rounded-2xl items-center text-center shadow-xs"
+                                >
+                                    <View className="h-11 w-11 rounded-full bg-[#1B5E37]/10 items-center justify-center mb-3">
+                                        <Ionicons name="gift-outline" size={20} color="#1B5E37" />
+                                    </View>
+                                    <Text className="text-[13px] font-black text-gray-900 text-center">Existing Plans</Text>
+                                    <Text className="text-[9px] font-semibold text-gray-400 text-center mt-1.5 leading-normal">
+                                        Browse active predefined presets
+                                    </Text>
+                                </TouchableOpacity>
+
+                                {/* Component 2: Custom Plan */}
+                                <TouchableOpacity
+                                    onPress={() => {
+                                        if (models && models.length > 0) {
+                                            setSubscribingModel(models[0]);
+                                            setSelectedFrequency("daily");
+                                            setSelectedQty(1.0);
+                                            customSheetRef.current?.present();
+                                        } else {
+                                            Alert.alert("No Plans Available", "No subscription plans are available at this time.");
+                                        }
+                                    }}
+                                    activeOpacity={0.88}
+                                    className="flex-1 bg-white border border-gray-150 p-5 rounded-2xl items-center text-center shadow-xs"
+                                >
+                                    <View className="h-11 w-11 rounded-full bg-[#1B5E37]/10 items-center justify-center mb-3">
+                                        <Ionicons name="build-outline" size={20} color="#1B5E37" />
+                                    </View>
+                                    <Text className="text-[13px] font-black text-gray-900 text-center">Custom Plan</Text>
+                                    <Text className="text-[9px] font-semibold text-gray-400 text-center mt-1.5 leading-normal">
+                                        Configure schedule, rate & litres
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
                         </View>
                     ) : (
                         <>
-                            {/* Selector for multiple plans (only if more than 1 plan exists) */}
-                            {subs.length > 1 && (
-                                <View className="mb-3">
-                                    <Text className="mb-2 text-[12px] font-bold text-gray-400 uppercase tracking-wider">
-                                        Select Plan
-                                    </Text>
-                                    <ScrollView
-                                        horizontal
-                                        showsHorizontalScrollIndicator={false}
-                                        contentContainerStyle={{ paddingRight: 16 }}
-                                        className="flex-row mb-2"
-                                    >
-                                        {subs.map((item, index) => {
-                                            const isSelected = item.subscription_id === selectedSubId;
-                                            const title = item.items?.[0]?.product_name || `Plan ${index + 1}`;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={item.subscription_id}
-                                                    onPress={() => {
-                                                        setSelectedSubId(item.subscription_id);
-                                                        setIsSelectingVacation(false);
-                                                        setVacationStart(null);
-                                                        setVacationEnd(null);
-                                                    }}
-                                                    activeOpacity={0.8}
-                                                    className={`px-4 py-2 rounded-full mr-2 border ${isSelected
-                                                            ? "bg-[#1B5E37] border-[#1B5E37]"
-                                                            : "bg-white border-neutral-200"
-                                                        }`}
-                                                >
-                                                    <Text className={`text-[12px] font-bold ${isSelected ? "text-white" : "text-gray-600"}`}>
-                                                        {title} ({item.frequency_display})
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </ScrollView>
-                                </View>
-                            )}
-
-                            {/* Single Unified Details Component */}
-                            {selectedSub && (
-                                <View className="mt-2">
-                                    <Text className="mb-2 text-[12px] font-bold text-gray-400 uppercase tracking-wider">
-                                        Plan Details
-                                    </Text>
-                                    <SubscriptionDetailsCard sub={selectedSub} />
-                                </View>
-                            )}
-
-                            {/* Add Subscription Button */}
-                            <TouchableOpacity
-                                onPress={() => {
-                                    if (models && models.length > 0) {
-                                        setSubscribingModel(models[0]);
-                                        setSelectedFrequency(models[0].frequency || "daily");
-                                        setSelectedQty(models[0].quantity || 0.5);
-                                        setActiveTab("predefined");
-                                        configureSubSheetRef.current?.present();
-                                    } else {
-                                        Alert.alert("No Plans Available", "No subscription plans are available at this time.");
-                                    }
-                                }}
-                                activeOpacity={0.8}
-                                style={{ backgroundColor: "rgba(232, 245, 238, 0.4)" }}
-                                className="mb-6 flex-row items-center justify-center gap-2 rounded-2xl border border-dashed border-[#1B5E37] py-3.5"
-                            >
-                                <Ionicons name="add" size={18} color="#1B5E37" />
-                                <Text className="text-[14px] font-bold text-[#1B5E37]">
-                                    Add New Subscription
+                            {/* Compact List of Subscriptions */}
+                            <View className="mb-4">
+                                <Text className="mb-2.5 text-[12px] font-black text-gray-400 uppercase tracking-widest">
+                                    Your Active Plans
                                 </Text>
-                            </TouchableOpacity>
+                                {subs.map((item, index) => {
+                                    const isSelected = item.subscription_id === selectedSubId;
+                                    const title = item.items?.[0]?.product_name || `Plan ${index + 1}`;
+                                    const isPaused = item.is_paused;
+                                    const quantity = item.items?.[0]?.quantity || 1;
+
+                                    return (
+                                        <TouchableOpacity
+                                            key={item.subscription_id}
+                                            onPress={() => {
+                                                setSelectedSubId(item.subscription_id);
+                                                setIsSelectingVacation(false);
+                                                setVacationStart(null);
+                                                setVacationEnd(null);
+                                            }}
+                                            activeOpacity={0.88}
+                                            className="p-3.5 mb-2.5 rounded-2xl border flex-row items-center justify-between"
+                                            style={{
+                                                backgroundColor: isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.8)",
+                                                borderColor: isSelected ? "#1B5E37" : "#F3F4F6",
+                                                ...(isSelected ? {
+                                                    shadowColor: "#000",
+                                                    shadowOffset: { width: 0, height: 1 },
+                                                    shadowOpacity: 0.05,
+                                                    shadowRadius: 2,
+                                                    elevation: 2,
+                                                } : {})
+                                            }}
+                                        >
+                                            <View className="flex-row items-center gap-3 flex-1 pr-2">
+                                                <View className={`h-10 w-10 rounded-xl items-center justify-center ${isSelected ? "bg-[#1B5E37]/10" : "bg-gray-100"}`}>
+                                                    <Ionicons name="repeat" size={18} color={isSelected ? "#1B5E37" : "#4B5563"} />
+                                                </View>
+                                                <View className="flex-1">
+                                                    <Text className="text-[13px] font-black text-gray-900 leading-tight" numberOfLines={1}>
+                                                        {title}
+                                                    </Text>
+                                                    <Text className="text-[10px] font-bold text-gray-500 mt-1 leading-none">
+                                                        {item.frequency_display} • Qty: {quantity} {item.items?.[0]?.product_id ? "Litre(s)" : ""}
+                                                    </Text>
+                                                </View>
+                                            </View>
+                                            <View className="flex-row items-center gap-2">
+                                                <View className={`px-2.5 py-0.5 rounded-full ${isPaused ? "bg-amber-100" : "bg-[#EAF5EF]"}`}>
+                                                    <Text className={`text-[8px] font-black ${isPaused ? "text-amber-700" : "text-[#15803D]"} uppercase`}>
+                                                        {isPaused ? "Paused" : "Active"}
+                                                    </Text>
+                                                </View>
+                                                {isSelected && <Ionicons name="checkmark-circle" size={16} color="#1B5E37" />}
+                                            </View>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            {/* Get Subscription Section */}
+                            <View className="mb-6">
+                                <Text className="mb-3 text-[12px] font-black text-gray-400 uppercase tracking-widest">
+                                    Get Subscription
+                                </Text>
+                                
+                                <View className="flex-row gap-3">
+                                    {/* Predefined plans card */}
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            if (models && models.length > 0) {
+                                                setSelectedModel(null);
+                                                predefinedSheetRef.current?.present();
+                                            } else {
+                                                Alert.alert("No Plans Available", "No subscription plans are available at this time.");
+                                            }
+                                        }}
+                                        activeOpacity={0.88}
+                                        className="flex-1 bg-white border border-gray-100 p-4 rounded-2xl items-center text-center shadow-xs"
+                                    >
+                                        <View className="h-10 w-10 rounded-full bg-[#1B5E37]/10 items-center justify-center mb-2.5">
+                                            <Ionicons name="gift-outline" size={18} color="#1B5E37" />
+                                        </View>
+                                        <Text className="text-[12px] font-black text-gray-900 text-center">Predefined Plans</Text>
+                                        <Text className="text-[9px] font-semibold text-gray-400 text-center mt-1 leading-normal">
+                                            Select recommended presets
+                                        </Text>
+                                    </TouchableOpacity>
+
+                                    {/* Custom plan card */}
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            if (models && models.length > 0) {
+                                                setSubscribingModel(models[0]);
+                                                setSelectedFrequency("daily");
+                                                setSelectedQty(1.0);
+                                                customSheetRef.current?.present();
+                                            } else {
+                                                Alert.alert("No Plans Available", "No subscription plans are available at this time.");
+                                            }
+                                        }}
+                                        activeOpacity={0.88}
+                                        className="flex-1 bg-white border border-gray-100 p-4 rounded-2xl items-center text-center shadow-xs"
+                                    >
+                                        <View className="h-10 w-10 rounded-full bg-[#1B5E37]/10 items-center justify-center mb-2.5">
+                                            <Ionicons name="build-outline" size={18} color="#1B5E37" />
+                                        </View>
+                                        <Text className="text-[12px] font-black text-gray-900 text-center">Custom Plan</Text>
+                                        <Text className="text-[9px] font-semibold text-gray-400 text-center mt-1 leading-normal">
+                                            Customize schedule & litres
+                                        </Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
 
 
                             {/* Delivery Calendar for selected subscription */}
@@ -672,16 +765,184 @@ export default function SubscriptionsScreen() {
                         })()}
                     </View>
                 </BottomSheetView>
-            </BottomSheetModal>
-
-            {/* Modal for Configuring Subscription */}
+            </BottomSheetModal>            {/* Bottom Sheet for Predefined Subscriptions */}
             <BottomSheetModal
-                ref={configureSubSheetRef}
+                ref={predefinedSheetRef}
                 index={0}
                 snapPoints={configureSubSnapPoints}
                 enablePanDownToClose
                 backdropComponent={renderBackdrop}
-                backgroundStyle={{ backgroundColor: "#F5F8F6" }}
+                backgroundStyle={{ backgroundColor: "#F5F8F6", borderRadius: 32 }}
+                handleIndicatorStyle={{ backgroundColor: "#D1D5DB" }}
+            >
+                <BottomSheetScrollView
+                    showsVerticalScrollIndicator={false}
+                    contentContainerStyle={{ padding: 24, paddingBottom: 50 }}
+                >
+                    <View className="flex-row justify-between items-center mb-5">
+                        <View>
+                            <Text className="text-[18px] font-bold text-gray-900">
+                                Predefined Plans
+                            </Text>
+                            <Text className="text-xs text-gray-500 font-semibold mt-0.5">
+                                Select from our recommended setups
+                            </Text>
+                        </View>
+                        <TouchableOpacity
+                            onPress={() => predefinedSheetRef.current?.dismiss()}
+                            style={{ backgroundColor: "rgba(229, 229, 229, 0.6)", height: 32, width: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
+                        >
+                            <Ionicons name="close" size={18} color="#4A4A4A" />
+                        </TouchableOpacity>
+                    </View>
+
+                    <View className="gap-y-1.5">
+                        {models.map((item, idx) => {
+                            const isSelected = !!selectedModel && (
+                                (!!item.id && selectedModel.id === item.id) ||
+                                (selectedModel.product_name === item.product_name && selectedModel.frequency === item.frequency && selectedModel.quantity === item.quantity)
+                            );
+                            return (
+                                <TouchableOpacity 
+                                    key={idx}
+                                    activeOpacity={0.9}
+                                    onPress={() => setSelectedModel(item)}
+                                >
+                                    <SubscriptionModelCard
+                                        model={item}
+                                        onSubscribe={setSelectedModel}
+                                        isSelected={isSelected}
+                                    />
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+
+                    {selectedModel && (
+                        <View className="mt-6 pt-6 border-t border-neutral-100">
+                            {/* Pricing & Cost Details */}
+                            <View
+                                style={{ borderColor: "rgba(229, 229, 229, 0.5)" }}
+                                className="bg-[#FAF9F6] border rounded-2xl p-4 mb-4"
+                            >
+                                <View className="flex-row justify-between mb-2">
+                                    <Text className="text-[12px] font-semibold text-gray-500">Rate</Text>
+                                    <Text className="text-[12px] font-bold text-gray-800">
+                                        ₹{selectedModel.unit_price || selectedModel.price || 45}/Litre
+                                    </Text>
+                                </View>
+                                <View
+                                    style={{ borderTopColor: "rgba(229, 229, 229, 0.4)" }}
+                                    className="flex-row justify-between border-t pt-2 items-center"
+                                >
+                                    <Text className="text-[13px] font-bold text-gray-800">Per-Delivery Cost</Text>
+                                    <Text className="text-[16px] font-black text-[#1B5E37]">
+                                        ₹{((selectedModel.unit_price || selectedModel.price || 45) * (selectedModel.quantity || 1)).toFixed(2)}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Date Picker Button */}
+                            <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                Subscription Start Date
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setShowDatePicker(!showDatePicker)}
+                                className="flex-row items-center justify-between bg-white border border-neutral-200 rounded-2xl p-4 mb-4"
+                            >
+                                <Text className="text-[14px] font-semibold text-gray-800">
+                                    {startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </Text>
+                                <Ionicons name={showDatePicker ? "chevron-up" : "chevron-down"} size={20} color="#1B5E37" />
+                            </TouchableOpacity>
+
+                            {showDatePicker && (
+                                <View className="bg-white rounded-2xl p-2 border border-neutral-100 mb-4 animate-fade-in">
+                                    <Calendar
+                                        minDate={new Date().toISOString().split('T')[0]}
+                                        current={startDate.toISOString().split('T')[0]}
+                                        onDayPress={(day) => {
+                                            setStartDate(new Date(day.dateString));
+                                            setShowDatePicker(false);
+                                        }}
+                                        theme={{
+                                            todayTextColor: "#1B5E37",
+                                            arrowColor: "#1B5E37",
+                                            selectedDayBackgroundColor: "#1B5E37",
+                                            selectedDayTextColor: "#ffffff",
+                                        }}
+                                        markedDates={{
+                                            [startDate.toISOString().split('T')[0]]: { selected: true, selectedColor: '#1B5E37' }
+                                        }}
+                                    />
+                                </View>
+                            )}
+
+                            {/* Add Selected Plan to Cart Button */}
+                            <TouchableOpacity
+                                onPress={() => {
+                                    const frequencyLabels: { [key: string]: string } = {
+                                        daily: "Daily",
+                                        alternate: "Alternate Days",
+                                        mon_wed_fri: "Mon, Wed, Fri",
+                                        tue_thu_sat: "Tue, Thu, Sat",
+                                        weekends: "Weekends Only"
+                                    };
+                                    const freqLabel = frequencyLabels[selectedModel.frequency] || selectedModel.frequency_display || selectedModel.frequency || "Daily";
+                                    const unitPrice = Number(selectedModel.unit_price || selectedModel.price || 45);
+                                    const costPerDelivery = unitPrice * (selectedModel.quantity || 1);
+                                    const formattedDate = startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
+
+                                    addToCart({
+                                        id: `sub_${selectedModel.product_id || selectedModel.id || 'milk'}_predefined_${selectedModel.frequency || 'daily'}_start_${startDate.toISOString().split('T')[0]}`,
+                                        name: `${selectedModel.product_name} (${freqLabel} - Start: ${formattedDate})`,
+                                        price: costPerDelivery,
+                                        quantity: 1
+                                    });
+
+                                    predefinedSheetRef.current?.dismiss();
+
+                                    Alert.alert(
+                                        "Added to Cart",
+                                        `Subscription added to your cart successfully!`,
+                                        [
+                                            { text: "Continue", style: "cancel" },
+                                            {
+                                                text: "View Cart",
+                                                onPress: () => {
+                                                    router.push("/(customer)/cart");
+                                                }
+                                            }
+                                        ]
+                                    );
+                                }}
+                                activeOpacity={0.85}
+                                className="bg-[#1B5E37] py-4 rounded-2xl items-center justify-center shadow-md"
+                                style={{
+                                    shadowColor: "#1B5E37",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 6,
+                                    elevation: 3,
+                                }}
+                            >
+                                <Text className="text-white text-sm font-bold uppercase tracking-wider">
+                                    Add Plan to Cart
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
+                </BottomSheetScrollView>
+            </BottomSheetModal>
+
+            {/* Bottom Sheet for Custom Subscriptions */}
+            <BottomSheetModal
+                ref={customSheetRef}
+                index={0}
+                snapPoints={configureSubSnapPoints}
+                enablePanDownToClose
+                backdropComponent={renderBackdrop}
+                backgroundStyle={{ backgroundColor: "#F5F8F6", borderRadius: 32 }}
                 handleIndicatorStyle={{ backgroundColor: "#D1D5DB" }}
             >
                 <BottomSheetScrollView
@@ -690,299 +951,265 @@ export default function SubscriptionsScreen() {
                 >
                     {subscribingModel && (
                         <>
-                            {/* Modal Header */}
+                            {/* Header */}
                             <View className="flex-row justify-between items-center mb-5">
                                 <View>
                                     <Text className="text-[18px] font-bold text-gray-900">
-                                        Configure Subscription
+                                        Custom Subscription
                                     </Text>
                                     <Text className="text-xs text-gray-500 font-semibold mt-0.5">
-                                        {subscribingModel.product_name}
+                                        Configure your delivery schedule & rate
                                     </Text>
                                 </View>
-                                 <TouchableOpacity
-                                     onPress={() => configureSubSheetRef.current?.dismiss()}
-                                     style={{ backgroundColor: "rgba(229, 229, 229, 0.6)", height: 32, width: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
-                                 >
+                                <TouchableOpacity
+                                    onPress={() => customSheetRef.current?.dismiss()}
+                                    style={{ backgroundColor: "rgba(229, 229, 229, 0.6)", height: 32, width: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' }}
+                                >
                                     <Ionicons name="close" size={18} color="#4A4A4A" />
                                 </TouchableOpacity>
                             </View>
 
-                            {/* Tabs Switcher */}
-                            <View className="flex-row rounded-2xl p-1.5 mb-6 border border-neutral-200 bg-neutral-150 bg-neutral-100">
-                                <TouchableOpacity
-                                    onPress={() => setActiveTab("predefined")}
-                                    style={activeTab === "predefined" ? {
-                                        shadowColor: "#000",
-                                        shadowOffset: { width: 0, height: 1 },
-                                        shadowOpacity: 0.05,
-                                        shadowRadius: 1,
-                                        elevation: 1,
-                                    } : undefined}
-                                    className={`flex-1 py-3 rounded-xl items-center justify-center border ${
-                                        activeTab === "predefined" ? "bg-white border-neutral-200" : "bg-transparent border-transparent"
-                                    }`}
-                                >
-                                    <Text className={`text-[13px] font-bold ${activeTab === "predefined" ? "text-gray-900" : "text-gray-500"}`}>
-                                        Predefined Plans
-                                    </Text>
-                                </TouchableOpacity>
-                                <TouchableOpacity
-                                    onPress={() => setActiveTab("custom")}
-                                    style={activeTab === "custom" ? {
-                                        shadowColor: "#000",
-                                        shadowOffset: { width: 0, height: 1 },
-                                        shadowOpacity: 0.05,
-                                        shadowRadius: 1,
-                                        elevation: 1,
-                                    } : undefined}
-                                    className={`flex-1 py-3 rounded-xl items-center justify-center border ${
-                                        activeTab === "custom" ? "bg-white border-neutral-200" : "bg-transparent border-transparent"
-                                    }`}
-                                >
-                                    <Text className={`text-[13px] font-bold ${activeTab === "custom" ? "text-gray-900" : "text-gray-500"}`}>
-                                        Custom Subscription
-                                    </Text>
-                                </TouchableOpacity>
+                            {/* Product Selector */}
+                            {/* <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                                Select Product
+                            </Text>
+                            <ScrollView
+                                horizontal
+                                showsHorizontalScrollIndicator={false}
+                                className="flex-row mb-6 animate-fade-in"
+                                contentContainerStyle={{ paddingRight: 16 }}
+                            >
+                                {models.map((item, idx) => {
+                                    const isSelected = item.product_id === subscribingModel.product_id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={idx}
+                                            onPress={() => setSubscribingModel(item)}
+                                            activeOpacity={0.8}
+                                            className={`px-4 py-3 rounded-2xl mr-2 border flex-row items-center gap-2 bg-white ${
+                                                isSelected ? "border-[#1B5E37]" : "border-neutral-200"
+                                            }`}
+                                        >
+                                            <View className="h-6 w-6 rounded-full overflow-hidden bg-neutral-100">
+                                                <Image
+                                                    source={{ uri: getProductThumbnail(item.product_name || "") }}
+                                                    className="h-full w-full"
+                                                />
+                                            </View>
+                                            <Text className={`text-[12px] font-bold ${isSelected ? "text-[#1B5E37]" : "text-gray-600"}`}>
+                                                {item.product_name}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </ScrollView> */}
+
+                            {/* Frequency Options */}
+                            <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                                Select Delivery Frequency
+                            </Text>
+                            <View className="flex-row flex-wrap gap-2 mb-6">
+                                {[
+                                    { id: "daily", label: "Daily" },
+                                    { id: "alternate", label: "Alternate Days" },
+                                    { id: "mon_wed_fri", label: "Mon, Wed, Fri" },
+                                    { id: "tue_thu_sat", label: "Tue, Thu, Sat" },
+                                    { id: "weekends", label: "Weekends Only" }
+                                ].map((freq) => {
+                                    const isSelected = selectedFrequency === freq.id;
+                                    return (
+                                        <TouchableOpacity
+                                            key={freq.id}
+                                            onPress={() => setSelectedFrequency(freq.id)}
+                                            activeOpacity={0.8}
+                                            className={`px-4 py-2.5 rounded-xl border ${isSelected
+                                                    ? "bg-[#1B5E37] border-[#1B5E37]"
+                                                    : "bg-white border-neutral-200"
+                                                }`}
+                                        >
+                                            <Text className={`text-[12px] font-bold ${isSelected ? "text-white" : "text-gray-600"}`}>
+                                                {freq.label}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
                             </View>
 
-                            {/* PREDEFINED PLANS TAB */}
-                            {activeTab === "predefined" && (
-                                <View className="gap-y-4">
-                                    <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-1">
-                                        Select a Predefined Plan
-                                    </Text>
-                                    <FlatList
-                                        data={models}
-                                        keyExtractor={(item, index) => item.id?.toString() || index.toString()}
-                                        scrollEnabled={false}
-                                        renderItem={({ item }) => (
-                                            <SubscriptionModelCard
-                                                model={item}
-                                                onSubscribe={(selectedModel) => {
-                                                    const frequencyLabels: { [key: string]: string } = {
-                                                        daily: "Daily",
-                                                        alternate: "Alternate Days",
-                                                        mon_wed_fri: "Mon, Wed, Fri",
-                                                        tue_thu_sat: "Tue, Thu, Sat",
-                                                        weekends: "Weekends Only"
-                                                    };
-                                                    const freqLabel = frequencyLabels[selectedModel.frequency] || selectedModel.frequency_display || selectedModel.frequency || "Daily";
-                                                    const unitPrice = Number(selectedModel.unit_price || selectedModel.price || 45);
-                                                    const costPerDelivery = unitPrice * (selectedModel.quantity || 1);
-
-                                                    addToCart({
-                                                        id: `sub_${selectedModel.product_id || selectedModel.id || 'milk'}_predefined_${selectedModel.frequency || 'daily'}`,
-                                                        name: `${selectedModel.product_name} (${freqLabel} Plan - ${selectedModel.quantity || 1}${selectedModel.unit || 'L'})`,
-                                                        price: costPerDelivery,
-                                                        quantity: 1
-                                                    });
-
-                                                    configureSubSheetRef.current?.dismiss();
-
-                                                    Alert.alert(
-                                                        "Added to Cart",
-                                                        `Predefined subscription plan added to your cart successfully!`,
-                                                        [
-                                                            { text: "Continue", style: "cancel" },
-                                                            {
-                                                                text: "View Cart",
-                                                                onPress: () => {
-                                                                    router.push("/(customer)/cart");
-                                                                }
-                                                            }
-                                                        ]
-                                                    );
-                                                }}
-                                            />
-                                        )}
-                                        ListEmptyComponent={
-                                            <Text className="text-center text-gray-500 italic py-6">
-                                                No subscription plans available at this time.
+                            {/* Quantity Stepper presets */}
+                            <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
+                                Daily Quantity (Litre)
+                            </Text>
+                            <View className="flex-row gap-2 mb-3">
+                                {[0.5, 1.0, 1.5, 2.0].map((val) => {
+                                    const isSelected = selectedQty === val;
+                                    return (
+                                        <TouchableOpacity
+                                            key={val}
+                                            onPress={() => setSelectedQty(val)}
+                                            activeOpacity={0.8}
+                                            style={isSelected ? { backgroundColor: "rgba(27, 94, 55, 0.1)" } : undefined}
+                                            className={`flex-1 py-2 rounded-lg border items-center ${isSelected
+                                                    ? "border-[#1B5E37]"
+                                                    : "bg-white border-neutral-200"
+                                                }`}
+                                        >
+                                            <Text className={`text-[12px] font-bold ${isSelected ? "text-[#1B5E37]" : "text-gray-600"}`}>
+                                                {val} L
                                             </Text>
-                                        }
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            {/* Numeric Stepper Controller */}
+                            <View className="flex-row items-center justify-between bg-white border border-neutral-200 rounded-2xl p-4 mb-6">
+                                <Text className="text-[14px] font-bold text-gray-800">
+                                    Adjust Quantity
+                                </Text>
+                                <View className="flex-row items-center gap-4 bg-gray-50 border border-gray-100 rounded-full p-1.5">
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedQty(prev => prev > 0.5 ? parseFloat((prev - 0.5).toFixed(1)) : 0.5)}
+                                        style={{
+                                            shadowColor: "#000",
+                                            shadowOffset: { width: 0, height: 1 },
+                                            shadowOpacity: 0.05,
+                                            shadowRadius: 1,
+                                            elevation: 1,
+                                        }}
+                                        className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                                        disabled={selectedQty <= 0.5}
+                                    >
+                                        <Ionicons name="remove" size={16} color={selectedQty <= 0.5 ? "#D1D5DB" : "#1B5E37"} />
+                                    </TouchableOpacity>
+                                    <Text className="w-12 text-center text-[15px] font-black text-gray-800">
+                                        {selectedQty} L
+                                    </Text>
+                                    <TouchableOpacity
+                                        onPress={() => setSelectedQty(prev => parseFloat((prev + 0.5).toFixed(1)))}
+                                        style={{
+                                            shadowColor: "#000",
+                                            shadowOffset: { width: 0, height: 1 },
+                                            shadowOpacity: 0.05,
+                                            shadowRadius: 1,
+                                            elevation: 1,
+                                        }}
+                                        className="h-9 w-9 items-center justify-center rounded-full bg-white"
+                                    >
+                                        <Ionicons name="add" size={16} color="#1B5E37" />
+                                    </TouchableOpacity>
+                                </View>
+                            </View>
+
+                            {/* Pricing & Cost Details */}
+                            <View
+                                style={{ borderColor: "rgba(229, 229, 229, 0.5)" }}
+                                className="bg-[#FAF9F6] border rounded-2xl p-4 mb-6"
+                            >
+                                <View className="flex-row justify-between mb-2">
+                                    <Text className="text-[12px] font-semibold text-gray-500">Rate</Text>
+                                    <Text className="text-[12px] font-bold text-gray-800">
+                                        ₹{subscribingModel.unit_price || subscribingModel.price || 45}/Litre
+                                    </Text>
+                                </View>
+                                <View
+                                    style={{ borderTopColor: "rgba(229, 229, 229, 0.4)" }}
+                                    className="flex-row justify-between border-t pt-2 items-center"
+                                >
+                                    <Text className="text-[13px] font-bold text-gray-800">Per-Delivery Cost</Text>
+                                    <Text className="text-[16px] font-black text-[#1B5E37]">
+                                        ₹{((subscribingModel.unit_price || subscribingModel.price || 45) * selectedQty).toFixed(2)}
+                                    </Text>
+                                </View>
+                            </View>
+
+                            {/* Subscription Start Date Picker */}
+                            <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                                Subscription Start Date
+                            </Text>
+                            <TouchableOpacity
+                                onPress={() => setShowDatePicker(!showDatePicker)}
+                                className="flex-row items-center justify-between bg-white border border-neutral-200 rounded-2xl p-4 mb-6"
+                            >
+                                <Text className="text-[14px] font-semibold text-gray-800">
+                                    {startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </Text>
+                                <Ionicons name={showDatePicker ? "chevron-up" : "chevron-down"} size={20} color="#1B5E37" />
+                            </TouchableOpacity>
+
+                            {showDatePicker && (
+                                <View className="bg-white rounded-2xl p-2 border border-neutral-100 mb-6 animate-fade-in">
+                                    <Calendar
+                                        minDate={new Date().toISOString().split('T')[0]}
+                                        current={startDate.toISOString().split('T')[0]}
+                                        onDayPress={(day) => {
+                                            setStartDate(new Date(day.dateString));
+                                            setShowDatePicker(false);
+                                        }}
+                                        theme={{
+                                            todayTextColor: "#1B5E37",
+                                            arrowColor: "#1B5E37",
+                                            selectedDayBackgroundColor: "#1B5E37",
+                                            selectedDayTextColor: "#ffffff",
+                                        }}
+                                        markedDates={{
+                                            [startDate.toISOString().split('T')[0]]: { selected: true, selectedColor: '#1B5E37' }
+                                        }}
                                     />
                                 </View>
                             )}
 
-                            {/* CUSTOM PLANS TAB */}
-                            {activeTab === "custom" && (
-                                <>
+                            {/* Add to Cart Button */}
+                            <TouchableOpacity
+                                onPress={() => {
+                                    const frequencyLabels: { [key: string]: string } = {
+                                        daily: "Daily",
+                                        alternate: "Alternate Days",
+                                        mon_wed_fri: "Mon, Wed, Fri",
+                                        tue_thu_sat: "Tue, Thu, Sat",
+                                        weekends: "Weekends Only"
+                                    };
+                                    const freqLabel = frequencyLabels[selectedFrequency] || selectedFrequency;
+                                    const unitPrice = Number(subscribingModel.unit_price || subscribingModel.price || 45);
+                                    const costPerDelivery = unitPrice * selectedQty;
+                                    const formattedDate = startDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
 
+                                    addToCart({
+                                        id: `sub_${subscribingModel.product_id || subscribingModel.id || 'milk'}_${selectedFrequency}_start_${startDate.toISOString().split('T')[0]}`,
+                                        name: `${subscribingModel.product_name} (Sub: ${freqLabel} - ${selectedQty}L - Start: ${formattedDate})`,
+                                        price: costPerDelivery,
+                                        quantity: 1
+                                    });
 
-                                    {/* Frequency Option Selection */}
-                                    <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
-                                        Select Delivery Frequency
-                                    </Text>
-                                    <View className="flex-row flex-wrap gap-2 mb-6">
-                                        {[
-                                            { id: "daily", label: "Daily" },
-                                            { id: "alternate", label: "Alternate Days" },
-                                            { id: "mon_wed_fri", label: "Mon, Wed, Fri" },
-                                            { id: "tue_thu_sat", label: "Tue, Thu, Sat" },
-                                            { id: "weekends", label: "Weekends Only" }
-                                        ].map((freq) => {
-                                            const isSelected = selectedFrequency === freq.id;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={freq.id}
-                                                    onPress={() => setSelectedFrequency(freq.id)}
-                                                    activeOpacity={0.8}
-                                                    className={`px-4 py-2.5 rounded-xl border ${isSelected
-                                                            ? "bg-[#1B5E37] border-[#1B5E37]"
-                                                            : "bg-white border-neutral-200"
-                                                        }`}
-                                                >
-                                                    <Text className={`text-[12px] font-bold ${isSelected ? "text-white" : "text-gray-600"}`}>
-                                                        {freq.label}
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
+                                    customSheetRef.current?.dismiss();
 
-                                    {/* Quantity Stepper */}
-                                    <Text className="text-[12px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">
-                                        Daily Quantity (Litre)
-                                    </Text>
-                                    
-                                    {/* Preset Buttons for Quick Select */}
-                                    <View className="flex-row gap-2 mb-3">
-                                        {[0.5, 1.0, 1.5, 2.0].map((val) => {
-                                            const isSelected = selectedQty === val;
-                                            return (
-                                                <TouchableOpacity
-                                                    key={val}
-                                                    onPress={() => setSelectedQty(val)}
-                                                    activeOpacity={0.8}
-                                                    style={isSelected ? { backgroundColor: "rgba(27, 94, 55, 0.1)" } : undefined}
-                                                    className={`flex-1 py-2 rounded-lg border items-center ${isSelected
-                                                            ? "border-[#1B5E37]"
-                                                            : "bg-white border-neutral-200"
-                                                        }`}
-                                                >
-                                                    <Text className={`text-[12px] font-bold ${isSelected ? "text-[#1B5E37]" : "text-gray-600"}`}>
-                                                        {val} L
-                                                    </Text>
-                                                </TouchableOpacity>
-                                            );
-                                        })}
-                                    </View>
-
-                                    {/* Numeric Stepper Controller */}
-                                    <View className="flex-row items-center justify-between bg-white border border-neutral-200 rounded-2xl p-4 mb-6">
-                                        <Text className="text-[14px] font-bold text-gray-800">
-                                            Adjust Quantity
-                                        </Text>
-                                        <View className="flex-row items-center gap-4 bg-gray-50 border border-gray-100 rounded-full p-1.5">
-                                            <TouchableOpacity
-                                                onPress={() => setSelectedQty(prev => prev > 0.5 ? parseFloat((prev - 0.5).toFixed(1)) : 0.5)}
-                                                style={{
-                                                    shadowColor: "#000",
-                                                    shadowOffset: { width: 0, height: 1 },
-                                                    shadowOpacity: 0.05,
-                                                    shadowRadius: 1,
-                                                    elevation: 1,
-                                                }}
-                                                className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                                                disabled={selectedQty <= 0.5}
-                                            >
-                                                <Ionicons name="remove" size={16} color={selectedQty <= 0.5 ? "#D1D5DB" : "#1B5E37"} />
-                                            </TouchableOpacity>
-                                            <Text className="w-12 text-center text-[15px] font-black text-gray-800">
-                                                {selectedQty} L
-                                            </Text>
-                                            <TouchableOpacity
-                                                onPress={() => setSelectedQty(prev => parseFloat((prev + 0.5).toFixed(1)))}
-                                                style={{
-                                                    shadowColor: "#000",
-                                                    shadowOffset: { width: 0, height: 1 },
-                                                    shadowOpacity: 0.05,
-                                                    shadowRadius: 1,
-                                                    elevation: 1,
-                                                }}
-                                                className="h-9 w-9 items-center justify-center rounded-full bg-white"
-                                            >
-                                                <Ionicons name="add" size={16} color="#1B5E37" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-
-                                    {/* Pricing & Cost Details */}
-                                    <View
-                                        style={{ borderColor: "rgba(229, 229, 229, 0.5)" }}
-                                        className="bg-[#FAF9F6] border rounded-2xl p-4 mb-6"
-                                    >
-                                        <View className="flex-row justify-between mb-2">
-                                            <Text className="text-[12px] font-semibold text-gray-500">Rate</Text>
-                                            <Text className="text-[12px] font-bold text-gray-800">
-                                                ₹{subscribingModel.unit_price || subscribingModel.price || 45}/Litre
-                                            </Text>
-                                        </View>
-                                        <View
-                                            style={{ borderTopColor: "rgba(229, 229, 229, 0.4)" }}
-                                            className="flex-row justify-between border-t pt-2 items-center"
-                                        >
-                                            <Text className="text-[13px] font-bold text-gray-800">Per-Delivery Cost</Text>
-                                            <Text className="text-[16px] font-black text-[#1B5E37]">
-                                                ₹{((subscribingModel.unit_price || subscribingModel.price || 45) * selectedQty).toFixed(2)}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Add to Cart Button */}
-                                    <TouchableOpacity
-                                        onPress={() => {
-                                            const frequencyLabels: { [key: string]: string } = {
-                                                daily: "Daily",
-                                                alternate: "Alternate Days",
-                                                mon_wed_fri: "Mon, Wed, Fri",
-                                                tue_thu_sat: "Tue, Thu, Sat",
-                                                weekends: "Weekends Only"
-                                            };
-                                            const freqLabel = frequencyLabels[selectedFrequency] || selectedFrequency;
-                                            const unitPrice = Number(subscribingModel.unit_price || subscribingModel.price || 45);
-                                            const costPerDelivery = unitPrice * selectedQty;
-
-                                            addToCart({
-                                                id: `sub_${subscribingModel.product_id || subscribingModel.id || 'milk'}_${selectedFrequency}`,
-                                                name: `${subscribingModel.product_name} (Sub: ${freqLabel} - ${selectedQty}L)`,
-                                                price: costPerDelivery,
-                                                quantity: 1
-                                            });
-
-                                            configureSubSheetRef.current?.dismiss();
-
-                                            Alert.alert(
-                                                "Added to Cart",
-                                                `Subscription added to your cart successfully!`,
-                                                [
-                                                    { text: "Continue", style: "cancel" },
-                                                    {
-                                                        text: "View Cart",
-                                                        onPress: () => {
-                                                            router.push("/(customer)/cart");
-                                                        }
-                                                    }
-                                                ]
-                                            );
-                                        }}
-                                        activeOpacity={0.85}
-                                        className="bg-[#1B5E37] py-4 rounded-2xl items-center justify-center shadow-md"
-                                        style={{
-                                            shadowColor: "#1B5E37",
-                                            shadowOffset: { width: 0, height: 4 },
-                                            shadowOpacity: 0.15,
-                                            shadowRadius: 6,
-                                            elevation: 3,
-                                        }}
-                                    >
-                                        <Text className="text-white text-sm font-bold uppercase tracking-wider">
-                                            Add Subscription to Cart
-                                        </Text>
-                                    </TouchableOpacity>
-                                </>
-                            )}
+                                    Alert.alert(
+                                        "Added to Cart",
+                                        `Subscription added to your cart successfully!`,
+                                        [
+                                            { text: "Continue", style: "cancel" },
+                                            {
+                                                text: "View Cart",
+                                                onPress: () => {
+                                                    router.push("/(customer)/cart");
+                                                }
+                                            }
+                                        ]
+                                    );
+                                }}
+                                activeOpacity={0.85}
+                                className="bg-[#1B5E37] py-4 rounded-2xl items-center justify-center shadow-md"
+                                style={{
+                                    shadowColor: "#1B5E37",
+                                    shadowOffset: { width: 0, height: 4 },
+                                    shadowOpacity: 0.15,
+                                    shadowRadius: 6,
+                                    elevation: 3,
+                                }}
+                            >
+                                <Text className="text-white text-sm font-bold uppercase tracking-wider">
+                                    Add Subscription to Cart
+                                </Text>
+                            </TouchableOpacity>
                         </>
                     )}
                 </BottomSheetScrollView>
@@ -1028,6 +1255,7 @@ export default function SubscriptionsScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+
         </ScreenWrapper>
     );
 }

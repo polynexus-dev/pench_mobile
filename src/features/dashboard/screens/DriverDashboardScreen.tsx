@@ -204,62 +204,75 @@ export function DriverDashboardScreen() {
         // showHeader={true}
         >
             {/* <StatusBar style={statusBarLight ? "light" : "dark"} backgroundColor="transparent" translucent /> */}
-            {routeId && (
-                <Animated.View
-                    style={{
-                        position: "absolute",
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        height: insets.top + 96,
-                        paddingTop: insets.top + 16,
-                        paddingHorizontal: 16,
-                        backgroundColor: "#1B5E37",
-                        zIndex: 100,
-                        opacity: headerOpacity,
-                    }}
-                    pointerEvents={headerVisible ? "auto" : "none"}
-                >
-                    {/* Content Row */}
+            <Animated.View
+                style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: insets.top + (routeId ? 96 : 70),
+                    paddingTop: insets.top + 16,
+                    paddingHorizontal: 16,
+                    backgroundColor: "#1B5E37",
+                    zIndex: 100,
+                    opacity: headerOpacity,
+                }}
+                pointerEvents={headerVisible ? "auto" : "none"}
+            >
+                {routeId ? (
+                    <>
+                        {/* Content Row */}
+                        <View className="flex-row items-center justify-between pb-3">
+                            <View className="flex-1 pr-3">
+                                <Text variant="caption-sm" color="inverse" weight="bold" transform="uppercase" className="opacity-90">
+                                    {isTripStarted ? "LIVE TRIP" : "TRIP OFFLINE"}
+                                </Text>
+                                <Text variant="body" weight="bold" color="inverse" lines={1} className="mt-0.5">
+                                    {areaName}
+                                </Text>
+                            </View>
+
+                            <TouchableOpacity
+                                onPress={handleTripToggle}
+                                disabled={isStopDisabled}
+                                className={`h-9 w-9 items-center justify-center rounded-full shadow-sm ${isTripStarted
+                                        ? (allStopsCompleted ? "bg-[#E53E3E]" : "bg-[#D4872A]")
+                                        : "bg-white"
+                                    } ${isStopDisabled ? "opacity-75" : ""}`}
+                            >
+                                <Ionicons
+                                    name={isTripStarted ? (allStopsCompleted ? "stop" : "car-outline") : "play"}
+                                    size={16}
+                                    color={isTripStarted ? "#fff" : "#1B5E37"}
+                                />
+                            </TouchableOpacity>
+                        </View>
+
+                        {/* Thicker, rounded, inset progress bar */}
+                        <View style={{ height: 5, backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: 9999, overflow: "hidden" }}>
+                            <View
+                                style={{
+                                    height: "100%",
+                                    backgroundColor: "#fff",
+                                    width: `${deliveryProgress}%`,
+                                    borderRadius: 9999,
+                                }}
+                            />
+                        </View>
+                    </>
+                ) : (
                     <View className="flex-row items-center justify-between pb-3">
                         <View className="flex-1 pr-3">
                             <Text variant="caption-sm" color="inverse" weight="bold" transform="uppercase" className="opacity-90">
-                                {isTripStarted ? "LIVE TRIP" : "TRIP OFFLINE"}
+                                TRIP OFFLINE
                             </Text>
                             <Text variant="body" weight="bold" color="inverse" lines={1} className="mt-0.5">
-                                {areaName}
+                                Route not Assigned yet
                             </Text>
                         </View>
-
-                        <TouchableOpacity
-                            onPress={handleTripToggle}
-                            disabled={isStopDisabled}
-                            className={`h-9 w-9 items-center justify-center rounded-full shadow-sm ${isTripStarted
-                                    ? (allStopsCompleted ? "bg-[#E53E3E]" : "bg-[#D4872A]")
-                                    : "bg-white"
-                                } ${isStopDisabled ? "opacity-75" : ""}`}
-                        >
-                            <Ionicons
-                                name={isTripStarted ? (allStopsCompleted ? "stop" : "car-outline") : "play"}
-                                size={16}
-                                color={isTripStarted ? "#fff" : "#1B5E37"}
-                            />
-                        </TouchableOpacity>
                     </View>
-
-                    {/* Thicker, rounded, inset progress bar */}
-                    <View style={{ height: 5, backgroundColor: "rgba(255, 255, 255, 0.2)", borderRadius: 9999, overflow: "hidden" }}>
-                        <View
-                            style={{
-                                height: "100%",
-                                backgroundColor: "#fff",
-                                width: `${deliveryProgress}%`,
-                                borderRadius: 9999,
-                            }}
-                        />
-                    </View>
-                </Animated.View>
-            )}
+                )}
+            </Animated.View>
             <SafeAreaView edges={["bottom"]} className="flex-1 bg-bg-screen">
 
                 <Animated.ScrollView

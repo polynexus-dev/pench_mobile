@@ -213,6 +213,7 @@ export function CartScreen() {
   const { user } = useAuthStore();
   const domainName = useAuthStore((s) => s.domain_name) || "";
   const cartItems = useCartStore((state) => state.items);
+  const hasOneTimeItems = cartItems.some((item) => typeof item.id !== "string" || !item.id.startsWith("sub_"));
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
   const clearCart = useCartStore((state) => state.clearCart);
@@ -377,142 +378,144 @@ export function CartScreen() {
               />
             ))}
 
-            {/* Delivery Date */}
-            <Text className="mt-6 mb-3 text-[14px] font-black text-gray-900 uppercase tracking-wider">
-              {cartItems.some((item) => typeof item.id === "string" && item.id.startsWith("sub_"))
-                ? "Subscription Start Date"
-                : "Delivery Date"}
-            </Text>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setShowCalendar(!showCalendar)}
-              className="mb-3 flex-row items-center justify-between rounded-2xl bg-white px-4 py-3.5 border border-gray-200/60 shadow-xs"
-            >
-              <View className="flex-row items-center gap-2.5">
-                <Ionicons name="calendar-outline" size={18} color="#0C5A35" />
-                <Text className="text-[14px] font-bold text-gray-800">
-                  {orderDate ? new Date(orderDate).toDateString() : "Select Date"}
+            {hasOneTimeItems && (
+              <>
+                {/* Delivery Date */}
+                <Text className="mt-6 mb-3 text-[14px] font-black text-gray-900 uppercase tracking-wider">
+                  Delivery Date
                 </Text>
-              </View>
-              <Ionicons name={showCalendar ? "chevron-up" : "chevron-down"} size={16} color="#6B7280" />
-            </TouchableOpacity>
 
-            {/* Expandable Calendar */}
-            {showCalendar && (
-              <View className="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
-                <Calendar
-                  current={orderDate || getLocalDateString(new Date())}
-                  minDate={getLocalDateString(new Date())}
-                  onDayPress={(day) => {
-                    setOrderDate(day.dateString);
-                    setShowCalendar(false);
-                  }}
-                  markedDates={{
-                    [orderDate]: { selected: true, selectedColor: "#1B5E37" },
-                  }}
-                  theme={{
-                    selectedDayBackgroundColor: "#1B5E37",
-                    selectedDayTextColor: "white",
-                    todayTextColor: "#1B5E37",
-                    arrowColor: "#1B5E37",
-                    dotColor: "#1B5E37",
-                  }}
-                />
-              </View>
-            )}
-
-            {/* Date Quick picks */}
-            <View className="mb-6 flex-row gap-2">
-              {isTodayEligible() && (
                 <TouchableOpacity
-                  onPress={() => {
-                    setOrderDate(getLocalDateString(new Date()));
-                  }}
-                  className={`flex-1 rounded-xl py-2.5 border items-center shadow-xs ${
-                    orderDate === getLocalDateString(new Date())
-                      ? "bg-[#1B5E37]/10 border-[#1B5E37]"
-                      : "bg-white border-gray-200/60"
-                  }`}
+                  activeOpacity={0.7}
+                  onPress={() => setShowCalendar(!showCalendar)}
+                  className="mb-3 flex-row items-center justify-between rounded-2xl bg-white px-4 py-3.5 border border-gray-200/60 shadow-xs"
                 >
-                  <Text
-                    className={`text-[12px] font-black ${
-                      orderDate === getLocalDateString(new Date())
-                        ? "text-[#1B5E37]"
-                        : "text-gray-600"
-                    }`}
-                  >
-                    Today
-                  </Text>
+                  <View className="flex-row items-center gap-2.5">
+                    <Ionicons name="calendar-outline" size={18} color="#0C5A35" />
+                    <Text className="text-[14px] font-bold text-gray-800">
+                      {orderDate ? new Date(orderDate).toDateString() : "Select Date"}
+                    </Text>
+                  </View>
+                  <Ionicons name={showCalendar ? "chevron-up" : "chevron-down"} size={16} color="#6B7280" />
                 </TouchableOpacity>
-              )}
 
-              <TouchableOpacity
-                onPress={() => {
-                  const tomorrow = new Date();
-                  tomorrow.setDate(tomorrow.getDate() + 1);
-                  setOrderDate(getLocalDateString(tomorrow));
-                }}
-                className={`flex-1 rounded-xl py-2.5 border items-center shadow-xs ${
-                  orderDate ===
-                  (() => {
-                    const tomorrow = new Date();
-                    tomorrow.setDate(tomorrow.getDate() + 1);
-                    return getLocalDateString(tomorrow);
-                  })()
-                    ? "bg-[#1B5E37]/10 border-[#1B5E37]"
-                    : "bg-white border-gray-200/60"
-                }`}
-              >
-                <Text
-                  className={`text-[12px] font-black ${
-                    orderDate ===
-                    (() => {
+                {/* Expandable Calendar */}
+                {showCalendar && (
+                  <View className="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                    <Calendar
+                      current={orderDate || getLocalDateString(new Date())}
+                      minDate={getLocalDateString(new Date())}
+                      onDayPress={(day) => {
+                        setOrderDate(day.dateString);
+                        setShowCalendar(false);
+                      }}
+                      markedDates={{
+                        [orderDate]: { selected: true, selectedColor: "#1B5E37" },
+                      }}
+                      theme={{
+                        selectedDayBackgroundColor: "#1B5E37",
+                        selectedDayTextColor: "white",
+                        todayTextColor: "#1B5E37",
+                        arrowColor: "#1B5E37",
+                        dotColor: "#1B5E37",
+                      }}
+                    />
+                  </View>
+                )}
+
+                {/* Date Quick picks */}
+                <View className="mb-6 flex-row gap-2">
+                  {isTodayEligible() && (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setOrderDate(getLocalDateString(new Date()));
+                      }}
+                      className={`flex-1 rounded-xl py-2.5 border items-center shadow-xs ${
+                        orderDate === getLocalDateString(new Date())
+                          ? "bg-[#1B5E37]/10 border-[#1B5E37]"
+                          : "bg-white border-gray-200/60"
+                      }`}
+                    >
+                      <Text
+                        className={`text-[12px] font-black ${
+                          orderDate === getLocalDateString(new Date())
+                            ? "text-[#1B5E37]"
+                            : "text-gray-600"
+                        }`}
+                      >
+                        Today
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+
+                  <TouchableOpacity
+                    onPress={() => {
                       const tomorrow = new Date();
                       tomorrow.setDate(tomorrow.getDate() + 1);
-                      return getLocalDateString(tomorrow);
-                    })()
-                      ? "text-[#1B5E37]"
-                      : "text-gray-600"
-                  }`}
-                >
-                  Tomorrow
-                </Text>
-              </TouchableOpacity>
+                      setOrderDate(getLocalDateString(tomorrow));
+                    }}
+                    className={`flex-1 rounded-xl py-2.5 border items-center shadow-xs ${
+                      orderDate ===
+                      (() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        return getLocalDateString(tomorrow);
+                      })()
+                        ? "bg-[#1B5E37]/10 border-[#1B5E37]"
+                        : "bg-white border-gray-200/60"
+                    }`}
+                  >
+                    <Text
+                      className={`text-[12px] font-black ${
+                        orderDate ===
+                        (() => {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          return getLocalDateString(tomorrow);
+                        })()
+                          ? "text-[#1B5E37]"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      Tomorrow
+                    </Text>
+                  </TouchableOpacity>
 
-              <TouchableOpacity
-                onPress={() => {
-                  const dayAfter = new Date();
-                  dayAfter.setDate(dayAfter.getDate() + 2);
-                  setOrderDate(getLocalDateString(dayAfter));
-                }}
-                className={`flex-1 rounded-xl py-2.5 border items-center shadow-xs ${
-                  orderDate ===
-                  (() => {
-                    const dayAfter = new Date();
-                    dayAfter.setDate(dayAfter.getDate() + 2);
-                    return getLocalDateString(dayAfter);
-                  })()
-                    ? "bg-[#1B5E37]/10 border-[#1B5E37]"
-                    : "bg-white border-gray-200/60"
-                }`}
-              >
-                <Text
-                  className={`text-[12px] font-black ${
-                    orderDate ===
-                    (() => {
+                  <TouchableOpacity
+                    onPress={() => {
                       const dayAfter = new Date();
                       dayAfter.setDate(dayAfter.getDate() + 2);
-                      return getLocalDateString(dayAfter);
-                    })()
-                      ? "text-[#1B5E37]"
-                      : "text-gray-600"
-                  }`}
-                >
-                  Day After
-                </Text>
-              </TouchableOpacity>
-            </View>
+                      setOrderDate(getLocalDateString(dayAfter));
+                    }}
+                    className={`flex-1 rounded-xl py-2.5 border items-center shadow-xs ${
+                      orderDate ===
+                      (() => {
+                        const dayAfter = new Date();
+                        dayAfter.setDate(dayAfter.getDate() + 2);
+                        return getLocalDateString(dayAfter);
+                      })()
+                        ? "bg-[#1B5E37]/10 border-[#1B5E37]"
+                        : "bg-white border-gray-200/60"
+                    }`}
+                  >
+                    <Text
+                      className={`text-[12px] font-black ${
+                        orderDate ===
+                        (() => {
+                          const dayAfter = new Date();
+                          dayAfter.setDate(dayAfter.getDate() + 2);
+                          return getLocalDateString(dayAfter);
+                        })()
+                          ? "text-[#1B5E37]"
+                          : "text-gray-600"
+                      }`}
+                    >
+                      Day After
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              </>
+            )}
 
             {/* Morning Delivery Notice (Only for one-time products) */}
             {cartItems.some((item) => typeof item.id !== "string" || !item.id.startsWith("sub_")) && (

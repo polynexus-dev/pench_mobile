@@ -5,6 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
 import { Text } from "@/shared/ui/Text/Text";
 import { Button } from "@/shared/ui/Button/Button";
+import { Input } from "@/shared/ui";
 import LocationSelectMap, { LocationSelectMapHandle } from "../components/LocationSelectMap";
 
 type Props = {
@@ -32,6 +33,10 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
     });
     const [hasPinned, setHasPinned] = useState(false);
     const [profileType, setProfileType] = useState<"Home" | "Work" | "Other">("Home");
+    const [flatNo, setFlatNo] = useState("");
+    const [floorNo, setFloorNo] = useState("");
+    const [buildingName, setBuildingName] = useState("");
+    const [landmark, setLandmark] = useState("");
 
     // Handle reverse geocoding to update address
     const fetchAddress = async (lat: number, lng: number) => {
@@ -93,9 +98,32 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
         alert("Please select or detect your location before confirming.");
         return;
       }
+      if (!flatNo.trim()) {
+        alert("Please enter your Flat / House / Plot Number.");
+        return;
+      }
+      if (!buildingName.trim()) {
+        alert("Please enter your Building / Apartment / Block Name.");
+        return;
+      }
+
       setSaving(true);
       try {
-        await onConfirm({ lat: coords.lat, lng: coords.lng, address, profile: profileType });
+        let completeAddress = "";
+        if (flatNo.trim()) completeAddress += `${flatNo.trim()}, `;
+        if (floorNo.trim()) {
+          const fl = floorNo.trim().toLowerCase();
+          if (fl.includes("floor") || fl.includes("flr")) {
+            completeAddress += `${floorNo.trim()}, `;
+          } else {
+            completeAddress += `${floorNo.trim()} Floor, `;
+          }
+        }
+        if (buildingName.trim()) completeAddress += `${buildingName.trim()}, `;
+        if (landmark.trim()) completeAddress += `(Near ${landmark.trim()}), `;
+        completeAddress += address;
+
+        await onConfirm({ lat: coords.lat, lng: coords.lng, address: completeAddress, profile: profileType });
         if (ref && "current" in ref && ref.current) {
           ref.current.dismiss();
         }
@@ -120,6 +148,7 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
     return (
       <BottomSheetModal
         ref={ref}
+        index={0}
         snapPoints={snapPoints}
         onDismiss={onClose}
         onChange={handleSheetChange}
@@ -131,8 +160,12 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
           <BottomSheetBackdrop {...props} disappearsOnIndex={-1} appearsOnIndex={0} />
         )}
       >
-        <BottomSheetScrollView showsVerticalScrollIndicator={false}>
-          <View className="px-4 pb-3">
+        <BottomSheetScrollView 
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 40 }}
+        >
+          {/* Header Block */}
+          <View className="px-4 pb-3 pt-2">
             <View className="flex-row items-center justify-between">
               <View className="flex-1 pr-3">
                 <Text className="text-[18px] font-black text-gray-900">
@@ -169,21 +202,75 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
             </TouchableOpacity>
           </View>
 
-          <View style={{ height: WINDOW_HEIGHT * 0.45 }} className="bg-gray-100">
-            <LocationSelectMap
-              ref={mapRef}
-              initialLat={coords.lat}
-              initialLng={coords.lng}
-              onLocationChange={handleLocationChange}
-            />
+          {/* Map Block (Housed inside a distinct card container component with horizontal margin and rounded corners) */}
+          <View className="px-4 mb-4">
+            <View 
+              style={{ height: WINDOW_HEIGHT * 0.38, overflow: "hidden" }} 
+              className="rounded-3xl border border-gray-100 bg-gray-50 shadow-sm"
+            >
+              <LocationSelectMap
+                ref={mapRef}
+                initialLat={coords.lat}
+                initialLng={coords.lng}
+                onLocationChange={handleLocationChange}
+              />
+            </View>
           </View>
 
-          <View className="px-4 py-4 bg-white border-t border-gray-100 shadow-sm">
+          {/* Form and Address Fields Block */}
+          <View className="px-4">
+            <View className="mb-4 rounded-xl bg-gray-50 border border-gray-200/50 px-4 py-3 flex-row items-start gap-2.5">
+              <Ionicons name="location-outline" size={18} color="#0C5A35" style={{ marginTop: 2 }} />
+              <Text className="text-[13px] font-semibold text-gray-700 leading-normal flex-1" numberOfLines={2}>
+                {address}
+              </Text>
+            </View>
+
+            {/* Address Details Fields */}
+            <View className="mb-5 gap-y-3">
+              <View className="flex-row gap-x-3">
+                <View className="flex-1">
+                  <Input
+                    label="Flat / House / Plot No.*"
+                    placeholder="e.g. Flat 302"
+                    value={flatNo}
+                    onChangeText={setFlatNo}
+                    autoCapitalize="words"
+                  />
+                </View>
+                <View className="flex-1">
+                  <Input
+                    label="Floor No. (optional)"
+                    placeholder="e.g. 3rd Floor"
+                    value={floorNo}
+                    onChangeText={setFloorNo}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+
+              <Input
+                label="Building / Block / Apartment Name*"
+                placeholder="e.g. Marvel Heights"
+                value={buildingName}
+                onChangeText={setBuildingName}
+                autoCapitalize="words"
+              />
+
+              <Input
+                label="Landmark / Nearby (optional)"
+                placeholder="e.g. Near Gandhi Park"
+                value={landmark}
+                onChangeText={setLandmark}
+                autoCapitalize="words"
+              />
+            </View>
+
             {/* Location Profile Chips */}
             <Text className="mb-2 text-[12px] font-black text-gray-800 uppercase tracking-wider">
               Save location as
             </Text>
-            <View className="flex-row gap-2 mb-4">
+            <View className="flex-row gap-2 mb-6">
               {(["Home", "Work", "Other"] as const).map((type) => (
                 <TouchableOpacity
                   key={type}
@@ -205,14 +292,8 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
               ))}
             </View>
 
-            <View className="mb-4 rounded-xl bg-gray-50 border border-gray-200/50 px-4 py-3 flex-row items-start gap-2.5">
-              <Ionicons name="location-outline" size={18} color="#0C5A35" style={{ marginTop: 2 }} />
-              <Text className="text-[13px] font-semibold text-gray-700 leading-normal flex-1" numberOfLines={2}>
-                {address}
-              </Text>
-            </View>
-
-            <View className="flex-row gap-x-3">
+            {/* Action Buttons Block (Now scrollable along with the form) */}
+            <View className="flex-row gap-x-3 pt-2">
               <TouchableOpacity
                 onPress={onSkip}
                 className="flex-1 items-center justify-center rounded-xl border border-gray-200 bg-white py-3.5 active:opacity-80"

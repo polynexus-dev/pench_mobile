@@ -14,6 +14,7 @@ import {
   BannerCarousel,
   ProductCard,
 } from "../components/CustomerHomeComponents";
+import { ProductDetailBottomSheet } from "../components/ProductDetailBottomSheet";
 
 import { BANNERS, CATEGORIES } from "@/data/mockData";
 import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBottomSheet";
@@ -21,6 +22,7 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { asyncStorage } from "../../../services/storage/asyncStorage";
 import { httpClient } from "../../../services/api/httpClient";
 import { buildUrl } from "../../../services/api/buildUrl";
+import { subscriptionApi } from "@/features/ecommerce/api/subscriptionApi";
 
 const getProductThumbnail = (name: string) => {
   const text = name.toLowerCase();
@@ -38,8 +40,44 @@ export function CustomerDashboardScreen() {
   const insets = useSafeAreaInsets();
   const bottomTabPadding = useBottomTabPadding(26);
 
+  const domainName = useAuthStore((s) => s.domain_name) || "";
+
   const locationSheetRef = useRef<BottomSheetModal>(null);
+  const productSheetRef = useRef<BottomSheetModal>(null);
   const [hasCheckedLocation, setHasCheckedLocation] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null);
+
+  const checkActiveSubscription = useCallback(async () => {
+    if (!domainName || !user) return;
+    try {
+      const targetId = user.customer_uuid || user.id.toString();
+      const currentYear = new Date().getFullYear();
+      const currentMonth = new Date().getMonth() + 1;
+      const data = await subscriptionApi.getCustomerMonthlySummary(
+        domainName,
+        targetId,
+        currentYear,
+        currentMonth
+      );
+      const active = data.subscriptions && data.subscriptions.length > 0;
+      setHasActiveSubscription(active);
+    } catch (e) {
+      console.warn("Failed to check active subscriptions:", e);
+      setHasActiveSubscription(false);
+    }
+  }, [domainName, user]);
+
+  useEffect(() => {
+    if (domainName && user) {
+      checkActiveSubscription();
+    }
+  }, [domainName, user, checkActiveSubscription]);
+
+  const handleProductPress = useCallback((product: Product) => {
+    setSelectedProduct(product);
+    productSheetRef.current?.present();
+  }, []);
 
   useEffect(() => {
     const checkLocation = async () => {
@@ -89,8 +127,6 @@ export function CustomerDashboardScreen() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const domainName = useAuthStore((s) => s.domain_name) || "";
 
   const fetchProducts = async () => {
     if (!domainName) return;
@@ -212,14 +248,26 @@ export function CustomerDashboardScreen() {
                   key={product.id}
                   item={product}
                   cartQty={cartQty}
-                  onAdd={() =>
+                  onPress={() => handleProductPress(product)}
+                  onAdd={() => {
+                    if (hasActiveSubscription === false) {
+                      Alert.alert(
+                        "Subscription Required",
+                        "You must have an active subscription plan to add products to your cart.",
+                        [
+                          { text: "Cancel", style: "cancel" },
+                          { text: "Subscribe Now", onPress: () => router.push("/(customer)/(tabs)/subscriptions" as any) }
+                        ]
+                      );
+                      return;
+                    }
                     addToCart({
                       id: product.id,
                       name: product.name,
                       price: Number(product.unit_price || product.price || 0),
                       quantity: 1,
-                    })
-                  }
+                    });
+                  }}
                   onRemove={() => removeFromCart(product.id)}
                 />
               );
@@ -275,6 +323,13 @@ export function CustomerDashboardScreen() {
         onClose={handleLocationSkip}
         onConfirm={handleLocationConfirm}
         onSkip={handleLocationSkip}
+      />
+
+      {/* Product Detail Bottom Sheet Modal */}
+      <ProductDetailBottomSheet
+        ref={productSheetRef}
+        product={selectedProduct}
+        hasActiveSubscription={hasActiveSubscription}
       />
     </View>
   );

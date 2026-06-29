@@ -251,7 +251,8 @@ export function BannerCarousel({ items }: { items: any[] }) {
   );
 }
 
-export function ProductCard({ item, cartQty, onAdd, onRemove }: any) {
+export function ProductCard({ item, cartQty, onAdd, onRemove, onPress }: any) {
+  const router = useRouter();
   const [isFavorite, setIsFavorite] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
   const price = item.unit_price || item.price || 0;
@@ -275,6 +276,20 @@ export function ProductCard({ item, cartQty, onAdd, onRemove }: any) {
 
   const productImageUrl = getProductImage(item.category || "", item.name || "");
 
+  const navigateToDetail = () => {
+    if (onPress) {
+      onPress();
+    } else {
+      router.push({
+        pathname: "/(customer)/product/[id]",
+        params: {
+          id: item.id,
+          productJson: JSON.stringify(item),
+        },
+      } as any);
+    }
+  };
+
   return (
     <Animated.View
       className="mb-4 rounded-[24px] bg-white border border-gray-100/70"
@@ -288,10 +303,14 @@ export function ProductCard({ item, cartQty, onAdd, onRemove }: any) {
         elevation: 2,
       }}
     >
-      <View className="flex-1 rounded-[24px] overflow-hidden">
+      <View className="flex-1 rounded-[24px] overflow-hidden relative">
         
         {/* Top Half: Image Container */}
-        <View className="relative h-[135px] w-full bg-[#FAF9F5] overflow-hidden">
+        <TouchableOpacity
+          activeOpacity={0.9}
+          onPress={navigateToDetail}
+          className="relative h-[135px] w-full bg-[#FAF9F5] overflow-hidden"
+        >
            <Image
               source={{ uri: productImageUrl }}
               className="h-full w-full"
@@ -305,35 +324,40 @@ export function ProductCard({ item, cartQty, onAdd, onRemove }: any) {
                <Text className="ml-1 text-[8px] font-bold text-[#0C5A35] uppercase tracking-wider">Glass Bottle</Text>
              </View>
            )}
+        </TouchableOpacity>
 
-           {/* Heart/Favorite Overlay */}
-           <TouchableOpacity 
-             activeOpacity={0.7} 
-             onPress={() => setIsFavorite(!isFavorite)}
-             className="absolute right-2.5 top-2.5 h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm border border-gray-100"
-           >
-             <Ionicons 
-               name={isFavorite ? "heart" : "heart-outline"} 
-               size={14} 
-               color={isFavorite ? "#E11D48" : "#757575"} 
-             />
-           </TouchableOpacity>
-        </View>
+        {/* Heart/Favorite Overlay */}
+        <TouchableOpacity 
+          activeOpacity={0.7} 
+          onPress={() => setIsFavorite(!isFavorite)}
+          className="absolute right-2.5 top-2.5 h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm border border-gray-100 z-10"
+        >
+          <Ionicons 
+            name={isFavorite ? "heart" : "heart-outline"} 
+            size={14} 
+            color={isFavorite ? "#E11D48" : "#757575"} 
+          />
+        </TouchableOpacity>
 
         {/* Bottom Half: Details */}
         <View className="p-3.5">
-          <View className="mb-1 flex-row justify-between items-center">
-             <Text className="text-[9px] font-bold text-[#0C5A35] uppercase tracking-widest">
-               {item.category || "DAIRY"}
-             </Text>
-             <Text className="text-[10px] font-semibold text-gray-500">
-               {item.unit || "500 ml"}
-             </Text>
-          </View>
-          
-          <Text className="mb-2.5 min-h-[38px] text-[13px] font-bold leading-[18px] text-gray-800" numberOfLines={2}>
-            {item.name}
-          </Text>
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={navigateToDetail}
+          >
+            <View className="mb-1 flex-row justify-between items-center">
+               <Text className="text-[9px] font-bold text-[#0C5A35] uppercase tracking-widest">
+                 {item.category || "DAIRY"}
+               </Text>
+               <Text className="text-[10px] font-semibold text-gray-500">
+                 {item.unit || "500 ml"}
+               </Text>
+            </View>
+            
+            <Text className="mb-2.5 min-h-[38px] text-[13px] font-bold leading-[18px] text-gray-800" numberOfLines={2}>
+              {item.name}
+            </Text>
+          </TouchableOpacity>
 
           <View className="mt-1 flex-row items-end justify-between">
              <View>

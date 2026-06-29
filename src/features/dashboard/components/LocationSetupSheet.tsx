@@ -17,7 +17,7 @@ type Props = {
 
 export function LocationSetupSheet({ visible, onClose, onConfirm, onSkip }: Props) {
     const sheetRef = useRef<BottomSheet>(null);
-    const snapPoints = useMemo(() => ["85%"], []);
+    const snapPoints = useMemo(() => ["95%"], []);
     const [locating, setLocating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [address, setAddress] = useState("Tap detect location or pick on map");
