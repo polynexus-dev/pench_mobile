@@ -609,7 +609,7 @@ export function DriverProfileScreen() {
           )}
 
           <Text className="pb-5 pt-10 text-center text-xs text-text-muted">
-            © 2026 Pench Foods
+            © 2026 Pench Foods{"\n"}Powered by Polynexus
           </Text>
         </View>
       </ScrollView>

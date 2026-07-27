@@ -1,5 +1,7 @@
 import { useBottomTabPadding } from "@/hooks/useBottomTabPadding";
+import { cn } from "@/utils/cn";
 import { Ionicons } from "@expo/vector-icons";
+import { BlurView } from "expo-blur";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
@@ -13,9 +15,6 @@ import {
     ViewStyle,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { cn } from "@/utils/cn";
-import { StatusBar } from "expo-status-bar";
-import { BlurView } from "expo-blur";
 
 type Props = {
     title?: string;

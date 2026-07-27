@@ -553,6 +553,8 @@ type RouteResponse = {
     route_geometry?: any;
     stops: RouteStop[];
     expires_in_seconds?: number;
+    dispatch_bottles_1L?: number;
+    dispatch_bottles_500ml?: number;
 };
 
 type LocationState = { lat: number; lng: number };

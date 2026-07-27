@@ -13,6 +13,7 @@ import { Text } from "@/shared/ui/Text/Text";
 import { useAuthStore } from "@/store/authStore";
 import { useGeofenceStore } from "@/store/geofenceStore";
 import { useSubmitDelivery } from "../hooks/useSubmitDelivery";
+import { asyncStorage } from "@/services/storage/asyncStorage";
 
 export function FinalizeDeliveryScreen() {
     const router = useRouter();
@@ -105,6 +106,30 @@ export function FinalizeDeliveryScreen() {
                     ]
                 },
             });
+
+            // Save returned bottles count to AsyncStorage
+            const todayStr = new Date().toISOString().split("T")[0];
+            const returnedCount = Number(returned) || 0;
+            if (returnedCount > 0) {
+                try {
+                    const storedStr = await asyncStorage.getItem("returned_bottles_data");
+                    let currentCount = 0;
+                    if (storedStr) {
+                        const parsed = JSON.parse(storedStr);
+                        if (parsed && parsed.date === todayStr) {
+                            currentCount = Number(parsed.count) || 0;
+                        }
+                    }
+                    const newCount = currentCount + returnedCount;
+                    await asyncStorage.setItem(
+                        "returned_bottles_data",
+                        JSON.stringify({ count: newCount, date: todayStr })
+                    );
+                } catch (err) {
+                    console.warn("Failed to persist returned bottles:", err);
+                }
+            }
+
             markStopDelivered(orderId);
             advanceNavigation(); // June 1 ← already called inside markStopDelivered, but safe if called again
             router.back();

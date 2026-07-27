@@ -17,6 +17,8 @@ type RouteResponse = {
     id: string;
     name?: string;
     stops?: RouteStop[];
+    dispatch_bottles_1L?: number;
+    dispatch_bottles_500ml?: number;
 };
 
 export function useSyncRouteToGeofence(data: RouteResponse | null | undefined) {

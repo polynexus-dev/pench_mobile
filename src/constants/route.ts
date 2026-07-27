@@ -19,6 +19,7 @@ export const ROUTES = {
         CAPTURE_POD: "/(driver)/capture-pod" as const,
         ALL_CUSTOMERS: "(driver)/customer_list" as const,
         QR_SCANNER: "/(driver)/qr-scanner",
+        BOTTLES: "/(driver)/bottles" as const,
     },
 
     CUSTOMER: {

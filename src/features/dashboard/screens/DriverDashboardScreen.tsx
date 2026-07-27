@@ -413,7 +413,13 @@ export function DriverDashboardScreen() {
                     <View className={screenX}>
 
                         <View className="mt-5 flex-row justify-between gap-3">
-                            <StatCard icon="water" label="Bottles" value={summary ? String(summary.total_bottles_to_carry) : "0"} color="#1B5E37" />
+                            <StatCard
+                                icon="water"
+                                label="Bottles"
+                                value={summary ? String(summary.total_bottles_to_carry) : "0"}
+                                color="#1B5E37"
+                                onPress={() => router.push(ROUTES.DRIVER.BOTTLES as any)}
+                            />
                             <StatCard icon="restaurant" label="Special" value={summary ? String(summary.special_orders) : "0"} color="#D4872A" />
                             <StatCard icon="return-down-back" label="Returns" value={summary ? String(summary.total_bottles_to_collect) : "0"} color="#757575" />
                         </View>
@@ -529,7 +535,7 @@ export function DriverDashboardScreen() {
                             <QuickAction
                                 icon="cube-outline"
                                 label="Bottles"
-                                onPress={() => { }}
+                                onPress={() => router.push(ROUTES.DRIVER.BOTTLES as any)}
                                 color="#1B5E37"
                             />
                             <QuickAction
@@ -610,14 +616,21 @@ export function DriverDashboardScreen() {
      label,
      value,
      color,
+     onPress,
  }: {
      icon: any;
      label: string;
      value: string;
      color: string;
+     onPress?: () => void;
  }) {
+     const CardContainer = onPress ? TouchableOpacity : View;
      return (
-         <View className="flex-1 rounded-[20px] bg-bg-card p-4 shadow-sm relative overflow-hidden">
+         <CardContainer
+             onPress={onPress}
+             activeOpacity={0.7}
+             className="flex-1 rounded-[20px] bg-bg-card p-4 shadow-sm relative overflow-hidden"
+         >
              {/* Soft background shape */}
              <View 
                  className="absolute -right-3 -top-3 w-12 h-12 rounded-full opacity-[0.04]" 
@@ -638,7 +651,7 @@ export function DriverDashboardScreen() {
              <Text variant="caption-sm" color="muted" weight="semibold" lines={1} className="mt-1">
                  {label}
              </Text>
-         </View>
+         </CardContainer>
      );
  }
 
