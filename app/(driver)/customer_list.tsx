@@ -14,7 +14,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useGeofenceStore } from "@store/geofenceStore";
 import { Text } from "@/shared/ui/Text/Text";
-import { Button } from "@/shared/ui";
+import { Button, Modal } from "@/shared/ui";
 import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
 import { ROUTES } from "@/constants/route";
 
@@ -49,6 +49,22 @@ const getLocationKey = (lat: number | null | undefined, lng: number | null | und
     return `${Number(lat).toFixed(5)}_${Number(lng).toFixed(5)}`;
 };
 
+function getDistanceMeters(
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+): number {
+    const R = 6371000; // Radius of the earth in m
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return R * (2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)));
+}
+
 const CARD_SHADOW = Platform.select({
     ios: {
         shadowColor: "#000",
@@ -65,7 +81,11 @@ export default function CustomerListScreen() {
     const { isLoading: isRouteLoading } = useFetchMyRoute();
     const router = useRouter();
     const route = useGeofenceStore((s) => s.route);
+    const location = useGeofenceStore((s) => s.location);
+    const geofenceMeters = useGeofenceStore((s) => s.geofenceMeters);
     const [searchQuery, setSearchQuery] = useState("");
+    const [showWarningModal, setShowWarningModal] = useState(false);
+    const [selectedStopForWarning, setSelectedStopForWarning] = useState<RouteStop | null>(null);
 
     // Calculate overall route stats
     const stats = useMemo(() => {
@@ -361,10 +381,43 @@ export default function CustomerListScreen() {
                         const bgClass = isPending ? "bg-[#FEFCE8]" : "bg-[#E8F5EE]";
                         const borderClass = isPending ? "border-[#FEF9C3]" : "border-[#C2E0CC]";
 
+                        const handlePressCard = () => {
+                            if (!isPending) return;
+
+                            if (!location) {
+                                setSelectedStopForWarning(stop);
+                                setShowWarningModal(true);
+                                return;
+                            }
+
+                            const dist = getDistanceMeters(
+                                location.lat,
+                                location.lng,
+                                stop.latitude,
+                                stop.longitude
+                            );
+
+                            if (dist <= geofenceMeters) {
+                                router.push({
+                                    pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
+                                    params: {
+                                        orderId: stop.order,
+                                        customerName: stop.customer_name,
+                                        deliveryDate: route?.delivery_date ?? "",
+                                    },
+                                } as any);
+                            } else {
+                                setSelectedStopForWarning(stop);
+                                setShowWarningModal(true);
+                            }
+                        };
+
                         return (
-                            <View
+                            <TouchableOpacity
                                 key={stop.id}
                                 style={CARD_SHADOW}
+                                activeOpacity={isPending ? 0.8 : 1.0}
+                                onPress={handlePressCard}
                                 className={`mb-3.5 rounded-[20px] border ${borderClass} ${bgClass} p-4 flex-row items-start gap-x-3.5`}
                             >
                                 {/* Left side: Sequence/Check Badge */}
@@ -430,7 +483,7 @@ export default function CustomerListScreen() {
                                     </View>
 
                                     {/* Bottom Row: Actions */}
-                                    <View className="flex-row items-center gap-x-2.5">
+                                    <View className="flex-row items-center flex-wrap gap-x-2 gap-y-1.5">
                                         {stop.customer_phone ? (
                                             <TouchableOpacity
                                                 onPress={() => Linking.openURL(`tel:${stop.customer_phone}`)}
@@ -464,13 +517,90 @@ export default function CustomerListScreen() {
                                                 Navigate
                                             </Text>
                                         </TouchableOpacity>
+
+                                        <TouchableOpacity
+                                            onPress={() => {
+                                                const url = Platform.select({
+                                                    ios: `maps://app?daddr=${stop.latitude},${stop.longitude}&dirflg=d`,
+                                                    android: `google.navigation:q=${stop.latitude},${stop.longitude}`,
+                                                }) || `https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`;
+                                                
+                                                Linking.canOpenURL(url).then((supported) => {
+                                                    if (supported) {
+                                                        Linking.openURL(url);
+                                                    } else {
+                                                        Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`);
+                                                    }
+                                                }).catch(() => {
+                                                    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`);
+                                                });
+                                            }}
+                                            activeOpacity={0.7}
+                                            className="flex-row items-center gap-x-1.5 bg-white border border-border-default rounded-xl px-3 py-1.5 shadow-xs"
+                                        >
+                                            <Ionicons name="compass-outline" size={14} color="#1B5E37" />
+                                            <Text variant="caption-sm" weight="semibold" color="brand">
+                                                Navigate in Google Maps
+                                            </Text>
+                                        </TouchableOpacity>
                                     </View>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
                         );
                     })
                 )}
             </ScrollView>
+
+            <Modal
+                visible={showWarningModal}
+                onClose={() => {
+                    setShowWarningModal(false);
+                    setSelectedStopForWarning(null);
+                }}
+                title="Geofence Warning"
+            >
+                <View className="items-center">
+                    <View className="h-16 w-16 items-center justify-center rounded-full bg-[#FEFCE8] mb-4 border border-[#FEF9C3]">
+                        <Ionicons name="warning" size={32} color="#D4872A" />
+                    </View>
+                    
+                    <Text variant="subhead" weight="bold" color="primary" align="center" className="mb-2">
+                        Too Far from Location
+                    </Text>
+                    
+                    <Text variant="body-sm" color="secondary" align="center" className="mb-6 leading-relaxed">
+                        {selectedStopForWarning 
+                            ? `You are not within the geofence area of ${selectedStopForWarning.customer_name}. Please proceed to the customer's location.`
+                            : "You are not within the geofence area of this customer."}
+                    </Text>
+
+                    <Button
+                        label="Scan QR Code to Finalize"
+                        intent="primary"
+                        fullWidth
+                        size="md"
+                        className="mb-3"
+                        onPress={() => {
+                            setShowWarningModal(false);
+                            setSelectedStopForWarning(null);
+                            router.push({
+                                pathname: ROUTES.DRIVER.QR_SCANNER
+                            } as any);
+                        }}
+                    />
+
+                    <Button
+                        label="Cancel"
+                        intent="ghost"
+                        fullWidth
+                        size="md"
+                        onPress={() => {
+                            setShowWarningModal(false);
+                            setSelectedStopForWarning(null);
+                        }}
+                    />
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }

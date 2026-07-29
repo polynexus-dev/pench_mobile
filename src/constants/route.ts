@@ -20,6 +20,7 @@ export const ROUTES = {
         ALL_CUSTOMERS: "(driver)/customer_list" as const,
         QR_SCANNER: "/(driver)/qr-scanner",
         BOTTLES: "/(driver)/bottles" as const,
+        BOTTLE_LEDGER: "/(driver)/bottle-ledger" as const,
     },
 
     CUSTOMER: {

@@ -107,31 +107,8 @@ export function FinalizeDeliveryScreen() {
                 },
             });
 
-            // Save returned bottles count to AsyncStorage
-            const todayStr = new Date().toISOString().split("T")[0];
-            const returnedCount = Number(returned) || 0;
-            if (returnedCount > 0) {
-                try {
-                    const storedStr = await asyncStorage.getItem("returned_bottles_data");
-                    let currentCount = 0;
-                    if (storedStr) {
-                        const parsed = JSON.parse(storedStr);
-                        if (parsed && parsed.date === todayStr) {
-                            currentCount = Number(parsed.count) || 0;
-                        }
-                    }
-                    const newCount = currentCount + returnedCount;
-                    await asyncStorage.setItem(
-                        "returned_bottles_data",
-                        JSON.stringify({ count: newCount, date: todayStr })
-                    );
-                } catch (err) {
-                    console.warn("Failed to persist returned bottles:", err);
-                }
-            }
-
             markStopDelivered(orderId);
-            advanceNavigation(); // June 1 ← already called inside markStopDelivered, but safe if called again
+            advanceNavigation(); 
             router.back();
         } catch {
             // handled in hook
@@ -197,6 +174,12 @@ export function FinalizeDeliveryScreen() {
                             <Text variant="caption" color="muted" className="mt-1">
                                 Order ID: #{orderId?.slice(-6).toUpperCase() ?? "N/A"}
                             </Text>
+                            <View className="flex-row items-start gap-x-1 mt-1.5">
+                                <Ionicons name="location-outline" size={13} color="#757575" className="mt-0.5" />
+                                <Text variant="caption" color="secondary" className="flex-1" lines={2}>
+                                    {currentStop?.address || "No address available"}
+                                </Text>
+                            </View>
                         </View>
                     </View>
 

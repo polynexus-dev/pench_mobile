@@ -22,6 +22,7 @@ import { Button, Input } from "@/shared/ui";
 import { Text } from "@/shared/ui/Text/Text";
 import { useLogout } from "@features/auth/hooks/useLogout";
 import { useAuthStore } from "@store/authStore";
+import { ROUTES } from "@/constants/route";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -452,6 +453,15 @@ export function DriverProfileScreen() {
                   icon="car-outline"
                   label="Vehicle"
                   value="MH 31 AB 1234"
+                />
+              </CardShell>
+
+              <SectionTitle title="Container Tracking" />
+              <CardShell>
+                <ProfileActionItem
+                  icon="newspaper-outline"
+                  label="Bottle Ledger"
+                  onPress={() => router.push(ROUTES.DRIVER.BOTTLE_LEDGER as any)}
                 />
               </CardShell>
 

@@ -23,6 +23,7 @@ import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { asyncStorage } from "@services/storage/asyncStorage";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
+import { useQuery } from "@tanstack/react-query";
 import { buildUrl } from "@/services/api/buildUrl";
 import { httpClient } from "@/services/api/httpClient";
 
@@ -141,10 +142,32 @@ export function DriverDashboardScreen() {
         fetchSummary();
     }, [fetchSummary]);
 
+    const queryRouteId = route?.id;
+    const { data: routeDetails, refetch: refetchRouteDetails } = useQuery({
+        queryKey: ["route-details", domainName, queryRouteId],
+        queryFn: async () => {
+            if (!domainName || !queryRouteId) return null;
+            const url = buildUrl(domainName, `/api/erp/routing/routes/${queryRouteId}/`);
+            return await httpClient.get(url) as any;
+        },
+        enabled: !!domainName && !!queryRouteId,
+    });
+
+    const dispatch1L = route?.dispatch_bottles_1L ?? 0;
+    const dispatch500ml = route?.dispatch_bottles_500ml ?? 0;
+    const totalBottles = dispatch1L + dispatch500ml;
+
+    const returnedBottles = routeDetails
+        ? (routeDetails.returned_bottles_1L ?? 0) + (routeDetails.returned_bottles_500ml ?? 0)
+        : 0;
+
     const handleRefresh = async () => {
         setIsRefreshing(true);
         try {
-            await fetchSummary();
+            await Promise.all([
+                fetchSummary(),
+                refetchRouteDetails()
+            ]);
         } finally {
             setIsRefreshing(false);
         }
@@ -416,12 +439,18 @@ export function DriverDashboardScreen() {
                             <StatCard
                                 icon="water"
                                 label="Bottles"
-                                value={summary ? String(summary.total_bottles_to_carry) : "0"}
+                                value={String(totalBottles)}
                                 color="#1B5E37"
                                 onPress={() => router.push(ROUTES.DRIVER.BOTTLES as any)}
                             />
                             <StatCard icon="restaurant" label="Special" value={summary ? String(summary.special_orders) : "0"} color="#D4872A" />
-                            <StatCard icon="return-down-back" label="Returns" value={summary ? String(summary.total_bottles_to_collect) : "0"} color="#757575" />
+                            <StatCard
+                                icon="return-down-back"
+                                label="Returns"
+                                value={String(returnedBottles)}
+                                color="#2B6CB0"
+                                onPress={() => router.push(ROUTES.DRIVER.BOTTLE_LEDGER as any)}
+                            />
                         </View>
 
                         <View className="mt-5">

@@ -3,11 +3,14 @@ import { View, StyleSheet, ActivityIndicator, TouchableOpacity, ScrollView } fro
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
+import { useQuery } from "@tanstack/react-query";
 import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import { Text } from "@/shared/ui/Text/Text";
 import { useGeofenceStore } from "@/store/geofenceStore";
 import { useFetchMyRoute } from "@/features/map/hooks/useFetchMyRoute";
-import { asyncStorage } from "@/services/storage/asyncStorage";
+import { useAuthStore } from "@/store/authStore";
+import { buildUrl } from "@/services/api/buildUrl";
+import { httpClient } from "@/services/api/httpClient";
 
 export function BottlesDetailScreen() {
     const { isLoading: isRouteLoading } = useFetchMyRoute();
@@ -15,47 +18,27 @@ export function BottlesDetailScreen() {
     const router = useRouter();
     const insets = useSafeAreaInsets();
 
+    const domainName = useAuthStore((s) => s.domain_name) || "";
+    const routeId = route?.id;
+
+    // Fetch live route details from ERP endpoint (includes returned bottles)
+    const { data: routeDetails, isLoading: isDetailsLoading } = useQuery({
+        queryKey: ["route-details", domainName, routeId],
+        queryFn: async () => {
+            if (!domainName || !routeId) return null;
+            const url = buildUrl(domainName, `/api/erp/routing/routes/${routeId}/`);
+            return await httpClient.get(url) as any;
+        },
+        enabled: !!domainName && !!routeId,
+    });
+
     const dispatch1L = route?.dispatch_bottles_1L ?? 0;
     const dispatch500ml = route?.dispatch_bottles_500ml ?? 0;
     const totalBottles = dispatch1L + dispatch500ml;
 
-    const [returnedCount, setReturnedCount] = React.useState(0);
-
-    React.useEffect(() => {
-        const loadReturnedBottles = async () => {
-            try {
-                const todayStr = new Date().toISOString().split("T")[0];
-                const storedStr = await asyncStorage.getItem("returned_bottles_data");
-                if (storedStr) {
-                    const parsed = JSON.parse(storedStr);
-                    if (parsed) {
-                        if (parsed.date === todayStr) {
-                            setReturnedCount(parsed.count || 0);
-                            return;
-                        } else {
-                            // Date is different, reset to 0
-                            await asyncStorage.setItem(
-                                "returned_bottles_data",
-                                JSON.stringify({ count: 0, date: todayStr })
-                            );
-                        }
-                    }
-                }
-                setReturnedCount(0);
-            } catch (err) {
-                console.warn("Error loading returned bottles count:", err);
-            }
-        };
-
-        loadReturnedBottles();
-
-        // Check date mismatch every 30 seconds to handle active screen crossing 12 AM midnight
-        const timer = setInterval(() => {
-            loadReturnedBottles();
-        }, 30000);
-
-        return () => clearInterval(timer);
-    }, []);
+    const returned1L = routeDetails?.returned_bottles_1L ?? 0;
+    const returned500ml = routeDetails?.returned_bottles_500ml ?? 0;
+    const totalReturned = returned1L + returned500ml;
 
     // Parse route details
     const rawRouteName = route?.name ?? "No Assigned Route";
@@ -213,23 +196,48 @@ export function BottlesDetailScreen() {
                         </View>
 
                         {/* Returned Bottles Card */}
-                        <View className="rounded-[24px] border border-border-default bg-[#F0F4F8] p-5 shadow-sm mb-6 flex-row items-center justify-between">
-                            <View className="flex-row items-center gap-x-3.5">
-                                <View className="h-11 w-11 items-center justify-center rounded-full bg-[#2B6CB0]">
-                                    <Ionicons name="return-down-back" size={22} color="white" />
+                        <View className="rounded-[24px] border border-border-default bg-[#F0F4F8] p-5 shadow-sm mb-6">
+                            <View className="flex-row items-center justify-between mb-4 border-b border-border-default/50 pb-3">
+                                <View className="flex-row items-center gap-x-3.5">
+                                    <View className="h-11 w-11 items-center justify-center rounded-full bg-[#2B6CB0]">
+                                        <Ionicons name="return-down-back" size={22} color="white" />
+                                    </View>
+                                    <View>
+                                        <Text variant="body" weight="bold" color="primary">
+                                            Returned Bottles (Today)
+                                        </Text>
+                                        <Text variant="caption-sm" color="muted" className="mt-0.5 font-semibold">
+                                            Aggregated container returns
+                                        </Text>
+                                    </View>
                                 </View>
-                                <View>
-                                    <Text variant="body" weight="bold" color="primary">
-                                        Returned Bottles (Today)
+                                {isDetailsLoading ? (
+                                    <ActivityIndicator size="small" color="#2B6CB0" />
+                                ) : (
+                                    <Text className="text-[28px] font-extrabold text-[#2B6CB0]">
+                                        {totalReturned}
                                     </Text>
-                                    <Text variant="caption-sm" color="muted" className="mt-0.5 font-semibold">
-                                        Total empty bottles collected today
+                                )}
+                            </View>
+
+                            <View className="flex-row justify-between gap-x-3 mt-1">
+                                <View className="flex-1 rounded-[16px] bg-white border border-border-default/40 p-3 items-center">
+                                    <Text className="text-[20px] font-extrabold text-[#2B6CB0]">
+                                        {isDetailsLoading ? "-" : returned1L}
+                                    </Text>
+                                    <Text variant="caption-sm" color="primary" weight="bold" className="mt-0.5 text-center">
+                                        1L Containers
+                                    </Text>
+                                </View>
+                                <View className="flex-1 rounded-[16px] bg-white border border-border-default/40 p-3 items-center">
+                                    <Text className="text-[20px] font-extrabold text-[#2B6CB0]">
+                                        {isDetailsLoading ? "-" : returned500ml}
+                                    </Text>
+                                    <Text variant="caption-sm" color="primary" weight="bold" className="mt-0.5 text-center">
+                                        500ml Containers
                                     </Text>
                                 </View>
                             </View>
-                            <Text className="text-[28px] font-extrabold text-[#2B6CB0]">
-                                {returnedCount}
-                            </Text>
                         </View>
 
                         {/* Checklist/Confirmation Section */}
