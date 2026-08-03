@@ -83,6 +83,7 @@ export default function CustomerListScreen() {
     const route = useGeofenceStore((s) => s.route);
     const location = useGeofenceStore((s) => s.location);
     const geofenceMeters = useGeofenceStore((s) => s.geofenceMeters);
+    const isSecured = useGeofenceStore((s) => s.isSecured);
     const [searchQuery, setSearchQuery] = useState("");
     const [showWarningModal, setShowWarningModal] = useState(false);
     const [selectedStopForWarning, setSelectedStopForWarning] = useState<RouteStop | null>(null);
@@ -383,6 +384,18 @@ export default function CustomerListScreen() {
 
                         const handlePressCard = () => {
                             if (!isPending) return;
+
+                            if (!isSecured) {
+                                router.push({
+                                    pathname: ROUTES.DRIVER.FINALIZE_DELIVERY,
+                                    params: {
+                                        orderId: stop.order,
+                                        customerName: stop.customer_name,
+                                        deliveryDate: route?.delivery_date ?? "",
+                                    },
+                                } as any);
+                                return;
+                            }
 
                             if (!location) {
                                 setSelectedStopForWarning(stop);

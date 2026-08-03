@@ -46,6 +46,7 @@ export function DriverDashboardScreen() {
     const activeStop = useGeofenceStore((s) => s.getActiveStop());
     const canMark = useGeofenceStore((s) => s.canMarkActiveStopDelivered());
     const route = useGeofenceStore((s) => s.route);
+    const isSecured = useGeofenceStore((s) => s.isSecured);
 
     const [persistedRouteId, setPersistedRouteId] = useState<string | null>(null);
     const routeId = persistedRouteId ?? authRouteId;
@@ -343,14 +344,16 @@ export function DriverDashboardScreen() {
                                     </Text>
                                 </View>
 
-                                <TouchableOpacity
-                                    onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
-                                    className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-xs"
-                                >
-                                    <Text className="text-[13px] font-bold text-[#1B5E37]">
-                                        QR
-                                    </Text>
-                                </TouchableOpacity>
+                                {isSecured && (
+                                    <TouchableOpacity
+                                        onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+                                        className="h-9 w-9 items-center justify-center rounded-full bg-white shadow-xs"
+                                    >
+                                        <Text className="text-[13px] font-bold text-[#1B5E37]">
+                                            QR
+                                        </Text>
+                                    </TouchableOpacity>
+                                )}
                             </View>
                         </View>
 

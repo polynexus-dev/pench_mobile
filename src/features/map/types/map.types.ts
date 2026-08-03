@@ -66,6 +66,7 @@ export type RouteResponse = {
   expires_in_seconds?: number;
   dispatch_bottles_1L?: number;
   dispatch_bottles_500ml?: number;
+  is_secured?: boolean;
 };
 
 export type MapLocation = {

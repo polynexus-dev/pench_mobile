@@ -36,6 +36,7 @@ export function useFetchMyRoute() {
                 }
 
                 await asyncStorage.setItem("route_id", String(data.id));
+                await asyncStorage.setItem("is_secured", String(!!data.is_secured));
                 useAuthStore.getState().setDomainAndRoute(domainName, String(data.id));
                 useTrackingStore.setState((s) => {
                     s.error = null;
@@ -50,6 +51,7 @@ export function useFetchMyRoute() {
                     msg.includes("No active route found for today")
                 ) {
                     await asyncStorage.removeItem("route_id");
+                    await asyncStorage.removeItem("is_secured");
                     useAuthStore.getState().setDomainAndRoute(domainName, null as any);
                     useTrackingStore.setState((s) => {
                         s.error = null;

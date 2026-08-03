@@ -7,6 +7,8 @@ import { getErrorMessage, logError } from "@/errors/errorHandler";
 import { errorMessages } from "@/errors/errorMessages";
 import { asyncStorage } from "@services/storage/asyncStorage";
 
+import { useGeofenceStore } from "@/store/geofenceStore";
+
 export function useAuthInit() {
     const { setTokens, setUser, setDomainAndRoute, clearAuth } = useAuthStore();
     const [isReady, setIsReady] = useState(false);
@@ -18,13 +20,18 @@ export function useAuthInit() {
 
         async function bootstrap() {
             try {
-                const [access, refresh, storedDomain] = await Promise.all([
+                const [access, refresh, storedDomain, storedIsSecured] = await Promise.all([
                     tokenUtils.getAccessToken(),
                     tokenUtils.getRefreshToken(),
                     asyncStorage.getItem("domain_name"),
+                    asyncStorage.getItem("is_secured"),
                 ]);
 
                 // if (__DEV__) console.log("authinit storedDomain:", storedDomain);5
+
+                if (storedIsSecured !== null) {
+                    useGeofenceStore.setState({ isSecured: storedIsSecured === "true" });
+                }
 
                 if (!access || !refresh) {
                     setIsReady(true);

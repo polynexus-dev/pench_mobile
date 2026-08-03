@@ -76,6 +76,7 @@ export default function MapScreen() {
   const navigationStopId = useGeofenceStore((s) => s.navigationStopId);
   const navigationPolyline = useGeofenceStore((s) => s.navigationPolyline);
   const fetchNavigationPolyline = useGeofenceStore((s) => s.fetchNavigationPolyline);
+  const isSecured = useGeofenceStore((s) => s.isSecured);
 
   const routeAvailable = !!route;
   const domainName = useAuthStore((s) => s.domain_name) || "";
@@ -168,8 +169,7 @@ export default function MapScreen() {
     return groupedStops.find((g) => g.groupKey === selectedGroupKey) ?? null;
   }, [groupedStops, selectedGroupKey]);
 
-  // const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0;
-  const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0 && !!nearStopId;
+  const showNextStopCard = !!selectedGroup && selectedGroup.stops.length > 0 && (!isSecured || !!nearStopId);
 
   const snapPoints = useMemo(() => ["28%", "50%", "90%"], []);
   const cardYPositions = useRef<Record<string, number>>({});
@@ -223,67 +223,75 @@ export default function MapScreen() {
     }
   }, [route, selectedGroupKey, selectStopId, setSelectedStopId]);
 
-  useEffect(() => {
-    if (!nearStopId) {
-      setActiveStopId(null);
-      lastSnappedGroupKey.current = null;
+   useEffect(() => {
+    if (isSecured) {
+      if (!nearStopId) {
+        setActiveStopId(null);
+        lastSnappedGroupKey.current = null;
 
-      if (selectedGroupKey) {
-        const existingGroup = groupedStops.find((g) => g.groupKey === selectedGroupKey);
+        if (selectedGroupKey) {
+          const existingGroup = groupedStops.find((g) => g.groupKey === selectedGroupKey);
 
-        if (existingGroup && existingGroup.stops.length > 0) {
-          const nextStopInGroup =
-            existingGroup.stops.find((s) => s.id === selectedStopId) ??
-            existingGroup.stops[0];
+          if (existingGroup && existingGroup.stops.length > 0) {
+            const nextStopInGroup =
+              existingGroup.stops.find((s) => s.id === selectedStopId) ??
+              existingGroup.stops[0];
 
-          setSelectedStopId(nextStopInGroup?.id ?? null);
+            setSelectedStopId(nextStopInGroup?.id ?? null);
 
-          if (existingGroup.stops.length > 1) {
-            setExpandedGroupKey(existingGroup.groupKey);
+            if (existingGroup.stops.length > 1) {
+              setExpandedGroupKey(existingGroup.groupKey);
+            } else {
+              setExpandedGroupKey(null);
+            }
           } else {
+            setSelectedStopId(null);
+            setSelectedGroupKey(null);
             setExpandedGroupKey(null);
           }
         } else {
           setSelectedStopId(null);
-          setSelectedGroupKey(null);
           setExpandedGroupKey(null);
         }
-      } else {
-        setSelectedStopId(null);
-        setExpandedGroupKey(null);
+
+        return;
       }
 
-      return;
-    }
+      setActiveStopId(nearStopId);
+      setSelectedStopId(nearStopId);
 
-    setActiveStopId(nearStopId);
-    setSelectedStopId(nearStopId);
+      const stop = route?.stops?.find((s) => s.id === nearStopId);
+      if (stop) {
+        const key = getLocationKey(stop.latitude, stop.longitude);
+        setSelectedGroupKey(key);
 
-    const stop = route?.stops?.find((s) => s.id === nearStopId);
-    if (stop) {
-      const key = getLocationKey(stop.latitude, stop.longitude);
-      setSelectedGroupKey(key);
+        const group = groupedStops.find((g) => g.groupKey === key);
+        if (group && group.stops.length > 1) {
+          setExpandedGroupKey(key);
+        } else {
+          setExpandedGroupKey(null);
+        }
 
-      const group = groupedStops.find((g) => g.groupKey === key);
-      if (group && group.stops.length > 1) {
-        setExpandedGroupKey(key);
-      } else {
-        setExpandedGroupKey(null);
+        // Only present and snap the bottom sheet if we just entered a NEW geofence group!
+        if (lastSnappedGroupKey.current !== key) {
+          bottomSheetRef.current?.present();
+          bottomSheetRef.current?.snapToIndex(1);
+          lastSnappedGroupKey.current = key;
+        }
       }
 
-      // Only present and snap the bottom sheet if we just entered a NEW geofence group!
-      if (lastSnappedGroupKey.current !== key) {
-        bottomSheetRef.current?.present();
-        bottomSheetRef.current?.snapToIndex(1);
-        lastSnappedGroupKey.current = key;
+      const yOffset = cardYPositions.current[nearStopId];
+      if (yOffset !== undefined && scrollViewRef.current) {
+        scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
       }
-    }
-
-    const yOffset = cardYPositions.current[nearStopId];
-    if (yOffset !== undefined && scrollViewRef.current) {
-      scrollViewRef.current.scrollTo({ y: yOffset, animated: true });
+    } else {
+      // If NOT secured, the active stop should just track selected stop id or the first in_transit stop
+      if (selectedStopId) {
+        setActiveStopId(selectedStopId);
+      }
     }
   }, [
+    isSecured,
     nearStopId,
     route?.stops,
     groupedStops,
@@ -601,12 +609,14 @@ export default function MapScreen() {
           <Ionicons name="list" size={22} color="white" />
         </RNTouchableOpacity>
 
-        <RNTouchableOpacity
-          onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
-          className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
-        >
-          <Ionicons name="qr-code-outline" size={22} color="#fff" />
-        </RNTouchableOpacity>
+        {isSecured && (
+          <RNTouchableOpacity
+            onPress={() => router.push(ROUTES.DRIVER.QR_SCANNER as any)}
+            className="h-14 w-14 items-center justify-center rounded-full bg-brand-primary shadow-lg"
+          >
+            <Ionicons name="qr-code-outline" size={22} color="#fff" />
+          </RNTouchableOpacity>
+        )}
 
         <RNTouchableOpacity
           onPress={() => mapRef.current?.centerOnUser()}

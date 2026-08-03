@@ -111,7 +111,7 @@ export function UsernameLoginForm() {
       {/* Username / Email */}
       <Input
         label="Username"
-        placeholder="Enter your email"
+        placeholder="Enter username"
         value={username}
         onChangeText={setUsername}
         autoCapitalize="none"
