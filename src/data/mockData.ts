@@ -1,0 +1,53 @@
+export const CATEGORIES = [
+  { id: 'all', label: 'All', icon: 'view-grid' },
+  { id: 'milk', label: 'Milk', icon: 'bottle-tonic' },
+  { id: 'ghee', label: 'Ghee', icon: 'jar' },
+];
+
+export const BANNERS = [
+  {
+    id: 'b1',
+    title: 'Morning Milk Ritual',
+    subtitle: 'Pure A2 Gir cow milk delivered fresh every morning in reusable bottles.',
+    bgColor: '#0B6035',
+    accent: '#F9A825',
+    image: null,
+    stat: '6:00 AM - 7:30 AM',
+    note: 'Farm Fresh',
+    productId: 'p1',
+  },
+  {
+    id: 'b2',
+    title: 'Subscribe for Stress-Free Mornings',
+    subtitle: 'Set up daily milk delivery, pause anytime, and manage tomorrow like a Country Delight-style routine.',
+    bgColor: '#105B74',
+    accent: '#FFFFFF',
+    image: null,
+    stat: '15% savings',
+    note: 'Subscription',
+    productId: null,
+    route: 'Subscriptions',
+  },
+  {
+    id: 'b3',
+    title: 'Golden A2 Ghee',
+    subtitle: 'Bilona-style aroma and a premium finish for everyday cooking and festive recipes.',
+    bgColor: '#7A470A',
+    accent: '#FFC107',
+    image: null,
+    stat: 'Half KG & 1 KG',
+    note: 'Premium',
+    productId: 'p2',
+  },
+  {
+    id: 'b4',
+    title: 'Reusable Glass Bottle Promise',
+    subtitle: 'The same premium Pench bottle story from the website, kept front and center inside the app.',
+    bgColor: '#0E5A37',
+    accent: '#F4C430',
+    image: null,
+    stat: 'Eco-friendly packaging',
+    note: 'Milk Flow',
+    productId: 'p1',
+  },
+];

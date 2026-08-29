@@ -1,0 +1,21 @@
+export type RootStackParamList = {
+  "(auth)/login": undefined;
+  "(auth)/otp": { phone: string };
+  "(auth)/forgot-password": undefined;
+  "(principal)/(tabs)/dashboard": undefined;
+  "(principal)/(tabs)/reports": undefined;
+  "(principal)/user/[id]": { id: string };
+  "(hod)/(tabs)/dashboard": undefined;
+  "(hod)/(tabs)/reports": undefined;
+  "(hod)/session/[id]": { id: string };
+  "(admin)/(tabs)/dashboard": undefined;
+  "(admin)/(tabs)/users": undefined;
+  "(admin)/user/[id]": { id: string };
+  "(support)/(tabs)/dashboard": undefined;
+  "(teaching)/(tabs)/dashboard": undefined;
+  "(teaching)/(tabs)/generate-code": undefined;
+  "(teaching)/session/[id]": { id: string };
+  "(student)/(tabs)/dashboard": undefined;
+  "(student)/(tabs)/history": undefined;
+  "(student)/mark-attendance": undefined;
+};
