@@ -18,6 +18,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useAuthStore } from "@/store/authStore";
+import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 import { useCartStore } from "@/store/useCartStore";
 import { orderApi } from "@/features/dashboard/api/orderApi";
 
@@ -211,6 +212,8 @@ const CartItemRow = React.memo(({
 
 export function CartScreen() {
   const { user } = useAuthStore();
+  const isGuest = useAuthStore((s) => s.isGuest);
+  const { requireAuth } = useRequireAuth();
   const domainName = useAuthStore((s) => s.domain_name) || "";
   const cartItems = useCartStore((state) => state.items);
   const hasOneTimeItems = cartItems.some((item) => typeof item.id !== "string" || !item.id.startsWith("sub_"));
@@ -255,10 +258,10 @@ export function CartScreen() {
   };
 
   useEffect(() => {
-    if (domainName) {
+    if (domainName && !isGuest) {
       fetchOrders();
     }
-  }, [domainName]);
+  }, [domainName, isGuest]);
 
   const isTodayEligible = () => {
     const todayStr = getLocalDateString(new Date());
@@ -268,6 +271,8 @@ export function CartScreen() {
   };
 
   const handlePlaceOrder = async () => {
+    if (!requireAuth({ action: "place an order" })) return;
+
     const items = cartItems.map((item) => ({
       product: item.id,
       quantity: item.quantity,

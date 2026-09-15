@@ -1,6 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { authApi } from "../api/authApi";
+import { endGuestSession } from "./useGuestSession";
 import { useAuthStore } from "@/store/authStore";
 import { useToast } from "@/hooks/useToast";
 import { tokenUtils } from "../utils/tokenUtils";
@@ -45,6 +46,9 @@ export function useVerifyOTP() {
   return useMutation({
     mutationFn: (payload: OTPVerifyPayload) => authApi.verifyOTP(payload),
     onSuccess: async (data) => {
+      // A real session replaces any guest browsing session
+      await endGuestSession();
+
       await tokenUtils.saveTokens(data.access, data.refresh);
       setTokens(data.access, data.refresh);
       setUser(data.user);

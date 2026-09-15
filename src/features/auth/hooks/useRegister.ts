@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/useToast";
 import { getErrorMessage } from "@/errors/errorHandler";
 import { ROUTES } from "@/constants/route";
 import type { RegisterPayload } from "../types/auth.types";
+import { endGuestSession } from "./useGuestSession";
 
 export function useRegister() {
     const router = useRouter();
@@ -16,6 +17,9 @@ export function useRegister() {
     return useMutation({
         mutationFn: (payload: RegisterPayload) => authApi.register(payload),
         onSuccess: async (data) => {
+            // A real session replaces any guest browsing session
+            await endGuestSession();
+
             await tokenUtils.saveTokens(data.access, data.refresh);
             setTokens(data.access, data.refresh);
             setUser(data.user);

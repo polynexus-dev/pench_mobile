@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCartStore } from "@/store/useCartStore";
 import { Product } from "@/features/dashboard/api/productApi";
 import { useRouter } from "expo-router";
+import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 
 type Props = {
   product: Product | null;
@@ -24,6 +25,7 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
   function ProductDetailBottomSheet({ product, hasActiveSubscription }, ref) {
     const insets = useSafeAreaInsets();
     const router = useRouter();
+    const { requireAuth } = useRequireAuth();
     
     const cartItems = useCartStore((s) => s.items);
     const addToCart = useCartStore((s) => s.addToCart);
@@ -196,6 +198,7 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                 <TouchableOpacity
                   activeOpacity={0.9}
                   onPress={() => {
+                    if (!requireAuth({ action: "add items to your cart", onNavigate: handleClose })) return;
                     if (hasActiveSubscription === false) {
                       Alert.alert(
                         "Subscription Required",
@@ -242,6 +245,7 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
+                      if (!requireAuth({ action: "add items to your cart", onNavigate: handleClose })) return;
                       if (hasActiveSubscription === false) {
                         Alert.alert(
                           "Subscription Required",

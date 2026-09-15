@@ -20,6 +20,9 @@ import { ScreenWrapper } from "@/shared/components/ScreenWrapper";
 import { Button, Input } from "@/shared/ui";
 import { Text } from "@/shared/ui/Text/Text";
 import { useLogout } from "@features/auth/hooks/useLogout";
+import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
+import { useGuestSession } from "@/features/auth/hooks/useGuestSession";
+import { useDeleteAccount } from "../hooks/useDeleteAccount";
 import { useAuthStore } from "@store/authStore";
 import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBottomSheet";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
@@ -105,6 +108,7 @@ function StatsCard({ icon, label, onPress }: StatsCardProps) {
 
 export function CustomerProfileScreen() {
   const { user } = useAuthStore();
+  const isGuest = useAuthStore((s) => s.isGuest);
   const setUser = useAuthStore((s) => s.setUser);
   const domain_name = useAuthStore((s) => s.domain_name) || "";
   const { logout } = useLogout();
@@ -112,7 +116,20 @@ export function CustomerProfileScreen() {
   const insets = useSafeAreaInsets();
   const { show } = useToast();
 
-  const [activeView, setActiveView] = React.useState<'view' | 'edit_profile' | 'change_password'>('view');
+  const { requireAuth } = useRequireAuth();
+  const { exitGuestSession } = useGuestSession();
+  const { deleteAccount, isDeleting } = useDeleteAccount();
+
+  const [activeView, setActiveView] = React.useState<
+    'view' | 'edit_profile' | 'change_password' | 'delete_account'
+  >('view');
+
+  // ── Delete-account confirmation state ──────────────────────────
+  const DELETE_CONFIRM_WORD = "DELETE";
+  const [deleteReason, setDeleteReason] = React.useState("");
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
+  const canConfirmDelete =
+    deleteConfirmText.trim().toUpperCase() === DELETE_CONFIRM_WORD;
 
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
@@ -275,6 +292,29 @@ export function CustomerProfileScreen() {
     }
   };
 
+  const openDeleteAccount = () => {
+    setDeleteReason("");
+    setDeleteConfirmText("");
+    setActiveView("delete_account");
+  };
+
+  // Second confirmation step — the typed word is the first.
+  const confirmDeleteAccount = () => {
+    if (!canConfirmDelete || isDeleting) return;
+    Alert.alert(
+      "Delete account permanently?",
+      "This erases your profile, login and subscriptions, and removes your personal details from past deliveries. It cannot be undone.",
+      [
+        { text: "Keep my account", style: "cancel" },
+        {
+          text: "Delete forever",
+          style: "destructive",
+          onPress: () => deleteAccount({ reason: deleteReason.trim() || undefined }),
+        },
+      ]
+    );
+  };
+
   function handleLogout() {
     Alert.alert(
       "Logout",
@@ -307,6 +347,125 @@ export function CustomerProfileScreen() {
     : user?.username ? user.username.slice(0, 2).toUpperCase() : "CU";
 
   const dashboard = user?.customer_dashboard;
+
+  const viewTitle =
+    activeView === "view"
+      ? "Profile"
+      : activeView === "edit_profile"
+        ? "Edit Profile"
+        : activeView === "change_password"
+          ? "Change Password"
+          : "Delete Account";
+
+  // ── Guest profile — browsing is open, everything account-bound prompts ──
+  if (isGuest) {
+    return (
+      <ScreenWrapper
+        showHeader={false}
+        disablePadding
+        className="bg-[#F7F9FA]"
+        screenBgColor="#F7F9FA"
+      >
+        <ScrollView
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ paddingBottom: 120 }}
+          className="bg-[#F7F9FA]"
+        >
+          <LinearGradient
+            colors={["#E3F5E9", "#F7F9FA"]}
+            style={{ paddingTop: insets.top }}
+            className="pb-6"
+          >
+            <View className="items-center mt-8">
+              <View className="w-20 h-20 rounded-full bg-[#0A3925] items-center justify-center shadow-xs">
+                <Ionicons name="person-outline" size={32} color="#FFFFFF" />
+              </View>
+              <Text className="text-[26px] font-bold text-[#1A1A1A] mt-4">
+                Guest
+              </Text>
+              <Text className="text-[14px] text-[#757575] mt-1 text-center px-8">
+                Sign in to order, subscribe and use Pench Money
+              </Text>
+            </View>
+          </LinearGradient>
+
+          <View className="px-4">
+            {/* Account-bound shortcuts — each prompts to sign in */}
+            <View className="flex-row justify-between mt-2 mb-4 gap-x-3">
+              <StatsCard
+                icon="time-outline"
+                label="Your orders"
+                onPress={() => requireAuth({ action: "view your orders" })}
+              />
+              <StatsCard
+                icon="wallet-outline"
+                label="Pench Money"
+                onPress={() => requireAuth({ action: "use your Pench Money wallet" })}
+              />
+              <StatsCard
+                icon="headset-outline"
+                label="Need help?"
+                onPress={() =>
+                  Alert.alert("Support", "Support helpline: support@penchfoods.in")
+                }
+              />
+            </View>
+
+            <View className="gap-y-3 mt-2">
+              <Button
+                intent="primary"
+                label="Sign In"
+                fullWidth
+                onPress={() => router.push("/(auth)/login" as any)}
+                className="bg-[#1B5E37]"
+              />
+              <Button
+                intent="outline"
+                label="Create Account"
+                fullWidth
+                onPress={() => router.push("/(auth)/register" as any)}
+              />
+            </View>
+
+            <SectionTitle title="More" />
+            <CardShell>
+              <ProfileActionItem
+                icon="information-circle-outline"
+                label="About Pench Foods"
+                onPress={() =>
+                  Alert.alert(
+                    "About Us",
+                    "Pench Foods: Pure, fresh milk delivered straight to your doorstep."
+                  )
+                }
+              />
+              <View className="h-px bg-neutral-100 ml-12" />
+              <ProfileActionItem
+                icon="shield-checkmark-outline"
+                label="Privacy Policy"
+                onPress={() =>
+                  Alert.alert(
+                    "Privacy Policy",
+                    "For full terms, please visit penchfoods.in/privacy"
+                  )
+                }
+              />
+              <View className="h-px bg-neutral-100 ml-12" />
+              <ProfileActionItem
+                icon="exit-outline"
+                label="Exit Guest Mode"
+                onPress={exitGuestSession}
+              />
+            </CardShell>
+
+            <Text className="pb-5 pt-10 text-center text-xs text-text-muted">
+              © 2026 Pench Foods{"\n"}Powered by Polynexus
+            </Text>
+          </View>
+        </ScrollView>
+      </ScreenWrapper>
+    );
+  }
 
   return (
     <ScreenWrapper
@@ -347,7 +506,7 @@ export function CustomerProfileScreen() {
           )}
 
           <Text className="text-[16px] font-bold text-[#1A1A1A]">
-            {activeView === "view" ? "Profile" : (activeView === "edit_profile" ? "Edit Profile" : "Change Password")}
+            {viewTitle}
           </Text>
 
           {activeView === "view" ? (
@@ -395,7 +554,7 @@ export function CustomerProfileScreen() {
 
             {activeView !== "view" && (
               <Text className="text-[18px] font-bold text-[#1A1A1A]">
-                {activeView === "edit_profile" ? "Edit Profile" : "Change Password"}
+                {viewTitle}
               </Text>
             )}
 
@@ -582,6 +741,20 @@ export function CustomerProfileScreen() {
                   onPress={handleLogout}
                 />
               </CardShell>
+
+              <SectionTitle title="Account" />
+              <CardShell>
+                <ProfileActionItem
+                  icon="trash-outline"
+                  label="Delete Account"
+                  danger
+                  onPress={openDeleteAccount}
+                />
+              </CardShell>
+              <Text className="mt-2 px-1 text-[11px] leading-4 text-[#9E9E9E]">
+                Permanently deletes your Pench Foods account and personal data.
+                This cannot be undone.
+              </Text>
             </>
           )}
 
@@ -685,6 +858,86 @@ export function CustomerProfileScreen() {
                   onPress={handleSavePassword}
                   className="flex-1 bg-[#1B5E37]"
                   loading={isSavingPassword}
+                />
+              </View>
+            </View>
+          )}
+
+          {activeView === "delete_account" && (
+            <View className="mt-4 gap-y-4">
+              {/* What deletion actually does */}
+              <View className="rounded-2xl border border-[#E53E3E]/25 bg-[#FEF2F2] p-4">
+                <View className="flex-row items-center mb-2.5">
+                  <Ionicons name="warning-outline" size={18} color="#E53E3E" />
+                  <Text className="ml-2 text-[14px] font-bold text-[#E53E3E]">
+                    This is permanent
+                  </Text>
+                </View>
+                <Text className="text-[13px] leading-5 text-[#7F1D1D]">
+                  Deleting your account is not a deactivation. It cannot be
+                  undone, and we will not be able to restore it. The following
+                  are removed:
+                </Text>
+                <View className="mt-3 gap-y-1.5">
+                  {[
+                    "Your profile, contact details and login",
+                    "All active subscriptions and delivery schedules",
+                    "Saved delivery locations",
+                    "Your name and address on past deliveries",
+                  ].map((line) => (
+                    <View key={line} className="flex-row items-start">
+                      <Text className="text-[13px] leading-5 text-[#7F1D1D]">
+                        {"• "}
+                      </Text>
+                      <Text className="flex-1 text-[13px] leading-5 text-[#7F1D1D]">
+                        {line}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+                <Text className="mt-3 text-[12px] leading-5 text-[#7F1D1D]">
+                  Past invoices are kept for tax and accounting, with your
+                  personal details removed. Deleting does not clear an unpaid
+                  balance — please settle it first. Need help instead of
+                  deleting? Contact support@penchfoods.in.
+                </Text>
+              </View>
+
+              <CardShell>
+                <View className="p-4 gap-y-4">
+                  <Input
+                    label="Why are you leaving? (optional)"
+                    placeholder="Tell us what went wrong"
+                    value={deleteReason}
+                    onChangeText={setDeleteReason}
+                    multiline
+                  />
+                  <Input
+                    label={`Type ${DELETE_CONFIRM_WORD} to confirm`}
+                    placeholder={DELETE_CONFIRM_WORD}
+                    value={deleteConfirmText}
+                    onChangeText={setDeleteConfirmText}
+                    autoCapitalize="characters"
+                    autoCorrect={false}
+                  />
+                </View>
+              </CardShell>
+
+              <View className="flex-row gap-x-3 mt-2 pb-10">
+                <Button
+                  intent="outline"
+                  label="Cancel"
+                  onPress={() => setActiveView("view")}
+                  className="flex-1"
+                  disabled={isDeleting}
+                />
+                <Button
+                  intent="danger"
+                  label="Delete Account"
+                  onPress={confirmDeleteAccount}
+                  className="flex-1"
+                  disabled={!canConfirmDelete}
+                  loading={isDeleting}
                 />
               </View>
             </View>

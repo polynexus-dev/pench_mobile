@@ -9,6 +9,7 @@ import { asyncStorage } from "@services/storage/asyncStorage";
 
 import { useGeofenceStore } from "@/store/geofenceStore";
 import { useCartStore } from "@/store/useCartStore";
+import { endGuestSession, restoreGuestSession } from "@/features/auth/hooks/useGuestSession";
 
 export function useAuthInit() {
     const { setTokens, setUser, setDomainAndRoute, clearAuth } = useAuthStore();
@@ -36,9 +37,15 @@ export function useAuthInit() {
                 }
 
                 if (!access || !refresh) {
+                    // No session — fall back to a guest session if one was started
+                    // earlier, so the app reopens on the catalog instead of login
+                    await restoreGuestSession();
                     setIsReady(true);
                     return;
                 }
+
+                // A real session wins over any leftover guest session
+                await endGuestSession();
 
                 setTokens(access, refresh);
 

@@ -15,9 +15,11 @@ import { EmptyOrdersState } from "../components/EmptyOrdersState";
 import { OrderCard } from "../components/OrderCard";
 import { OrderExtraBottomSheet } from "../components/OrderExtraBottomSheet";
 import { OrdersTabs } from "../components/OrdersTabs";
+import { GuestGate } from "@/features/auth/components/GuestGate";
 
 export default function OrdersScreen() {
     const domainName = useAuthStore((s) => s.domain_name) || "";
+    const isGuest = useAuthStore((s) => s.isGuest);
     const params = useLocalSearchParams<{ openModal?: string }>();
     const bottomTabPadding = useBottomTabPadding(24);
 
@@ -62,13 +64,13 @@ export default function OrdersScreen() {
     }, [params.openModal, openOrderSheet]);
 
     useEffect(() => {
-        if (!domainName) {
+        if (!domainName || isGuest) {
             setLoading(false);
             return;
         }
         fetchOrders();
         fetchProducts();
-    }, [domainName, fetchOrders, fetchProducts]);
+    }, [domainName, isGuest, fetchOrders, fetchProducts]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -100,6 +102,18 @@ export default function OrdersScreen() {
             return o.status === "delivered";
         });
     }, [orders, tab]);
+
+    if (isGuest) {
+        return (
+            <ScreenWrapper screenBgColor="#F5F8F6">
+                <GuestGate
+                    icon="receipt-outline"
+                    title="Your orders live here"
+                    message="Sign in or create an account to place orders and track your deliveries."
+                />
+            </ScreenWrapper>
+        );
+    }
 
     return (
         <ScreenWrapper screenBgColor="#F5F8F6">

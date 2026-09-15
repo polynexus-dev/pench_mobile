@@ -33,6 +33,7 @@ function RootNavigator() {
   const router = useRouter();
   const segments = useSegments();
   const user = useAuthStore((s) => s.user);
+  const isGuest = useAuthStore((s) => s.isGuest);
   const { isReady } = useAuthInit();
 
   // ── One-shot redirect guard ──────────────────────────────────
@@ -55,6 +56,9 @@ function RootNavigator() {
     if (currentSegment === undefined || currentSegment === null) return;
 
     if (!user) {
+      // ── Guests stay where they are — browsing is open without a session ──
+      if (isGuest) return;
+
       if (!inAuthGroup) {
         didRedirect.current = true;
         router.replace("/(auth)/login" as any);
@@ -68,7 +72,7 @@ function RootNavigator() {
       didRedirect.current = true;
       router.replace(route as any);
     }
-  }, [isReady, user]); // ← segments excluded intentionally
+  }, [isReady, user, isGuest]); // ← segments excluded intentionally
 
   // ── Reset redirect guard on logout ──────────────────────────
   useEffect(() => {

@@ -23,6 +23,8 @@ import { asyncStorage } from "../../../services/storage/asyncStorage";
 import { httpClient } from "../../../services/api/httpClient";
 import { buildUrl } from "../../../services/api/buildUrl";
 import { subscriptionApi } from "@/features/ecommerce/api/subscriptionApi";
+import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
+import { guestCityFromSchema } from "@/constants/guestTenants";
 
 const getProductThumbnail = (name: string) => {
   const text = name.toLowerCase();
@@ -34,6 +36,9 @@ const getProductThumbnail = (name: string) => {
 
 export function CustomerDashboardScreen() {
   const { user } = useAuthStore();
+  const isGuest = useAuthStore((s) => s.isGuest);
+  const guestCity = useAuthStore((s) => s.guestCity);
+  const { requireAuth } = useRequireAuth();
   const cartItems = useCartStore((state) => state.items);
   const addToCart = useCartStore((state) => state.addToCart);
   const removeFromCart = useCartStore((state) => state.removeFromCart);
@@ -159,7 +164,13 @@ export function CustomerDashboardScreen() {
     <View className="flex-1 bg-[#FDFDFD]">
       <StatusBar style="dark" />
       <View style={{ zIndex: 1 }}>
-        <HeaderSection locationName={user?.city_name || "Nagpur, Maharashtra"} />
+        <HeaderSection
+          locationName={
+            isGuest
+              ? guestCityFromSchema(guestCity)?.label ?? "Select your city"
+              : user?.city_name || "Nagpur, Maharashtra"
+          }
+        />
       </View>
       <ScrollView
         className="flex-1"
@@ -169,6 +180,30 @@ export function CustomerDashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
+        {/* Guest strip — browsing is open, ordering needs an account */}
+        {isGuest && (
+          <TouchableOpacity
+            activeOpacity={0.9}
+            onPress={() => router.push("/(auth)/login" as any)}
+            className="mx-4 mt-3 flex-row items-center rounded-2xl border border-[#0C5A35]/15 bg-[#F3F9F6] px-4 py-3"
+          >
+            <View className="h-8 w-8 items-center justify-center rounded-full bg-[#0C5A35]/10">
+              <Ionicons name="person-outline" size={16} color="#0C5A35" />
+            </View>
+            <View className="ml-3 flex-1">
+              <Text className="text-[12px] font-black leading-none text-gray-900">
+                You&apos;re browsing as a guest
+              </Text>
+              <Text className="mt-1.5 text-[10px] font-semibold leading-none text-gray-500">
+                Sign in to order, subscribe and use Pench Money
+              </Text>
+            </View>
+            <Text className="text-[11px] font-black uppercase tracking-wider text-[#0C5A35]">
+              Sign In
+            </Text>
+          </TouchableOpacity>
+        )}
+
         <BannerCarousel items={BANNERS} />
 
         {/* Flexible Subscription Model Section */}
@@ -219,7 +254,10 @@ export function CustomerDashboardScreen() {
           {/* Action button to navigate to Subscription Page */}
           <TouchableOpacity
             activeOpacity={0.8}
-            onPress={() => router.push("/(customer)/(tabs)/subscriptions" as any)}
+            onPress={() => {
+              if (!requireAuth({ action: "start a subscription" })) return;
+              router.push("/(customer)/(tabs)/subscriptions" as any);
+            }}
             className="mt-4 bg-[#0C5A35] flex-row items-center justify-center py-2.5 rounded-xl active:opacity-90"
           >
             <Text className="text-[12px] font-black text-white uppercase tracking-wider">
@@ -250,6 +288,7 @@ export function CustomerDashboardScreen() {
                   cartQty={cartQty}
                   onPress={() => handleProductPress(product)}
                   onAdd={() => {
+                    if (!requireAuth({ action: "add items to your cart" })) return;
                     if (hasActiveSubscription === false) {
                       Alert.alert(
                         "Subscription Required",

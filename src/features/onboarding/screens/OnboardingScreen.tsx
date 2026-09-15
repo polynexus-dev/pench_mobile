@@ -17,6 +17,9 @@ import { StatusBar } from "expo-status-bar";
 import { onboardingSlides, OnboardingSlide } from "../data/onboardingData";
 import { onboardingUtils } from "../utils/onboardingUtils";
 import { ROUTES } from "@/constants/route";
+import { GuestCityPicker } from "@/features/auth/components/GuestCityPicker";
+import type { GuestCity } from "@/constants/guestTenants";
+import { useGuestSession } from "@/features/auth/hooks/useGuestSession";
 
 const { width, height } = Dimensions.get("window");
 
@@ -93,8 +96,20 @@ export default function OnboardingScreen() {
     const flatListRef = useRef<FlatList>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const [loading, setLoading] = useState(false);
+    const [showGuestCities, setShowGuestCities] = useState(false);
+    const { startGuestSession } = useGuestSession();
 
     const isLastSlide = currentIndex === onboardingSlides.length - 1;
+
+    const handleBrowseAsGuest = async (city: GuestCity) => {
+        setShowGuestCities(false);
+        try {
+            await onboardingUtils.markComplete();
+        } catch (e) {
+            if (__DEV__) console.error("[Onboarding] markComplete failed:", e);
+        }
+        startGuestSession(city);
+    };
 
     const handleScroll = (e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const index = Math.round(e.nativeEvent.contentOffset.x / width);
@@ -187,7 +202,27 @@ export default function OnboardingScreen() {
                     )}
                 </TouchableOpacity>
 
+                {/* Browse without an account */}
+                <TouchableOpacity
+                    onPress={() => setShowGuestCities(true)}
+                    disabled={loading}
+                    hitSlop={{ top: 8, bottom: 8, left: 12, right: 12 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Browse as guest"
+                    className="-mt-2"
+                >
+                    <Text className="text-[#1B5E37] font-bold text-sm tracking-wide">
+                        Browse as Guest
+                    </Text>
+                </TouchableOpacity>
+
             </View>
+
+            <GuestCityPicker
+                visible={showGuestCities}
+                onClose={() => setShowGuestCities(false)}
+                onSelect={handleBrowseAsGuest}
+            />
         </SafeAreaView>
     );
 }

@@ -13,9 +13,12 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
+import { Ionicons } from "@expo/vector-icons";
 import { LoginTabBar } from "../components/LoginTabBar";
 import { OTPLoginForm } from "../components/OTPLoginForm";
 import { UsernameLoginForm } from "../components/UsernameLoginForm";
+import { GuestCityPicker } from "../components/GuestCityPicker";
+import { useGuestSession } from "../hooks/useGuestSession";
 import type { LoginMethod } from "../types/auth.types";
 
 export default function LoginScreen() {
@@ -23,6 +26,8 @@ export default function LoginScreen() {
   const router = useRouter();
   const [containerWidth, setContainerWidth] = useState(0);
   const tabSlideAnim = useRef(new Animated.Value(0)).current;
+  const [showGuestCities, setShowGuestCities] = useState(false);
+  const { startGuestSession } = useGuestSession();
 
   useEffect(() => {
     Animated.timing(tabSlideAnim, {
@@ -111,21 +116,60 @@ export default function LoginScreen() {
               </View>
             </View>
 
-            {/* Bottom Register Link */}
-            <View className="flex-row items-center justify-center gap-x-1 py-2">
-              <Text className="text-sm text-[#4A4A4A] font-semibold">
-                New Member?
-              </Text>
-              <TouchableOpacity onPress={() => router.push("/(auth)/register" as any)}>
-                <Text className="text-sm font-bold text-[#1B5E37]">
-                  Register now
+            {/* Bottom section — guest entry + register link */}
+            <View className="w-full">
+              {/* Divider */}
+              <View className="flex-row items-center w-full mb-4">
+                <View className="h-px flex-1 bg-[#1A1A1A]/10" />
+                <Text className="mx-3 text-[11px] font-bold uppercase tracking-widest text-[#9E9E9E]">
+                  or
+                </Text>
+                <View className="h-px flex-1 bg-[#1A1A1A]/10" />
+              </View>
+
+              {/* Continue as Guest — browse the catalog without an account */}
+              <TouchableOpacity
+                activeOpacity={0.85}
+                onPress={() => setShowGuestCities(true)}
+                accessibilityRole="button"
+                accessibilityLabel="Continue as guest"
+                className="w-full flex-row items-center justify-center rounded-full border border-[#1B5E37]/35 bg-white/60 py-3.5"
+              >
+                <Ionicons name="eye-outline" size={18} color="#1B5E37" />
+                <Text className="ml-2 text-sm font-bold text-[#1B5E37]">
+                  Continue as Guest
                 </Text>
               </TouchableOpacity>
+
+              <Text className="mt-2.5 text-center text-[11px] font-medium text-[#757575]">
+                Browse our dairy range — sign in only when you order
+              </Text>
+
+              {/* Register Link */}
+              <View className="flex-row items-center justify-center gap-x-1 py-3 mt-1">
+                <Text className="text-sm text-[#4A4A4A] font-semibold">
+                  New Member?
+                </Text>
+                <TouchableOpacity onPress={() => router.push("/(auth)/register" as any)}>
+                  <Text className="text-sm font-bold text-[#1B5E37]">
+                    Register now
+                  </Text>
+                </TouchableOpacity>
+              </View>
             </View>
 
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <GuestCityPicker
+        visible={showGuestCities}
+        onClose={() => setShowGuestCities(false)}
+        onSelect={(city) => {
+          setShowGuestCities(false);
+          startGuestSession(city);
+        }}
+      />
     </SafeAreaView>
   );
 }

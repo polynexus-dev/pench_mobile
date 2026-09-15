@@ -7,6 +7,7 @@ import { useCartStore } from "@/store/useCartStore";
 import { productApi, Product } from "@/features/dashboard/api/productApi";
 import { useAuthStore } from "@/store/authStore";
 import { StatusBar } from "expo-status-bar";
+import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 
 const { width } = Dimensions.get("window");
 
@@ -22,7 +23,8 @@ export default function ProductDetailModal() {
   const { id, productJson } = useLocalSearchParams();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  
+  const { requireAuth } = useRequireAuth();
+
   const cartItems = useCartStore((s) => s.items);
   const addToCart = useCartStore((s) => s.addToCart);
   const removeFromCart = useCartStore((s) => s.removeFromCart);
@@ -235,6 +237,7 @@ export default function ProductDetailModal() {
             <TouchableOpacity
               activeOpacity={0.9}
               onPress={() => {
+                if (!requireAuth({ action: "add items to your cart" })) return;
                 pulse();
                 addToCart({
                   id: product.id,
@@ -266,6 +269,7 @@ export default function ProductDetailModal() {
               </Text>
               <TouchableOpacity
                 onPress={() => {
+                  if (!requireAuth({ action: "add items to your cart" })) return;
                   pulse();
                   addToCart({
                     id: product.id,

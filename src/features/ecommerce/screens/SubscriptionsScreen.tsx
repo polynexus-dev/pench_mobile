@@ -17,6 +17,7 @@ import { SubscriptionModelCard } from "@/features/ecommerce/components/Subscript
 import { CalendarSkeleton } from "@/features/ecommerce/components/CalendarSkeleton";
 
 import { getStatusDetails } from "@/features/ecommerce/data/statusData";
+import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 
 function formatDateString(dateStr: string): string {
     if (!dateStr) return "";
@@ -48,6 +49,8 @@ const getProductThumbnail = (name: string) => {
 
 export default function SubscriptionsScreen() {
     const { user } = useAuthStore();
+    const isGuest = useAuthStore((s) => s.isGuest);
+    const { requireAuth } = useRequireAuth();
     const isFocused = useIsFocused();
     const domainName = useAuthStore((s) => s.domain_name) || "";
     const [subs, setSubs] = useState<SubscriptionSummary[]>([]);
@@ -104,20 +107,23 @@ export default function SubscriptionsScreen() {
 
 
     const fetchSubs = async () => {
-        if (!domainName || !user?.id) return;
+        if (!domainName) return;
+        if (!user?.id && !isGuest) return;
         if (!refreshing) {
             setLoading(true);
         }
         try {
-            const targetId = user.customer_uuid || user.id.toString();
-
             let summaryData: any = { subscriptions: [] };
             let modelsData: any[] = [];
 
-            try {
-                summaryData = await subscriptionApi.getCustomerMonthlySummary(domainName, targetId, currentYear, currentMonth);
-            } catch (err) {
-                console.warn("Failed to fetch monthly summary:", err);
+            // Guests have no customer record — plans are still browsable
+            if (user?.id) {
+                const targetId = user.customer_uuid || user.id.toString();
+                try {
+                    summaryData = await subscriptionApi.getCustomerMonthlySummary(domainName, targetId, currentYear, currentMonth);
+                } catch (err) {
+                    console.warn("Failed to fetch monthly summary:", err);
+                }
             }
 
             try {
@@ -158,6 +164,7 @@ export default function SubscriptionsScreen() {
     };
 
     const handleSubscribe = (model: any) => {
+        if (!requireAuth({ action: "start a subscription" })) return;
         setSubscribingModel(model);
         setSelectedFrequency("daily");
         setSelectedQty(1.0);
@@ -357,6 +364,7 @@ export default function SubscriptionsScreen() {
                                 {/* Component 1: Existing Plans */}
                                 <TouchableOpacity
                                     onPress={() => {
+                                        if (!requireAuth({ action: "start a subscription" })) return;
                                         if (models && models.length > 0) {
                                             setSelectedModel(null);
                                             predefinedSheetRef.current?.present();
@@ -379,6 +387,7 @@ export default function SubscriptionsScreen() {
                                 {/* Component 2: Custom Plan */}
                                 <TouchableOpacity
                                     onPress={() => {
+                                        if (!requireAuth({ action: "start a subscription" })) return;
                                         if (models && models.length > 0) {
                                             setSubscribingModel(models[0]);
                                             setSelectedFrequency("daily");
@@ -881,6 +890,7 @@ export default function SubscriptionsScreen() {
                             {/* Add Selected Plan to Cart Button */}
                             <TouchableOpacity
                                 onPress={() => {
+                                    if (!requireAuth({ action: "start a subscription" })) return;
                                     const frequencyLabels: { [key: string]: string } = {
                                         daily: "Daily",
                                         alternate: "Alternate Days",
@@ -1161,6 +1171,7 @@ export default function SubscriptionsScreen() {
                             {/* Add to Cart Button */}
                             <TouchableOpacity
                                 onPress={() => {
+                                    if (!requireAuth({ action: "start a subscription" })) return;
                                     const frequencyLabels: { [key: string]: string } = {
                                         daily: "Daily",
                                         alternate: "Alternate Days",

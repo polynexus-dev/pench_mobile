@@ -15,12 +15,15 @@ import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { Input } from "@/shared/ui/Input";
 import { useRegister } from "../hooks/useRegister";
+import {
+  fetchGuestCities,
+  FALLBACK_GUEST_CITIES,
+  type GuestCity,
+} from "@/constants/guestTenants";
 
-const CITY_OPTIONS = [
-  { label: "Nagpur", value: "nagpur" },
-  { label: "Pune", value: "pune" },
-  { label: "Mumbai", value: "mumbai" },
-];
+// Cities are tenant rows in the backend, not a fixed list. Hardcoding them
+// meant offering cities that do not exist, which the register endpoint rejects
+// with "Tenant schema or city 'pune' does not exist."
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -29,10 +32,30 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
-  const [city, setCity] = useState(CITY_OPTIONS[0].value);
+  const [cityOptions, setCityOptions] = useState<GuestCity[]>(
+    FALLBACK_GUEST_CITIES
+  );
+  const [city, setCity] = useState(FALLBACK_GUEST_CITIES[0]?.value ?? "");
   const [showCityPicker, setShowCityPicker] = useState(false);
 
   const dropdownAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchGuestCities()
+      .catch(() => FALLBACK_GUEST_CITIES)
+      .then((list) => {
+        if (cancelled || list.length === 0) return;
+        setCityOptions(list);
+        // Keep the current pick only if the server still offers it
+        setCity((prev) =>
+          list.some((c) => c.value === prev) ? prev : list[0].value
+        );
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const { mutate: register, isPending, isError, error } = useRegister();
 
@@ -136,7 +159,7 @@ export default function RegisterScreen() {
     }).start();
   }
 
-  const selectedCity = CITY_OPTIONS.find((c) => c.value === city);
+  const selectedCity = cityOptions.find((c) => c.value === city);
 
   return (
     <SafeAreaView className="flex-1 bg-[#F0EBE1]">
@@ -276,14 +299,14 @@ export default function RegisterScreen() {
                     style={{
                       maxHeight: dropdownAnim.interpolate({
                         inputRange: [0, 1],
-                        outputRange: [0, CITY_OPTIONS.length * 75],
+                        outputRange: [0, cityOptions.length * 75],
                       }),
                       opacity: dropdownAnim,
                       overflow: "hidden",
                     }}
                   >
                     <View className="mt-2 overflow-hidden rounded-2xl bg-white border border-neutral-500 shadow-md">
-                      {CITY_OPTIONS.map((option) => {
+                      {cityOptions.map((option) => {
                         const isSelected = city === option.value;
 
                         return (

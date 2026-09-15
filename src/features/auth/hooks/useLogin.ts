@@ -10,6 +10,7 @@ import type { LoginPayload } from "../types/auth.types";
 import { asyncStorage } from "@services/storage/asyncStorage";
 
 import { queryClient } from "@/services/api/queryClient";
+import { endGuestSession } from "./useGuestSession";
 
 export function useLogin() {
   const router = useRouter();
@@ -23,6 +24,9 @@ export function useLogin() {
 
       // Clear query cache from previous session
       queryClient.clear();
+
+      // A real session replaces any guest browsing session
+      await endGuestSession();
 
       await tokenUtils.saveTokens(access, refresh);
       setTokens(access, refresh);
