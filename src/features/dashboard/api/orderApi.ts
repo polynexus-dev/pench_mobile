@@ -35,6 +35,10 @@ export const orderApi = {
       scheduled_delivery_date: string;
       items: Array<{ product: string | number; quantity: number }>;
       delivery_address?: string;
+      /** PaymentMethod choice on the backend Order model, e.g. "upi". */
+      payment_method?: string;
+      /** UPI reference / UTR the customer entered, for reconciliation. */
+      payment_transaction_id?: string;
     }
   ): Promise<Order> => {
     return httpClient.post(buildUrl(domainName, `/api/erp/orders/`), orderData);

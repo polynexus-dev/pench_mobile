@@ -21,6 +21,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 import { useCartStore } from "@/store/useCartStore";
 import { orderApi } from "@/features/dashboard/api/orderApi";
+import { PaymentScreen } from "@/features/ecommerce/screens/PaymentScreen";
 
 const getProductThumbnail = (name: string) => {
   const text = name.toLowerCase();
@@ -223,7 +224,7 @@ export function CartScreen() {
 
   const [orderDate, setOrderDate] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
-  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [showPaymentStep, setShowPaymentStep] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
 
@@ -270,38 +271,22 @@ export function CartScreen() {
     return todayOrder.status === "pending" || todayOrder.status === "confirmed";
   };
 
-  const handlePlaceOrder = async () => {
+  const handleProceedToPayment = () => {
+    // Guests browse the cart freely; paying is where an account is required
     if (!requireAuth({ action: "place an order" })) return;
 
-    const items = cartItems.map((item) => ({
-      product: item.id,
-      quantity: item.quantity,
-    }));
-
-    if (items.length === 0) {
+    if (cartItems.length === 0) {
       Alert.alert("Empty Selection", "Please add at least 1 product to place an order.");
       return;
     }
 
-    if (!orderDate.trim()) {
+    // Subscriptions carry their own start date; only one-time items need one here
+    if (hasOneTimeItems && !orderDate.trim()) {
       Alert.alert("Required Date", "Please select a valid scheduled delivery date.");
       return;
     }
 
-    setIsPlacingOrder(true);
-    try {
-      await orderApi.createOrder(domainName, {
-        scheduled_delivery_date: orderDate,
-        items,
-      });
-      Alert.alert("Order Placed!", "Your one-time extra order has been successfully placed!");
-      clearCart();
-      router.replace("/(customer)/(tabs)/dashboard");
-    } catch (e: any) {
-      Alert.alert("Order Failed", e?.message || "Failed to create order.");
-    } finally {
-      setIsPlacingOrder(false);
-    }
+    setShowPaymentStep(true);
   };
 
   const totalAmount = cartItems.reduce((sum, item) => {
@@ -321,6 +306,18 @@ export function CartScreen() {
     }
     return sum + item.price * item.quantity * multiplier;
   }, 0);
+
+  // Checkout is a second step rather than a route, so backing out of payment
+  // returns to the cart with its contents and chosen date still intact.
+  if (showPaymentStep) {
+    return (
+      <PaymentScreen
+        onBack={() => setShowPaymentStep(false)}
+        orderDate={orderDate}
+        totalAmount={totalAmount}
+      />
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top", "bottom"]}>
@@ -582,18 +579,20 @@ export function CartScreen() {
             </View>
 
             <TouchableOpacity
-              disabled={true}
-              className="w-full rounded-2xl bg-gray-200 py-4 items-center justify-center"
+              onPress={handleProceedToPayment}
+              activeOpacity={0.85}
+              className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-[#0C5A35] py-4 shadow-md active:opacity-90"
               style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 1,
-                elevation: 1,
+                shadowColor: "#0C5A35",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 8,
+                elevation: 4,
               }}
             >
-              <Text className="text-[15px] font-bold text-gray-400 uppercase tracking-wider">
-                No Payment Gateway Added
+              <Ionicons name="lock-closed" size={16} color="#FFFFFF" />
+              <Text className="text-[15px] font-black text-white uppercase tracking-wider">
+                Proceed to Payment
               </Text>
             </TouchableOpacity>
           </View>
