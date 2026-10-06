@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pench",
     "slug": "Pench",
-    "version": "1.0.0",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "penchnew",
@@ -16,6 +16,7 @@
       }
     },
     "android": {
+      "versionCode": 3,
       "navigationBarColor": "#f8f8f8",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",

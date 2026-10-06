@@ -29,6 +29,7 @@ import { Text } from "@/shared/ui/Text/Text";
 import { ROUTES } from "@/constants/route";
 import { Button } from "@/shared/ui";
 import * as Location from "expo-location";
+import { asyncStorage } from "@services/storage/asyncStorage";
 
 type RouteStop = {
   id: string;
@@ -185,7 +186,14 @@ export default function MapScreen() {
 
     const start = async () => {
       if (!mounted) return;
-      await startGeofenceTracking();
+      try {
+        const accepted = await asyncStorage.getItem("has_accepted_location_disclosure");
+        if (accepted === "true") {
+          await startGeofenceTracking();
+        }
+      } catch (e) {
+        console.warn("Failed to check location disclosure on MapScreen mount:", e);
+      }
     };
 
     start();

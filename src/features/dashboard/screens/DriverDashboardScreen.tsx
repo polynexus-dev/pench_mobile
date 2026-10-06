@@ -17,7 +17,9 @@ import {
     View,
     ActivityIndicator,
     RefreshControl,
+    Modal,
 } from "react-native";
+import * as Location from "expo-location";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { asyncStorage } from "@services/storage/asyncStorage";
@@ -54,6 +56,8 @@ export function DriverDashboardScreen() {
     const scrollYAnimated = useRef(new Animated.Value(0)).current;
     const [statusBarLight, setStatusBarLight] = useState(false);
     const [headerVisible, setHeaderVisible] = useState(false);
+
+    const [showDisclosureModal, setShowDisclosureModal] = useState(false);
 
     useEffect(() => {
         let prevLight = false;
@@ -95,6 +99,17 @@ export function DriverDashboardScreen() {
     useEffect(() => {
         let mounted = true;
 
+        const checkLocationDisclosure = async () => {
+            try {
+                const accepted = await asyncStorage.getItem("has_accepted_location_disclosure");
+                if (accepted !== "true" && mounted) {
+                    setShowDisclosureModal(true);
+                }
+            } catch (e) {
+                console.warn("Failed to check location disclosure state:", e);
+            }
+        };
+
         const loadRouteId = async () => {
             try {
                 const storedRouteId = await asyncStorage.getItem("route_id");
@@ -104,12 +119,28 @@ export function DriverDashboardScreen() {
             }
         };
 
+        checkLocationDisclosure();
         loadRouteId();
 
         return () => {
             mounted = false;
         };
     }, []);
+
+    const handleAgreeDisclosure = async () => {
+        try {
+            await asyncStorage.setItem("has_accepted_location_disclosure", "true");
+            setShowDisclosureModal(false);
+            // Prompt the OS location permission dialog
+            await Location.requestForegroundPermissionsAsync();
+        } catch (e) {
+            console.error("Failed to store location disclosure approval:", e);
+        }
+    };
+
+    const handleDenyDisclosure = () => {
+        setShowDisclosureModal(false);
+    };
 
     const domainName = useAuthStore((s) => s.domain_name) || "";
     const [summary, setSummary] = useState<{
@@ -639,6 +670,49 @@ export function DriverDashboardScreen() {
                     </View>
                 </Animated.ScrollView>
             </SafeAreaView>
+            
+            <Modal
+                visible={showDisclosureModal}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => {}}
+            >
+                <View className="flex-1 bg-black/60 justify-center items-center px-6">
+                    <View className="bg-white rounded-[28px] p-6 w-full max-w-sm items-center shadow-lg">
+                        <View className="h-16 w-16 bg-[#EAF7EF] items-center justify-center rounded-full mb-4">
+                            <Ionicons name="location" size={32} color="#1B5E37" />
+                        </View>
+                        <Text variant="heading" weight="bold" color="primary" align="center" className="mb-3">
+                            Location Permission Required
+                        </Text>
+                        <Text variant="body-sm" color="secondary" align="center" className="leading-relaxed mb-6">
+                            Pench collects location data to enable real-time delivery tracking, arrival ETA calculations, and route navigation even when the app is closed or not in use during active delivery trips.
+                        </Text>
+                        <View className="flex-row w-full justify-between gap-x-3">
+                            <TouchableOpacity
+                                style={{ flex: 1 }}
+                                activeOpacity={0.7}
+                                className="py-3 rounded-xl border border-gray-200 items-center"
+                                onPress={handleDenyDisclosure}
+                            >
+                                <Text variant="label" color="muted" weight="bold">
+                                    No Thanks
+                                </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={{ flex: 1 }}
+                                activeOpacity={0.7}
+                                className="py-3 rounded-xl bg-[#1B5E37] items-center"
+                                onPress={handleAgreeDisclosure}
+                            >
+                                <Text variant="label" color="inverse" weight="bold">
+                                    Agree & Enable
+                                </Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
          </ScreenWrapper>
      );
  }

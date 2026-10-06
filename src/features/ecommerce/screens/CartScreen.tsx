@@ -20,6 +20,8 @@ import { StatusBar } from "expo-status-bar";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/useCartStore";
 import { orderApi } from "@/features/dashboard/api/orderApi";
+import { productApi } from "@/features/dashboard/api/productApi";
+import { PaymentScreen } from "@/features/ecommerce/screens/PaymentScreen";
 
 const getProductThumbnail = (name: string) => {
   const text = name.toLowerCase();
@@ -223,6 +225,7 @@ export function CartScreen() {
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
+  const [showPaymentStep, setShowPaymentStep] = useState(false);
 
   const toggleExpand = (id: string | number) => {
     setExpandedItems((prev) => ({
@@ -268,35 +271,86 @@ export function CartScreen() {
   };
 
   const handlePlaceOrder = async () => {
-    const items = cartItems.map((item) => ({
-      product: item.id,
-      quantity: item.quantity,
-    }));
-
-    if (items.length === 0) {
-      Alert.alert("Empty Selection", "Please add at least 1 product to place an order.");
-      return;
-    }
-
-    if (!orderDate.trim()) {
-      Alert.alert("Required Date", "Please select a valid scheduled delivery date.");
-      return;
+    let finalDeliveryDate = orderDate ? orderDate.trim() : "";
+    if (!finalDeliveryDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const year = tomorrow.getFullYear();
+      const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+      const day = String(tomorrow.getDate()).padStart(2, "0");
+      finalDeliveryDate = `${year}-${month}-${day}`;
     }
 
     setIsPlacingOrder(true);
     try {
+      let availableProducts: any[] = [];
+      try {
+        availableProducts = await productApi.getProducts(domainName);
+      } catch {
+        // ignore
+      }
+
+      const items = cartItems.map((item) => {
+        let productId = item.id;
+        if (typeof productId === "string" && productId.startsWith("sub_")) {
+          const match = productId.match(/^sub_([^_]+)/);
+          if (match && match[1]) {
+            productId = match[1];
+          }
+        }
+
+        if (isNaN(Number(productId)) && availableProducts.length > 0) {
+          const matched = availableProducts.find(
+            (p) =>
+              String(p.id) === String(productId) ||
+              p.name?.toLowerCase().includes(String(productId).toLowerCase()) ||
+              item.name?.toLowerCase().includes(p.name?.toLowerCase()) ||
+              p.sku?.toLowerCase() === String(productId).toLowerCase()
+          );
+          if (matched) {
+            productId = matched.id;
+          } else {
+            productId = availableProducts[0].id;
+          }
+        }
+
+        return {
+          product: !isNaN(Number(productId)) ? Number(productId) : productId,
+          quantity: Number(item.quantity) || 1,
+        };
+      });
+
+      if (items.length === 0) {
+        Alert.alert("Empty Selection", "Please add at least 1 product to place an order.");
+        return;
+      }
+
       await orderApi.createOrder(domainName, {
-        scheduled_delivery_date: orderDate,
+        scheduled_delivery_date: finalDeliveryDate,
         items,
       });
       Alert.alert("Order Placed!", "Your one-time extra order has been successfully placed!");
       clearCart();
-      router.replace("/(customer)/(tabs)/dashboard");
+      router.replace("/(customer)/(tabs)/orders");
     } catch (e: any) {
       Alert.alert("Order Failed", e?.message || "Failed to create order.");
     } finally {
       setIsPlacingOrder(false);
     }
+  };
+
+  const handleProceedToPayment = () => {
+    if (cartItems.length === 0) {
+      Alert.alert("Empty Selection", "Please add at least 1 product to place an order.");
+      return;
+    }
+
+    if (hasOneTimeItems && !orderDate.trim()) {
+      Alert.alert("Required Date", "Please select a valid scheduled delivery date.");
+      return;
+    }
+
+    setShowPaymentStep(true);
   };
 
   const totalAmount = cartItems.reduce((sum, item) => {
@@ -316,6 +370,16 @@ export function CartScreen() {
     }
     return sum + item.price * item.quantity * multiplier;
   }, 0);
+
+  if (showPaymentStep) {
+    return (
+      <PaymentScreen
+        onBack={() => setShowPaymentStep(false)}
+        orderDate={orderDate}
+        totalAmount={totalAmount}
+      />
+    );
+  }
 
   return (
     <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top", "bottom"]}>
@@ -577,18 +641,20 @@ export function CartScreen() {
             </View>
 
             <TouchableOpacity
-              disabled={true}
-              className="w-full rounded-2xl bg-gray-200 py-4 items-center justify-center"
+              onPress={handleProceedToPayment}
+              activeOpacity={0.85}
+              className="w-full flex-row items-center justify-center gap-2 rounded-2xl bg-[#0C5A35] py-4 shadow-md active:opacity-90"
               style={{
-                shadowColor: "#000",
-                shadowOffset: { width: 0, height: 1 },
-                shadowOpacity: 0.05,
-                shadowRadius: 1,
-                elevation: 1,
+                shadowColor: "#0C5A35",
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: 0.25,
+                shadowRadius: 8,
+                elevation: 4,
               }}
             >
-              <Text className="text-[15px] font-bold text-gray-400 uppercase tracking-wider">
-                No Payment Gateway Added
+              <Ionicons name="qr-code-outline" size={20} color="#FFFFFF" />
+              <Text className="text-[15px] font-black text-white uppercase tracking-wider">
+                Proceed to Pay ₹{totalAmount}
               </Text>
             </TouchableOpacity>
           </View>
