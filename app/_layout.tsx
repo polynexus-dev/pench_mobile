@@ -15,9 +15,22 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import "../global.css";
 import { StatusBar } from "expo-status-bar";
 
+import { ForceUpdateModal } from "@/features/version/components/ForceUpdateModal";
+import { useAppVersionCheck } from "@/features/version/hooks/useAppVersionCheck";
+
 function AppInit() {
   useNotifications();
   return null;
+}
+
+function VersionGate() {
+  const { checkResult, dismissOptional } = useAppVersionCheck();
+  return (
+    <ForceUpdateModal
+      checkResult={checkResult}
+      onDismissOptional={dismissOptional}
+    />
+  );
 }
 
 SplashScreen.preventAutoHideAsync();
@@ -98,6 +111,7 @@ export default function RootLayout() {
             <AppInit />
             <RootNavigator />
             <ToastProvider />
+            <VersionGate />
           </BottomSheetModalProvider>
         </QueryClientProvider>
       </SafeAreaProvider>

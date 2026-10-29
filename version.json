@@ -1,0 +1,10 @@
+{
+  "minimumVersion": "1.0.4",
+  "latestVersion": "1.0.4",
+  "minimumBuildNumber": 4,
+  "forceUpdate": true,
+  "title": "Update Required",
+  "message": "A newer version of Pench is required to continue. Please update from the Google Play Store to enjoy the latest features, location tracking, and improvements.",
+  "androidPackage": "in.polynexus.penchfoods",
+  "iosAppId": ""
+}
