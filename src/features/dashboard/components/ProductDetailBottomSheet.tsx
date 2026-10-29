@@ -1,5 +1,5 @@
 import React, { useMemo, forwardRef, useState } from "react";
-import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,7 +9,6 @@ import { useRouter } from "expo-router";
 
 type Props = {
   product: Product | null;
-  hasActiveSubscription: boolean | null;
 };
 
 const getProductThumbnail = (name: string) => {
@@ -21,7 +20,7 @@ const getProductThumbnail = (name: string) => {
 };
 
 export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
-  function ProductDetailBottomSheet({ product, hasActiveSubscription }, ref) {
+  function ProductDetailBottomSheet({ product }, ref) {
     const insets = useSafeAreaInsets();
     const router = useRouter();
     
@@ -196,21 +195,6 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                 <TouchableOpacity
                   activeOpacity={0.9}
                   onPress={() => {
-                    if (hasActiveSubscription === false) {
-                      Alert.alert(
-                        "Subscription Required",
-                        "You must have an active subscription plan to add products to your cart.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Subscribe Now", onPress: () => {
-                              handleClose();
-                              router.push("/(customer)/(tabs)/subscriptions" as any);
-                            }
-                          }
-                        ]
-                      );
-                      return;
-                    }
                     pulse();
                     addToCart({
                       id: product.id,
@@ -242,21 +226,6 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
-                      if (hasActiveSubscription === false) {
-                        Alert.alert(
-                          "Subscription Required",
-                          "You must have an active subscription plan to add products to your cart.",
-                          [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Subscribe Now", onPress: () => {
-                                handleClose();
-                                router.push("/(customer)/(tabs)/subscriptions" as any);
-                              }
-                            }
-                          ]
-                        );
-                        return;
-                      }
                       pulse();
                       addToCart({
                         id: product.id,

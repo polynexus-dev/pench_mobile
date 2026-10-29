@@ -22,7 +22,7 @@ import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { asyncStorage } from "../../../services/storage/asyncStorage";
 import { httpClient } from "../../../services/api/httpClient";
 import { buildUrl } from "../../../services/api/buildUrl";
-import { subscriptionApi } from "@/features/ecommerce/api/subscriptionApi";
+import { locationApi } from "@/services/api/locationApi";
 
 const getProductThumbnail = (name: string) => {
   const text = name.toLowerCase();
@@ -46,33 +46,6 @@ export function CustomerDashboardScreen() {
   const productSheetRef = useRef<BottomSheetModal>(null);
   const [hasCheckedLocation, setHasCheckedLocation] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState<boolean | null>(null);
-
-  const checkActiveSubscription = useCallback(async () => {
-    if (!domainName || !user) return;
-    try {
-      const targetId = user.customer_uuid || user.id.toString();
-      const currentYear = new Date().getFullYear();
-      const currentMonth = new Date().getMonth() + 1;
-      const data = await subscriptionApi.getCustomerMonthlySummary(
-        domainName,
-        targetId,
-        currentYear,
-        currentMonth
-      );
-      const active = data.subscriptions && data.subscriptions.length > 0;
-      setHasActiveSubscription(active);
-    } catch (e) {
-      console.warn("Failed to check active subscriptions:", e);
-      setHasActiveSubscription(false);
-    }
-  }, [domainName, user]);
-
-  useEffect(() => {
-    if (domainName && user) {
-      checkActiveSubscription();
-    }
-  }, [domainName, user, checkActiveSubscription]);
 
   const handleProductPress = useCallback((product: Product) => {
     setSelectedProduct(product);
@@ -82,6 +55,44 @@ export function CustomerDashboardScreen() {
   useEffect(() => {
     const checkLocation = async () => {
       try {
+        // 1. Check if backend already has saved locations for this user
+        if (domainName) {
+          try {
+            const locs = await locationApi.getLocations(domainName);
+            if (locs && locs.length > 0) {
+              const defaultLoc = locs.find((l) => l.is_default) || locs[0];
+              const tag = defaultLoc.tag ? defaultLoc.tag.charAt(0).toUpperCase() + defaultLoc.tag.slice(1) : "Home";
+              const lat = typeof defaultLoc.latitude === "string" ? parseFloat(defaultLoc.latitude) : defaultLoc.latitude;
+              const lng = typeof defaultLoc.longitude === "string" ? parseFloat(defaultLoc.longitude) : defaultLoc.longitude;
+              const safeLat = isNaN(lat) ? 21.1458 : lat;
+              const safeLng = isNaN(lng) ? 79.0882 : lng;
+
+              await asyncStorage.setItem(
+                "pench_customer_location",
+                JSON.stringify({
+                  id: defaultLoc.id,
+                  lat: safeLat,
+                  lng: safeLng,
+                  address: defaultLoc.address,
+                  landmark: defaultLoc.landmark,
+                  profile: tag,
+                })
+              );
+
+              if (!user?.city_name || user.city_name === "Nagpur, Maharashtra") {
+                useAuthStore.getState().setUser({
+                  ...user!,
+                  city_name: `${tag}: ${defaultLoc.address.split(",")[0]?.trim() || "Nagpur"}`,
+                });
+              }
+              return;
+            }
+          } catch (err) {
+            console.warn("Location API check in dashboard failed:", err);
+          }
+        }
+
+        // 2. Fall back to local storage
         const savedLoc = await asyncStorage.getItem("pench_customer_location");
         const isNotSet = !savedLoc || savedLoc === "null" || savedLoc === "undefined";
         if (isNotSet && !hasCheckedLocation) {
@@ -95,7 +106,7 @@ export function CustomerDashboardScreen() {
     if (user && !hasCheckedLocation) {
       checkLocation();
     }
-  }, [user, hasCheckedLocation]);
+  }, [user, hasCheckedLocation, domainName]);
 
   const handleLocationConfirm = async (loc: { lat: number; lng: number; address: string; profile: string }) => {
     try {
@@ -120,9 +131,9 @@ export function CustomerDashboardScreen() {
     }
   };
 
-  const handleLocationSkip = () => {
-    locationSheetRef.current?.dismiss();
-  };
+  const handleLocationSkip = useCallback(() => {
+    // Sheet dismissed, no-op
+  }, []);
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -158,8 +169,13 @@ export function CustomerDashboardScreen() {
   return (
     <View className="flex-1 bg-[#FDFDFD]">
       <StatusBar style="dark" />
-      <View style={{ zIndex: 1 }}>
-        <HeaderSection locationName={user?.city_name || "Nagpur, Maharashtra"} />
+      <View style={{ zIndex: 10 }}>
+        <HeaderSection
+          locationName={user?.city_name || "Nagpur, Maharashtra"}
+          onLocationPress={() => {
+            locationSheetRef.current?.present();
+          }}
+        />
       </View>
       <ScrollView
         className="flex-1"
@@ -250,17 +266,6 @@ export function CustomerDashboardScreen() {
                   cartQty={cartQty}
                   onPress={() => handleProductPress(product)}
                   onAdd={() => {
-                    if (hasActiveSubscription === false) {
-                      Alert.alert(
-                        "Subscription Required",
-                        "You must have an active subscription plan to add products to your cart.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Subscribe Now", onPress: () => router.push("/(customer)/(tabs)/subscriptions" as any) }
-                        ]
-                      );
-                      return;
-                    }
                     addToCart({
                       id: product.id,
                       name: product.name,
@@ -276,46 +281,7 @@ export function CustomerDashboardScreen() {
         </View>
       </ScrollView>
 
-      {cartItems.length > 0 && (
-        <View 
-          pointerEvents="box-none"
-          className="absolute left-0 right-0 items-center z-50"
-          style={{ bottom: bottomTabPadding }}
-        >
-          <TouchableOpacity
-            activeOpacity={0.9}
-            onPress={() => {
-              router.push("/(customer)/cart");
-            }}
-            className="flex-row items-center rounded-full px-2 py-2 shadow-lg gap-1"
-            style={{
-              backgroundColor: "#178d2bff",
-            }}
-          >
-            {/* Left: Product Image Thumbnail */}
-            <View className="h-10 w-10 rounded-full bg-white items-center justify-center overflow-hidden p-1">
-               <Image
-                  source={{ uri: getProductThumbnail(cartItems[0]?.name || "") }}
-                  className="h-8 w-8"
-                  resizeMode="cover"
-               />
-            </View>
 
-            {/* Middle: Details */}
-            <View className="mx-3.5 pr-2 items-start justify-center">
-              <Text className="text-[13px] font-black text-white leading-none">View cart</Text>
-              <Text className="text-[10px] font-bold text-white/80 mt-1 leading-none">
-                {cartItems.reduce((acc, i) => acc + i.quantity, 0)} {cartItems.reduce((acc, i) => acc + i.quantity, 0) === 1 ? "item" : "items"}
-              </Text>
-            </View>
-
-            {/* Right: Chevron Circle */}
-            <View className="h-10 w-10 rounded-full bg-white/20 items-center justify-center">
-               <Ionicons name="chevron-forward" size={20} color="white" />
-            </View>
-          </TouchableOpacity>
-        </View>
-      )}
 
       {/* Location Select Bottom Sheet */}
       <LocationSelectBottomSheet
@@ -329,7 +295,6 @@ export function CustomerDashboardScreen() {
       <ProductDetailBottomSheet
         ref={productSheetRef}
         product={selectedProduct}
-        hasActiveSubscription={hasActiveSubscription}
       />
     </View>
   );

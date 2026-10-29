@@ -24,6 +24,7 @@ import { useAuthStore } from "@store/authStore";
 import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBottomSheet";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { asyncStorage } from "../../../services/storage/asyncStorage";
+import { locationApi } from "@/services/api/locationApi";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -126,10 +127,38 @@ export function CustomerProfileScreen() {
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
   const locationSheetRef = React.useRef<BottomSheetModal>(null);
 
-  const [profiles, setProfiles] = React.useState<Record<string, { lat: number; lng: number; address: string }>>({});
+  const [profiles, setProfiles] = React.useState<
+    Record<string, { id?: number | string; lat: number; lng: number; address: string; is_default?: boolean }>
+  >({});
 
   const loadLocationProfiles = React.useCallback(async () => {
     try {
+      // 1. Try fetching from backend location API
+      try {
+        const backendLocations = await locationApi.getLocations(domain_name);
+        if (backendLocations && backendLocations.length > 0) {
+          const loadedProfiles: Record<string, any> = {};
+          backendLocations.forEach((loc) => {
+            const tag = loc.tag ? loc.tag.charAt(0).toUpperCase() + loc.tag.slice(1) : (loc.label || "Home");
+            const lat = typeof loc.latitude === "string" ? parseFloat(loc.latitude) : loc.latitude;
+            const lng = typeof loc.longitude === "string" ? parseFloat(loc.longitude) : loc.longitude;
+            loadedProfiles[tag] = {
+              id: loc.id,
+              lat: isNaN(lat) ? 21.1458 : lat,
+              lng: isNaN(lng) ? 79.0882 : lng,
+              address: loc.address,
+              is_default: loc.is_default,
+            };
+          });
+          setProfiles(loadedProfiles);
+          await asyncStorage.setItem("pench_customer_location_profiles", JSON.stringify(loadedProfiles));
+          return;
+        }
+      } catch (apiErr) {
+        console.warn("Backend location fetch error:", apiErr);
+      }
+
+      // 2. Fallback to AsyncStorage cache
       const savedStr = await asyncStorage.getItem("pench_customer_location_profiles");
       if (savedStr) {
         setProfiles(JSON.parse(savedStr));
@@ -137,7 +166,7 @@ export function CustomerProfileScreen() {
     } catch (e) {
       console.warn("Failed to load profiles:", e);
     }
-  }, []);
+  }, [domain_name]);
 
   React.useEffect(() => {
     loadLocationProfiles();
@@ -488,7 +517,12 @@ export function CustomerProfileScreen() {
                           key={name}
                           onPress={async () => {
                             try {
-                              const activeLoc = { lat: data.lat, lng: data.lng, address: data.address, profile: name };
+                              if (data.id) {
+                                locationApi.setDefaultLocation(domain_name, data.id).catch((err) => {
+                                  console.warn("Backend set default location failed:", err);
+                                });
+                              }
+                              const activeLoc = { id: data.id, lat: data.lat, lng: data.lng, address: data.address, profile: name };
                               await asyncStorage.setItem("pench_customer_location", JSON.stringify(activeLoc));
                               const url = buildUrl(domain_name, "/api/accounts/me/");
                               const response = await httpClient.patch(url, {

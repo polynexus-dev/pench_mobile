@@ -44,20 +44,32 @@ export function SubscriptionModelCard({ model, isSelected }: SubscriptionModelCa
         </View>
 
         <View className="flex-1">
+          {/* Heading: Quantity and Frequency */}
           <Text className="text-[13px] font-black text-gray-900 leading-tight">
+            {model.quantity || 1} {model.unit || "Litre"} • {model.frequency_display || (model.frequency === "daily" ? "Daily" : "Alternate Days")}
+          </Text>
+
+          {/* Secondary Text: Product Name */}
+          <Text className="text-[11px] font-semibold text-gray-500 mt-0.5" numberOfLines={1}>
             {model.product_name}
           </Text>
+
+          {/* Pricing Details */}
           <View className="flex-row items-center gap-2 mt-1">
-            <Text className="text-[10px] font-bold text-[#1B5E37] bg-[#E8F5EE] px-1.5 py-0.5 rounded">
-              {model.frequency_display}
+            <Text className="text-[12px] font-black text-[#1B5E37]">
+              ₹{(() => {
+                const unitPrice = Number(model.unit_price || model.price || 0);
+                const qty = Number(model.quantity || 1);
+                const total = unitPrice * qty;
+                return total > 0 ? (total % 1 === 0 ? total : total.toFixed(2)) : (unitPrice > 0 ? unitPrice : 0);
+              })()} {model.frequency === "daily" ? "/ day" : "/ delivery"}
             </Text>
-            <Text className="text-[10px] font-semibold text-gray-400">
-              Qty: {model.quantity} {model.unit}
-            </Text>
+            {Number(model.unit_price || model.price || 0) > 0 && (
+              <Text className="text-[10px] font-bold text-gray-400">
+                • ₹{Number(model.unit_price || model.price || 0)}/{model.unit || "Litre"}
+              </Text>
+            )}
           </View>
-          <Text className="text-[11px] font-black text-gray-800 mt-1">
-            ₹{Number(model.unit_price || model.price || 45) * (model.quantity || 1)} / day
-          </Text>
         </View>
       </View>
 

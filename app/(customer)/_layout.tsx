@@ -19,6 +19,12 @@ export default function CustomerLayout() {
                     headerShown: false
                 }} 
             />
+            <Stack.Screen 
+                name="confirm-location" 
+                options={{ 
+                    headerShown: false
+                }} 
+            />
         </Stack>
     );
 }

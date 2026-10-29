@@ -1,7 +1,11 @@
-export const buildUrl = (domainName: string, path: string): string => {
-    
-    if (domainName.startsWith("http://") || domainName.startsWith("https://")) {
-        return `${domainName}${path}`;
+export const buildUrl = (domainName?: string | null, path: string = ""): string => {
+    if (!domainName) {
+        return path.startsWith("/api/") ? path.replace(/^\/api\//, "") : path;
     }
-    return `https://${domainName}${path}`;
-};
+    const cleanDomain = domainName.replace(/\/+$/, "");
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    if (cleanDomain.startsWith("http://") || cleanDomain.startsWith("https://")) {
+        return `${cleanDomain}${cleanPath}`;
+    }
+    return `https://${cleanDomain}${cleanPath}`;
+};
