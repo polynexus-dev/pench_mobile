@@ -1,16 +1,14 @@
 import React, { useMemo, forwardRef, useState } from "react";
-import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator, Alert } from "react-native";
+import { View, Text, Image, TouchableOpacity, Animated, ActivityIndicator } from "react-native";
 import { BottomSheetModal, BottomSheetScrollView, BottomSheetBackdrop } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCartStore } from "@/store/useCartStore";
 import { Product } from "@/features/dashboard/api/productApi";
 import { useRouter } from "expo-router";
-import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 
 type Props = {
   product: Product | null;
-  hasActiveSubscription: boolean | null;
 };
 
 const getProductThumbnail = (name: string) => {
@@ -22,10 +20,9 @@ const getProductThumbnail = (name: string) => {
 };
 
 export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
-  function ProductDetailBottomSheet({ product, hasActiveSubscription }, ref) {
+  function ProductDetailBottomSheet({ product }, ref) {
     const insets = useSafeAreaInsets();
     const router = useRouter();
-    const { requireAuth } = useRequireAuth();
     
     const cartItems = useCartStore((s) => s.items);
     const addToCart = useCartStore((s) => s.addToCart);
@@ -198,22 +195,6 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                 <TouchableOpacity
                   activeOpacity={0.9}
                   onPress={() => {
-                    if (!requireAuth({ action: "add items to your cart", onNavigate: handleClose })) return;
-                    if (hasActiveSubscription === false) {
-                      Alert.alert(
-                        "Subscription Required",
-                        "You must have an active subscription plan to add products to your cart.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Subscribe Now", onPress: () => {
-                              handleClose();
-                              router.push("/(customer)/(tabs)/subscriptions" as any);
-                            }
-                          }
-                        ]
-                      );
-                      return;
-                    }
                     pulse();
                     addToCart({
                       id: product.id,
@@ -245,22 +226,6 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                   </Text>
                   <TouchableOpacity
                     onPress={() => {
-                      if (!requireAuth({ action: "add items to your cart", onNavigate: handleClose })) return;
-                      if (hasActiveSubscription === false) {
-                        Alert.alert(
-                          "Subscription Required",
-                          "You must have an active subscription plan to add products to your cart.",
-                          [
-                            { text: "Cancel", style: "cancel" },
-                            { text: "Subscribe Now", onPress: () => {
-                                handleClose();
-                                router.push("/(customer)/(tabs)/subscriptions" as any);
-                              }
-                            }
-                          ]
-                        );
-                        return;
-                      }
                       pulse();
                       addToCart({
                         id: product.id,

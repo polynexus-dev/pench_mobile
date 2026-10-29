@@ -21,6 +21,11 @@ export interface User {
   groups?: string[];
   role?: "Driver" | "Customer";
   customer_dashboard?: CustomerDashboard; // ← new
+  customer_location?: {
+    latitude: string | number;
+    longitude: string | number;
+    address: string;
+  } | null;
   city_name?: string;
   vehicle_plate?: string;
   vehicle_type?: string;

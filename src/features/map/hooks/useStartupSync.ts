@@ -11,7 +11,7 @@ export function useStartupSync() {
 
   const startupDoneRef = useRef(false);
 
-  useEffect(() => { 
+  useEffect(() => {
     let cancelled = false;
 
     const sync = async () => {

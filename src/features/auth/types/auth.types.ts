@@ -15,6 +15,11 @@ export interface AuthResponse {
   city_name?: string;
   domain_name?: string;
   active_route_id?: string | null;
+  customer_location?: {
+    latitude: string | number;
+    longitude: string | number;
+    address: string;
+  } | null;
 }
 
 export interface AuthState {

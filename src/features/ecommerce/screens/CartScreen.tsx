@@ -32,15 +32,50 @@ const getProductThumbnail = (name: string) => {
 };
 
 const parseSubscriptionDetails = (name: string) => {
-  const subRegex = /\((?:Sub: )?([^-\)]+)-\s*([^\)]+)\)/i;
+  // Check for (Sub: Product - Details) format
+  const parts = name.split(/\s*\(Sub:\s*/i);
+  const rawClean = parts[0].trim();
+  const subRegex = /\(Sub:\s*([^-\)]+)(?:-\s*([^\)]+))?\)/i;
   const match = name.match(subRegex);
+  const startsWithFreq = /^(daily|alternate|everyday|custom|mon|tue|wed|thu|fri|sat|sun)/i.test(rawClean);
+
+  let frequency = "Daily";
+  let quantity = "1 Litre";
+  let productName = rawClean;
+
   if (match) {
-    return {
-      frequency: match[1].trim(),
-      quantity: match[2].trim(),
-    };
+    productName = match[1]?.trim() || "";
+    if (startsWithFreq) {
+      const splitClean = rawClean.split(/[•]/).map((s) => s.trim());
+      frequency = splitClean[0] || "Daily";
+      quantity = splitClean[1] || "1 Litre";
+    }
+  } else {
+    // Legacy format fallback: "Product Name (Daily - 1 Litre)"
+    const legacyMatch = name.match(/\(([^-\)]+)(?:-\s*([^\)]+))?\)/);
+    if (legacyMatch) {
+      productName = name.split(" (")[0].trim();
+      frequency = legacyMatch[1]?.trim() || "Daily";
+      const part2 = legacyMatch[2]?.trim() || "";
+      const qtyMatch = part2.match(/^([\d\.]+\s*(?:Litres|Litre|L|ml)?)/i);
+      if (qtyMatch) {
+        let q = qtyMatch[1].trim();
+        if (/^\d+(\.\d+)?L$/i.test(q)) {
+          q = q.replace(/L$/i, " Litre") + (parseFloat(q) > 1 ? "s" : "");
+        }
+        quantity = q;
+      }
+    }
   }
-  return null;
+
+  const heading = `${frequency} • ${quantity}`;
+
+  return {
+    frequency,
+    quantity,
+    productName,
+    heading,
+  };
 };
 
 interface CartItemRowProps {
@@ -60,7 +95,7 @@ const CartItemRow = React.memo(({
 }: CartItemRowProps) => {
   const isSub = typeof item.id === "string" && item.id.startsWith("sub_");
   const subDetails = isSub ? parseSubscriptionDetails(item.name) : null;
-  const cleanName = isSub ? item.name.split(" (")[0] : item.name;
+  const cleanName = isSub ? (subDetails?.heading || item.name) : item.name;
 
   const animatedHeight = useRef(new Animated.Value(isExpanded ? 1 : 0)).current;
 
@@ -75,7 +110,7 @@ const CartItemRow = React.memo(({
   const heightStyle = {
     height: animatedHeight.interpolate({
       inputRange: [0, 1],
-      outputRange: [0, 98],
+      outputRange: [0, 125],
     }),
     opacity: animatedHeight.interpolate({
       inputRange: [0, 1],
@@ -103,14 +138,14 @@ const CartItemRow = React.memo(({
         >
           <View className="h-12 w-12 rounded-xl bg-gray-50 items-center justify-center overflow-hidden border border-gray-100 p-1 mr-3">
             <Image
-              source={{ uri: getProductThumbnail(item.name) }}
+              source={{ uri: getProductThumbnail(subDetails?.productName || item.name) }}
               className="h-9 w-9"
               resizeMode="cover"
             />
           </View>
           <View className="flex-1">
             <View className="flex-row items-center gap-1.5 flex-wrap">
-              <Text className="text-[14px] font-bold text-gray-900" numberOfLines={2}>
+              <Text className="text-[14px] font-black text-gray-900" numberOfLines={1}>
                 {cleanName}
               </Text>
               {isSub && (
@@ -124,6 +159,13 @@ const CartItemRow = React.memo(({
                 </View>
               )}
             </View>
+
+            {/* Secondary text: Product Name for subscriptions only */}
+            {isSub && subDetails?.productName ? (
+              <Text className="text-[11.5px] font-semibold text-gray-500 mt-0.5" numberOfLines={1}>
+                {subDetails.productName}
+              </Text>
+            ) : null}
             
             <View className="flex-row items-center gap-2 mt-1">
               <Text className="text-[13px] font-extrabold text-[#1B5E37]">
@@ -200,6 +242,12 @@ const CartItemRow = React.memo(({
               <Text className="text-[13px] font-semibold text-gray-500">Volume per Delivery</Text>
               <Text className="text-[13px] font-bold text-gray-800">{subDetails?.quantity || "1.0 L"}</Text>
             </View>
+            {subDetails?.productName ? (
+              <View className="flex-row justify-between">
+                <Text className="text-[13px] font-semibold text-gray-500">Product</Text>
+                <Text className="text-[13px] font-bold text-gray-800">{subDetails.productName}</Text>
+              </View>
+            ) : null}
             <View className="flex-row justify-between">
               <Text className="text-[13px] font-semibold text-gray-500">Rate (₹ / Delivery)</Text>
               <Text className="text-[13px] font-black text-[#1B5E37]">₹{item.price}</Text>
@@ -294,15 +342,28 @@ export function CartScreen() {
     let multiplier = 1;
     if (isSub) {
       const idStr = String(item.id).toLowerCase();
+      const moMatch = idStr.match(/_(\d+)mo_/);
+      const months = moMatch ? parseInt(moMatch[1], 10) : 1;
+
+      let deliveriesPerMo = 30;
       if (idStr.includes("alternate")) {
-        multiplier = 15;
+        deliveriesPerMo = 15;
+      } else if (idStr.includes("custom_")) {
+        const customDaysMatch = idStr.match(/custom_([a-z\-]+)_/);
+        if (customDaysMatch) {
+          const daysCount = customDaysMatch[1].split("-").filter(Boolean).length;
+          deliveriesPerMo = Math.round(daysCount * 4.33);
+        } else {
+          deliveriesPerMo = 13;
+        }
       } else if (idStr.includes("mon_wed_fri") || idStr.includes("tue_thu_sat")) {
-        multiplier = 13;
+        deliveriesPerMo = 13;
       } else if (idStr.includes("weekends")) {
-        multiplier = 8;
+        deliveriesPerMo = 8;
       } else {
-        multiplier = 30;
+        deliveriesPerMo = 30;
       }
+      multiplier = deliveriesPerMo * months;
     }
     return sum + item.price * item.quantity * multiplier;
   }, 0);

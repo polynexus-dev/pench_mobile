@@ -18,7 +18,13 @@ import { useCartStore } from "@/store/useCartStore";
 const { width } = Dimensions.get("window");
 const PRODUCT_CARD_WIDTH = (width - 40) / 2; // 2 columns with gaps
 
-export function HeaderSection({ locationName = "Bilzen, Tanjungbalai" }: { locationName?: string }) {
+export function HeaderSection({
+  locationName = "Bilzen, Tanjungbalai",
+  onLocationPress,
+}: {
+  locationName?: string;
+  onLocationPress?: () => void;
+}) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const cartItems = useCartStore((s) => s.items);
@@ -34,18 +40,25 @@ export function HeaderSection({ locationName = "Bilzen, Tanjungbalai" }: { locat
     >
       {/* Top row: Location & Profile */}
       <View className="mb-5 mt-2 flex-row items-center justify-between">
-        <View className="flex-row items-center flex-1">
+        <TouchableOpacity
+          onPress={onLocationPress}
+          activeOpacity={0.7}
+          style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 }}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <View className="mr-3 h-11 w-11 items-center justify-center rounded-full bg-[#E5EFEA]">
              <Ionicons name="location" size={20} color="#0C5A35" />
           </View>
-          <View>
+          <View className="flex-1">
             <Text className="mb-0.5 text-xs font-medium text-gray-600">Location</Text>
             <View className="flex-row items-center">
-              <Text className="text-sm font-bold text-gray-900">{locationName}</Text>
+              <Text className="text-sm font-bold text-gray-900" numberOfLines={1}>
+                {locationName}
+              </Text>
               <Ionicons name="chevron-down" size={14} color="#333" style={{ marginLeft: 2, marginTop: 2 }} />
             </View>
           </View>
-        </View>
+        </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push("/(customer)/cart")}
           className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200/50 relative"

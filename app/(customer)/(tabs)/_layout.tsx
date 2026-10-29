@@ -1,12 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Tabs } from "expo-router";
-import { useCartStore } from "@/store/useCartStore";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function CustomerTabsLayout() {
     const insets = useSafeAreaInsets();
-    const cartItems = useCartStore((s) => s.items);
-    const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
 
     return (
         <>
@@ -51,8 +48,6 @@ export default function CustomerTabsLayout() {
                         tabBarIcon: ({ color }) => (
                             <Ionicons name="receipt-outline" size={22} color={color} />
                         ),
-                        tabBarBadge: cartCount > 0 ? cartCount : undefined,
-                        tabBarBadgeStyle: { backgroundColor: "#1B5E37", color: "white" },
                     }}
                 />
                 <Tabs.Screen

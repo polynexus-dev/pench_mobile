@@ -1,3 +1,12 @@
+export interface LatestPayment {
+  id: number | string;
+  amount: string | number;
+  status: string;
+  screenshot?: string | null;
+  created_at: string;
+  transaction_id?: string | null;
+}
+
 export interface Subscription {
   id: string;
   status: string;
@@ -12,7 +21,9 @@ export interface Subscription {
   delivery_address?: string;
   special_instructions?: string;
   items: any[];
+  latest_payment?: LatestPayment | null;
 }
+
 
 export interface DailySummary {
   date: string;
