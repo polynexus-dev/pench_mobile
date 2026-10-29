@@ -38,6 +38,8 @@ This document contains the complete list of files and changes made in this worki
 ## 2. Modified Files
 
 ### Dependencies & Configuration
+- **`app.json`**, **`package.json`**, & **`android/app/build.gradle`**
+  - Bumped version to `1.0.4` and `versionCode` to `4` for Play Store release.
 - **`package.json`** & **`package-lock.json`**
   - Added `"expo-image-picker": "~17.0.11"` (bundled version compatible with Expo SDK 54).
 
