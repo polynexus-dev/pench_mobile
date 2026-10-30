@@ -1,21 +1,24 @@
-import { useState, useEffect, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { AppState, AppStateStatus } from "react-native";
-import {
-  checkAppVersion,
-  VersionCheckResult,
-} from "../services/versionService";
+import { checkAppVersion } from "../services/versionService";
+import { useVersionStore } from "../store/versionStore";
+
+// Once the user taps "Remind Me Later", don't nag again until the next cold start
+let optionalDismissed = false;
 
 export function useAppVersionCheck() {
-  const [checkResult, setCheckResult] = useState<VersionCheckResult | null>(null);
+  const checkResult = useVersionStore((s) => s.checkResult);
+  const setCheckResult = useVersionStore((s) => s.setCheckResult);
 
   const runCheck = useCallback(async () => {
     const result = await checkAppVersion();
     if (result && result.needsUpdate) {
+      if (!result.isMandatory && optionalDismissed) return;
       setCheckResult(result);
     } else {
       setCheckResult(null);
     }
-  }, []);
+  }, [setCheckResult]);
 
   useEffect(() => {
     // 1. Check immediately on mount
@@ -36,9 +39,10 @@ export function useAppVersionCheck() {
 
   const dismissOptional = useCallback(() => {
     if (checkResult && !checkResult.isMandatory) {
+      optionalDismissed = true;
       setCheckResult(null);
     }
-  }, [checkResult]);
+  }, [checkResult, setCheckResult]);
 
   return {
     checkResult,

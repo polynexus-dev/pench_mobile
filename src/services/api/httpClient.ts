@@ -3,6 +3,11 @@ import { env } from "@/config/env";
 import { useAuthStore } from "@/store/authStore";
 import { ApiError } from "@/errors/ApiError";
 import { logError } from "@/errors/errorHandler";
+import {
+  getAppVersionHeaders,
+  resultFromBackendPayload,
+} from "@/features/version/services/versionService";
+import { useVersionStore } from "@/features/version/store/versionStore";
 
 export const httpClient = axios.create({
   baseURL: env.EXPO_PUBLIC_API_BASE_URL,
@@ -14,11 +19,13 @@ export const httpClient = axios.create({
 
 httpClient.interceptors.request.use(
   (config) => {
+    config.headers = config.headers ?? {};
     const token = useAuthStore.getState().accessToken;
     if (token) {
-      config.headers = config.headers ?? {};
       config.headers.Authorization = `Bearer ${token}`;
     }
+    // Lets the backend reject outdated builds with 426 Upgrade Required
+    Object.assign(config.headers, getAppVersionHeaders());
     return config;
   },
   (error) => {
@@ -39,6 +46,18 @@ httpClient.interceptors.response.use(
       "Something went wrong";
 
     const responseData = error?.response?.data;
+
+    // 426 = build below minimum version, 503 + maintenance payload = maintenance mode
+    if (
+      statusCode === 426 ||
+      (statusCode === 503 && responseData?.status === "maintenance")
+    ) {
+      const versionResult = resultFromBackendPayload(responseData);
+      if (versionResult) {
+        useVersionStore.getState().setCheckResult(versionResult);
+      }
+    }
+
     const apiError = ApiError.fromResponse(statusCode, message, endpoint, responseData);
     
     // 404 (Not Found) is a normal response for missing/optional resources and should not log as a critical ErrorHandler error
