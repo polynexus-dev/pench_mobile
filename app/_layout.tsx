@@ -24,11 +24,12 @@ function AppInit() {
 }
 
 function VersionGate() {
-  const { checkResult, dismissOptional } = useAppVersionCheck();
+  const { checkResult, dismissOptional, recheck } = useAppVersionCheck();
   return (
     <ForceUpdateModal
       checkResult={checkResult}
       onDismissOptional={dismissOptional}
+      onRetry={recheck}
     />
   );
 }

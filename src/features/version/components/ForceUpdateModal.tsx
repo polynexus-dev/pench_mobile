@@ -15,11 +15,13 @@ import { VersionCheckResult } from "../services/versionService";
 interface Props {
   checkResult: VersionCheckResult | null;
   onDismissOptional?: () => void;
+  onRetry?: () => void;
 }
 
-export function ForceUpdateModal({ checkResult, onDismissOptional }: Props) {
+export function ForceUpdateModal({ checkResult, onDismissOptional, onRetry }: Props) {
   const isVisible = !!(checkResult && checkResult.needsUpdate);
   const isMandatory = checkResult?.isMandatory ?? true;
+  const isMaintenance = !!checkResult?.isMaintenance;
 
   // Intercept and block Android hardware back button when mandatory update is active
   useEffect(() => {
@@ -50,7 +52,7 @@ export function ForceUpdateModal({ checkResult, onDismissOptional }: Props) {
         const fallbackUrl =
           Platform.OS === "android"
             ? "https://play.google.com/store/apps/details?id=in.polynexus.penchfoods"
-            : "https://apps.apple.com/";
+            : "https://apps.apple.com/app/id6803119085";
         await Linking.openURL(fallbackUrl);
       }
     } catch (err: any) {
@@ -78,7 +80,11 @@ export function ForceUpdateModal({ checkResult, onDismissOptional }: Props) {
         <View className="w-full max-w-sm bg-white rounded-3xl p-6 items-center shadow-2xl border border-gray-100">
           {/* Top Badge Icon */}
           <View className="h-16 w-16 rounded-full bg-[#EBF5EE] items-center justify-center mb-4 border border-[#0C5A35]/15">
-            <Ionicons name="rocket-outline" size={32} color="#0C5A35" />
+            <Ionicons
+              name={isMaintenance ? "construct-outline" : "rocket-outline"}
+              size={32}
+              color="#0C5A35"
+            />
           </View>
 
           {/* Title */}
@@ -87,22 +93,25 @@ export function ForceUpdateModal({ checkResult, onDismissOptional }: Props) {
           </Text>
 
           {/* Version pill */}
-          <View className="flex-row items-center bg-gray-50 border border-gray-200/80 px-3 py-1 rounded-full mb-3 gap-2">
-            <Text className="text-[11px] font-bold text-gray-500">
-              v{checkResult.currentVersion}
-            </Text>
-            <Ionicons name="arrow-forward" size={12} color="#9CA3AF" />
-            <Text className="text-[11px] font-black text-[#0C5A35]">
-              v{checkResult.targetVersion}
-            </Text>
-          </View>
+          {!isMaintenance && (
+            <View className="flex-row items-center bg-gray-50 border border-gray-200/80 px-3 py-1 rounded-full mb-3 gap-2">
+              <Text className="text-[11px] font-bold text-gray-500">
+                v{checkResult.currentVersion}
+              </Text>
+              <Ionicons name="arrow-forward" size={12} color="#9CA3AF" />
+              <Text className="text-[11px] font-black text-[#0C5A35]">
+                v{checkResult.targetVersion}
+              </Text>
+            </View>
+          )}
 
           {/* Description */}
           <Text className="text-[13px] leading-5 text-gray-600 text-center mb-6">
             {checkResult.message}
           </Text>
 
-          {/* Update Action Button */}
+          {/* Update Action Button (nothing to update during maintenance) */}
+          {!isMaintenance && (
           <TouchableOpacity
             onPress={handleUpdatePress}
             activeOpacity={0.88}
@@ -124,6 +133,21 @@ export function ForceUpdateModal({ checkResult, onDismissOptional }: Props) {
               Update Now
             </Text>
           </TouchableOpacity>
+          )}
+
+          {/* Maintenance: let the user re-check instead of updating */}
+          {isMaintenance && onRetry && (
+            <TouchableOpacity
+              onPress={onRetry}
+              activeOpacity={0.88}
+              className="w-full bg-[#0C5A35] py-4 rounded-2xl flex-row items-center justify-center gap-2"
+            >
+              <Ionicons name="refresh" size={18} color="#FFFFFF" />
+              <Text className="text-[14px] font-black text-white uppercase tracking-wider">
+                Try Again
+              </Text>
+            </TouchableOpacity>
+          )}
 
           {/* Optional skip if not mandatory */}
           {!isMandatory && onDismissOptional && (
