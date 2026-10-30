@@ -1,5 +1,5 @@
 export const APP_NAME = "Pench Foods";
-export const APP_VERSION = "1.0.0";
+export const APP_VERSION = "1.0.5";
 
 export const API_TIMEOUT_MS = 15_000;
 

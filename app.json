@@ -2,7 +2,7 @@
   "expo": {
     "name": "Pench",
     "slug": "Pench",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "penchnew",
@@ -16,7 +16,7 @@
       }
     },
     "android": {
-      "versionCode": 4,
+      "versionCode": 5,
       "navigationBarColor": "#f8f8f8",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
@@ -79,7 +79,7 @@
       "reactCompiler": true
     },
     "extra": {
-      "router": {},
+      "router": {}
       // "eas": {
       //   "projectId": "22604f7a-a5f3-4f6e-9985-4055ebf46ca5"
       // }
