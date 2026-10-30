@@ -48,6 +48,13 @@ export const subscriptionApi = {
     );
   },
 
+  resumeSubscription: (domainName: string, subscriptionId: string): Promise<any> => {
+    return httpClient.post(
+      buildUrl(domainName, `/api/erp/subscriptions/${subscriptionId}/resume/`),
+      {}
+    );
+  },
+
   getGroupedSummary: (domainName: string): Promise<any[]> => {
     return httpClient.get(buildUrl(domainName, `/api/erp/subscriptions/grouped-summary/`));
   },

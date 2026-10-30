@@ -2,6 +2,7 @@ import { useNotifications } from "@/features/notifications/hooks/useNotification
 import { useAuthInit } from "@/hooks/useAuthInit";
 import "@/services/location/backgroundTracking";
 import { ToastProvider } from "@/shared/components/Toast/Toast";
+import { AlertModalProvider } from "@/shared/components/AlertModal/AlertModal";
 import { useAuthStore } from "@/store/authStore";
 import { BottomSheetModalProvider } from "@gorhom/bottom-sheet";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -112,6 +113,7 @@ export default function RootLayout() {
             <AppInit />
             <RootNavigator />
             <ToastProvider />
+            <AlertModalProvider />
             <VersionGate />
           </BottomSheetModalProvider>
         </QueryClientProvider>

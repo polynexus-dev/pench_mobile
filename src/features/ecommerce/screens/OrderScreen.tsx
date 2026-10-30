@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 
@@ -103,11 +103,16 @@ export default function OrdersScreen() {
 
     return (
         <ScreenWrapper screenBgColor="#F5F8F6">
-
-
-            <View className="px-4 py-4 border-b border-gray-100 bg-white">
-                <Text className="text-2xl font-black text-gray-900">Your Orders</Text>
-                <Text className="text-[13px] text-gray-500">Track and manage your upcoming deliveries</Text>
+            <View className="px-4 py-4 border-b border-gray-100 bg-white flex-row items-center">
+                {router.canGoBack() && (
+                    <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+                        <Ionicons name="arrow-back" size={24} color="#1F2937" />
+                    </TouchableOpacity>
+                )}
+                <View className="flex-1">
+                    <Text className="text-2xl font-black text-gray-900">Your Orders</Text>
+                    <Text className="text-[13px] text-gray-500">Track and manage your upcoming deliveries</Text>
+                </View>
             </View>
 
             <View className="px-4 py-3">

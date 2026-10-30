@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { orderApi } from "@/features/dashboard/api/orderApi";
 import React from "react";
 import {
   Alert,
@@ -25,6 +26,7 @@ import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBotto
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { asyncStorage } from "../../../services/storage/asyncStorage";
 import { locationApi } from "@/services/api/locationApi";
+import type { CustomerLocation } from "@/types/domain/location.types";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -86,16 +88,24 @@ function CardShell({ children }: { children: React.ReactNode }) {
 interface StatsCardProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  badge?: number | string | null;
   onPress: () => void;
 }
 
-function StatsCard({ icon, label, onPress }: StatsCardProps) {
+function StatsCard({ icon, label, badge, onPress }: StatsCardProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      className="flex-1 bg-white rounded-[20px] py-5 items-center justify-center border border-[#F0F2F5] shadow-xs"
+      className="flex-1 bg-white rounded-[20px] py-5 items-center justify-center border border-[#F0F2F5] shadow-xs relative"
     >
+      {badge != null && Number(badge) > 0 && (
+        <View className="absolute top-2.5 right-2.5 bg-[#0C5A35] min-w-[20px] h-5 px-1.5 rounded-full items-center justify-center shadow-xs">
+          <Text className="text-[10px] font-black text-white leading-none">
+            {badge}
+          </Text>
+        </View>
+      )}
       <Ionicons name={icon} size={24} color="#0A3925" className="mb-2" />
       <Text className="text-[13px] font-semibold text-[#1A1A1A] text-center">
         {label}
@@ -115,6 +125,30 @@ export function CustomerProfileScreen() {
 
   const [activeView, setActiveView] = React.useState<'view' | 'edit_profile' | 'change_password'>('view');
 
+  const [orderCount, setOrderCount] = React.useState<number>(() => user?.customer_dashboard?.total_orders ?? 0);
+
+  const fetchOrdersCount = React.useCallback(async () => {
+    if (!domain_name) return;
+    try {
+      const orders = await orderApi.getOrders(domain_name);
+      if (Array.isArray(orders)) {
+        setOrderCount(orders.length);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch order count in profile:", err);
+    }
+  }, [domain_name]);
+
+  React.useEffect(() => {
+    fetchOrdersCount();
+  }, [fetchOrdersCount]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchOrdersCount();
+    }, [fetchOrdersCount])
+  );
+
   const [firstName, setFirstName] = React.useState("");
   const [lastName, setLastName] = React.useState("");
   const [email, setEmail] = React.useState("");
@@ -127,46 +161,168 @@ export function CustomerProfileScreen() {
   const [isSavingPassword, setIsSavingPassword] = React.useState(false);
   const locationSheetRef = React.useRef<BottomSheetModal>(null);
 
+    interface SavedLocationItem {
+    id?: number | string;
+    tag: string;
+    label: string;
+    address: string;
+    landmark?: string;
+    lat: number;
+    lng: number;
+    is_default: boolean;
+  }
+
   const [profiles, setProfiles] = React.useState<
     Record<string, { id?: number | string; lat: number; lng: number; address: string; is_default?: boolean }>
   >({});
+  const [locationList, setLocationList] = React.useState<SavedLocationItem[]>([]);
+  const [activeLocId, setActiveLocId] = React.useState<string | number | null>(null);
+  const [activeLocProfile, setActiveLocProfile] = React.useState<string | null>(null);
 
-  const loadLocationProfiles = React.useCallback(async () => {
+    const loadLocationProfiles = React.useCallback(async () => {
     try {
-      // 1. Try fetching from backend location API
+      let currentActiveId: string | number | null = null;
+      let currentActiveProfile: string | null = null;
       try {
-        const backendLocations = await locationApi.getLocations(domain_name);
-        if (backendLocations && backendLocations.length > 0) {
-          const loadedProfiles: Record<string, any> = {};
-          backendLocations.forEach((loc) => {
-            const tag = loc.tag ? loc.tag.charAt(0).toUpperCase() + loc.tag.slice(1) : (loc.label || "Home");
-            const lat = typeof loc.latitude === "string" ? parseFloat(loc.latitude) : loc.latitude;
-            const lng = typeof loc.longitude === "string" ? parseFloat(loc.longitude) : loc.longitude;
-            loadedProfiles[tag] = {
-              id: loc.id,
-              lat: isNaN(lat) ? 21.1458 : lat,
-              lng: isNaN(lng) ? 79.0882 : lng,
-              address: loc.address,
-              is_default: loc.is_default,
-            };
-          });
-          setProfiles(loadedProfiles);
-          await asyncStorage.setItem("pench_customer_location_profiles", JSON.stringify(loadedProfiles));
-          return;
+        const savedActive = await asyncStorage.getItem("pench_customer_location");
+        if (savedActive) {
+          const parsed = JSON.parse(savedActive);
+          if (parsed.id) currentActiveId = parsed.id;
+          if (parsed.profile) currentActiveProfile = parsed.profile;
         }
+      } catch {}
+
+      // 1. Try fetching from backend location API
+      let backendLocations: CustomerLocation[] = [];
+      try {
+        backendLocations = await locationApi.getLocations(domain_name);
       } catch (apiErr) {
         console.warn("Backend location fetch error:", apiErr);
+      }
+
+      if (backendLocations && backendLocations.length > 0) {
+        const mapped: SavedLocationItem[] = backendLocations.map((loc) => {
+          const rawTag = (loc.tag || "home").trim().toLowerCase();
+          const label = loc.label?.trim() || (rawTag.charAt(0).toUpperCase() + rawTag.slice(1));
+          const lat = typeof loc.latitude === "string" ? parseFloat(loc.latitude) : loc.latitude;
+          const lng = typeof loc.longitude === "string" ? parseFloat(loc.longitude) : loc.longitude;
+          return {
+            id: loc.id,
+            tag: rawTag,
+            label,
+            address: loc.address || "",
+            landmark: loc.landmark,
+            lat: isNaN(lat) ? 21.1458 : lat,
+            lng: isNaN(lng) ? 79.0882 : lng,
+            is_default: Boolean(loc.is_default),
+          };
+        });
+
+        setLocationList(mapped);
+
+        if (!currentActiveId) {
+          const defaultLoc = mapped.find((m) => m.is_default) || mapped[0];
+          if (defaultLoc) {
+            currentActiveId = defaultLoc.id || null;
+            currentActiveProfile = defaultLoc.label;
+          }
+        }
+        setActiveLocId(currentActiveId);
+        setActiveLocProfile(currentActiveProfile);
+
+        const loadedProfiles: Record<string, any> = {};
+        mapped.forEach((m) => {
+          loadedProfiles[m.label] = m;
+        });
+        setProfiles(loadedProfiles);
+        await asyncStorage.setItem("pench_customer_location_profiles", JSON.stringify(loadedProfiles));
+        return;
       }
 
       // 2. Fallback to AsyncStorage cache
       const savedStr = await asyncStorage.getItem("pench_customer_location_profiles");
       if (savedStr) {
-        setProfiles(JSON.parse(savedStr));
+        const parsed = JSON.parse(savedStr);
+        setProfiles(parsed);
+        const mapped: SavedLocationItem[] = Object.entries(parsed).map(([key, val]: [string, any]) => ({
+          id: val.id || key,
+          tag: (val.tag || key).toLowerCase(),
+          label: key,
+          address: val.address || "",
+          landmark: val.landmark,
+          lat: val.lat || 21.1458,
+          lng: val.lng || 79.0882,
+          is_default: Boolean(val.is_default),
+        }));
+        setLocationList(mapped);
+        if (!currentActiveId && mapped.length > 0) {
+          currentActiveId = mapped[0].id || null;
+          currentActiveProfile = mapped[0].label;
+        }
+        setActiveLocId(currentActiveId);
+        setActiveLocProfile(currentActiveProfile);
       }
     } catch (e) {
       console.warn("Failed to load profiles:", e);
     }
   }, [domain_name]);
+
+  const isLocationActive = (item: SavedLocationItem) => {
+    if (activeLocId && item.id && String(item.id) === String(activeLocId)) {
+      return true;
+    }
+    if (
+      activeLocProfile &&
+      (item.label.toLowerCase() === activeLocProfile.toLowerCase() ||
+        item.tag.toLowerCase() === activeLocProfile.toLowerCase())
+    ) {
+      return true;
+    }
+    if (user?.city_name) {
+      const cleanCity = user.city_name.toLowerCase();
+      if (
+        cleanCity.startsWith(item.label.toLowerCase() + ":") ||
+        cleanCity.startsWith(item.tag.toLowerCase() + ":")
+      ) {
+        return true;
+      }
+    }
+    if (!activeLocId && !activeLocProfile && item.is_default) {
+      return true;
+    }
+    return false;
+  };
+
+  const handleSwitchLocation = async (item: SavedLocationItem) => {
+    try {
+      if (item.id) {
+        locationApi.setDefaultLocation(domain_name, item.id).catch((err) => {
+          console.warn("Backend set default location failed:", err);
+        });
+      }
+      const activeLoc = {
+        id: item.id,
+        lat: item.lat,
+        lng: item.lng,
+        address: item.address,
+        landmark: item.landmark,
+        profile: item.label,
+        tag: item.tag,
+      };
+      await asyncStorage.setItem("pench_customer_location", JSON.stringify(activeLoc));
+      setActiveLocId(item.id || null);
+      setActiveLocProfile(item.label);
+
+      const url = buildUrl(domain_name, "/api/accounts/me/");
+      const response = await httpClient.patch(url, {
+        city_name: `${item.label}: ${item.address.split(",")[0]?.trim() || "Nagpur"}`,
+      });
+      setUser(response as any);
+      show({ message: `Switched active delivery location to ${item.label}.`, type: "success" });
+    } catch (e) {
+      show({ message: "Failed to switch active location.", type: "error" });
+    }
+  };
 
   React.useEffect(() => {
     loadLocationProfiles();
@@ -188,6 +344,7 @@ export function CustomerProfileScreen() {
       });
       setUser(response as any);
       show({ message: `Saved to ${loc.profile} profile.`, type: "success" });
+      await loadLocationProfiles();
     } catch (err) {
       console.warn("Failed to save location/patch profile:", err);
       show({ message: "Failed to update location.", type: "error" });
@@ -468,7 +625,8 @@ export function CustomerProfileScreen() {
                 <StatsCard
                   icon="time-outline"
                   label="Your orders"
-                  onPress={() => router.push("/(customer)/(tabs)/orders")}
+                  badge={orderCount > 0 ? orderCount : undefined}
+                  onPress={() => router.push("/(customer)/orders")}
                 />
                 <StatsCard
                   icon="wallet-outline"
@@ -506,57 +664,112 @@ export function CustomerProfileScreen() {
                   label="Set Delivery Location"
                   onPress={() => locationSheetRef.current?.present()}
                 />
-                {Object.keys(profiles).length > 0 && (
-                  <View className="bg-gray-50/50 px-4 pb-4 pt-2 border-t border-neutral-100">
-                    <Text className="text-[11px] font-black text-gray-400 uppercase tracking-wider mb-2">
-                      Saved Profiles
+                                {/* All Saved Location Tags with Default/Active Highlighted */}
+                <View className="bg-gray-50/70 px-4 pb-4 pt-3 border-t border-neutral-100">
+                  <View className="flex-row items-center justify-between mb-2.5">
+                    <Text className="text-[11px] font-black text-gray-500 uppercase tracking-wider">
+                      Saved Delivery Locations ({locationList.length})
                     </Text>
-                    <View className="flex-row flex-wrap gap-2">
-                      {Object.entries(profiles).map(([name, data]) => (
-                        <TouchableOpacity
-                          key={name}
-                          onPress={async () => {
-                            try {
-                              if (data.id) {
-                                locationApi.setDefaultLocation(domain_name, data.id).catch((err) => {
-                                  console.warn("Backend set default location failed:", err);
-                                });
-                              }
-                              const activeLoc = { id: data.id, lat: data.lat, lng: data.lng, address: data.address, profile: name };
-                              await asyncStorage.setItem("pench_customer_location", JSON.stringify(activeLoc));
-                              const url = buildUrl(domain_name, "/api/accounts/me/");
-                              const response = await httpClient.patch(url, {
-                                city_name: `${name}: ${data.address.split(",")[0]?.trim() || "Nagpur"}`,
-                              });
-                              setUser(response as any);
-                              show({ message: `Switched active location to ${name}.`, type: "success" });
-                            } catch (e) {
-                              show({ message: "Failed to switch active location.", type: "error" });
-                            }
-                          }}
-                          className={`px-3 py-2 rounded-lg border flex-row items-center gap-1.5 ${
-                            user?.city_name?.startsWith(name + ":")
-                              ? "bg-[#0C5A35]/10 border-[#0C5A35]"
-                              : "bg-white border-neutral-200"
-                          }`}
-                        >
-                          <Ionicons
-                            name={name === "Home" ? "home" : name === "Work" ? "briefcase" : "pin"}
-                            size={12}
-                            color={user?.city_name?.startsWith(name + ":") ? "#0C5A35" : "#6B7280"}
-                          />
-                          <Text
-                            className={`text-[12px] font-semibold ${
-                              user?.city_name?.startsWith(name + ":") ? "text-[#0C5A35]" : "text-gray-700"
+                    <TouchableOpacity
+                      onPress={() => locationSheetRef.current?.present()}
+                      className="flex-row items-center gap-1 py-1 px-2.5 rounded-full bg-white border border-gray-200 shadow-2xs"
+                    >
+                      <Ionicons name="add" size={14} color="#0C5A35" />
+                      <Text className="text-[11px] font-bold text-[#0C5A35]">Add / Map</Text>
+                    </TouchableOpacity>
+                  </View>
+
+                  {locationList.length > 0 ? (
+                    <View className="gap-y-2">
+                      {locationList.map((loc) => {
+                        const active = isLocationActive(loc);
+                        const iconName =
+                          loc.tag === "home" || loc.label.toLowerCase() === "home"
+                            ? "home"
+                            : loc.tag === "work" || loc.label.toLowerCase() === "work"
+                            ? "briefcase"
+                            : "location";
+
+                        return (
+                          <TouchableOpacity
+                            key={String(loc.id || loc.label)}
+                            activeOpacity={0.7}
+                            onPress={() => handleSwitchLocation(loc)}
+                            className={`p-3 rounded-xl border flex-row items-center justify-between ${
+                              active
+                                ? "bg-[#0C5A35]/8 border-[#0C5A35] shadow-2xs"
+                                : "bg-white border-gray-200"
                             }`}
                           >
-                            {name}
-                          </Text>
-                        </TouchableOpacity>
-                      ))}
+                            <View className="flex-row items-center gap-3 flex-1 mr-2">
+                              <View
+                                className={`h-8 w-8 rounded-full items-center justify-center ${
+                                  active ? "bg-[#0C5A35]" : "bg-gray-100"
+                                }`}
+                              >
+                                <Ionicons
+                                  name={iconName as any}
+                                  size={15}
+                                  color={active ? "#FFFFFF" : "#4B5563"}
+                                />
+                              </View>
+                              <View className="flex-1">
+                                <View className="flex-row items-center gap-2">
+                                  <Text
+                                    className={`text-[13px] font-black ${
+                                      active ? "text-[#0C5A35]" : "text-gray-900"
+                                    }`}
+                                  >
+                                    {loc.label}
+                                  </Text>
+                                  {(active || loc.is_default) && (
+                                    <View
+                                      className={`px-1.5 py-0.5 rounded-full ${
+                                        active ? "bg-[#0C5A35]" : "bg-gray-200"
+                                      }`}
+                                    >
+                                      <Text
+                                        className={`text-[9px] font-black uppercase ${
+                                          active ? "text-white" : "text-gray-700"
+                                        }`}
+                                      >
+                                        {active ? "ACTIVE" : "DEFAULT"}
+                                      </Text>
+                                    </View>
+                                  )}
+                                </View>
+                                {loc.address ? (
+                                  <Text
+                                    className="text-[11px] text-gray-500 mt-0.5"
+                                    numberOfLines={1}
+                                  >
+                                    {loc.address}
+                                  </Text>
+                                ) : null}
+                              </View>
+                            </View>
+
+                            <Ionicons
+                              name={active ? "checkmark-circle" : "ellipse-outline"}
+                              size={20}
+                              color={active ? "#0C5A35" : "#D1D5DB"}
+                            />
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
-                  </View>
-                )}
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => locationSheetRef.current?.present()}
+                      className="p-3.5 rounded-xl border border-dashed border-gray-300 bg-white items-center justify-center flex-row gap-2"
+                    >
+                      <Ionicons name="location-outline" size={16} color="#0C5A35" />
+                      <Text className="text-[12px] font-bold text-gray-700">
+                        No saved locations. Tap to set delivery address
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
               </CardShell>
 
               <SectionTitle title="Settings & Activity" />

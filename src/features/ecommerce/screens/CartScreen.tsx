@@ -12,7 +12,7 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -260,6 +260,7 @@ const CartItemRow = React.memo(({
 });
 
 export function CartScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const domainName = useAuthStore((s) => s.domain_name) || "";
   const cartItems = useCartStore((state) => state.items);
@@ -379,7 +380,7 @@ export function CartScreen() {
       });
       Alert.alert("Order Placed!", "Your one-time extra order has been successfully placed!");
       clearCart();
-      router.replace("/(customer)/(tabs)/orders");
+      router.replace("/(customer)/orders");
     } catch (e: any) {
       Alert.alert("Order Failed", e?.message || "Failed to create order.");
     } finally {
@@ -443,14 +444,16 @@ export function CartScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top"]}>
       <StatusBar style="dark" />
       
       {/* Header */}
       <View className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3.5 shadow-sm">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
+        {router.canGoBack() && (
+          <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+        )}
         <View className="flex-1">
           <Text className="text-[18px] font-black text-gray-900">Your Cart</Text>
           <Text className="text-[11px] font-bold text-gray-500 mt-0.5">Place a one-time order</Text>
@@ -473,7 +476,13 @@ export function CartScreen() {
             Add some pure, farm-fresh milk and organic dairy essentials to your cart.
           </Text>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.push("/(customer)/(tabs)/dashboard" as any);
+              }
+            }}
             className="rounded-full bg-[#0C5A35] px-8 py-3.5 shadow-md active:opacity-90"
           >
             <Text className="text-[14px] font-bold text-white uppercase tracking-wider">Browse Products</Text>
@@ -484,7 +493,7 @@ export function CartScreen() {
         <View className="flex-1">
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
             showsVerticalScrollIndicator={false}
           >
             {/* Selected Products List */}
@@ -677,8 +686,9 @@ export function CartScreen() {
 
           {/* Bottom Sticky Footer */}
           <View
-            className="border-t border-gray-100 bg-white p-4 pb-6"
+            className="border-t border-gray-100 bg-white p-4"
             style={{
+              paddingBottom: Math.max(insets.bottom, 12) + 72,
               shadowColor: "#000000",
               shadowOffset: { width: 0, height: -4 },
               shadowOpacity: 0.03,

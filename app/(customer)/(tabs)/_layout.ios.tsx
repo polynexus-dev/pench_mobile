@@ -40,9 +40,9 @@ export default function TabLayout() {
                 <Icon sf="calendar" drawable="ic_menu_today" />
             </NativeTabs.Trigger>
 
-            <NativeTabs.Trigger name="orders">
-                <Label>Orders</Label>
-                <Icon sf="receipt.fill" drawable="ic_menu_agenda" />
+            <NativeTabs.Trigger name="cart">
+                <Label>Cart</Label>
+                <Icon sf="cart.fill" drawable="ic_menu_agenda" />
                 {cartCount > 0 && <Badge>{String(cartCount)}</Badge>}
             </NativeTabs.Trigger>
 

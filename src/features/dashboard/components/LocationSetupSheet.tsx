@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
-import { View, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, TouchableOpacity, ActivityIndicator, Alert, Linking } from "react-native";
 import BottomSheet, { BottomSheetView } from "@gorhom/bottom-sheet";
 import { Ionicons } from "@expo/vector-icons";
 import * as Location from "expo-location";
@@ -37,8 +37,31 @@ export function LocationSetupSheet({ visible, onClose, onConfirm, onSkip }: Prop
     const handleDetectLocation = async () => {
         setLocating(true);
         try {
+            const servicesEnabled = await Location.hasServicesEnabledAsync();
+            if (!servicesEnabled) {
+                Alert.alert(
+                    "Location Services Disabled",
+                    "Please turn on Device Location (GPS) in your settings to detect your current location.",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Open Settings", onPress: () => Linking.openSettings() }
+                    ]
+                );
+                return;
+            }
+
             const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== "granted") return;
+            if (status !== "granted") {
+                Alert.alert(
+                    "Location Permission Required",
+                    "Pench needs location access to detect your delivery address. Please allow location permission in your device settings.",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Open Settings", onPress: () => Linking.openSettings() }
+                    ]
+                );
+                return;
+            }
 
             const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
             const { latitude, longitude } = pos.coords;

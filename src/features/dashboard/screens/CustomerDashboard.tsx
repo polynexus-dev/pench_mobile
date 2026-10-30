@@ -8,6 +8,9 @@ import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
 import { useCartStore } from "@/store/useCartStore";
 import { productApi, Product } from "../api/productApi";
+import { orderApi, Order } from "../api/orderApi";
+import { useFocusEffect } from "expo-router";
+import { subscriptionApi } from "@/features/ecommerce/api/subscriptionApi";
 import { StatusBar } from "expo-status-bar";
 import {
   HeaderSection,
@@ -135,9 +138,110 @@ export function CustomerDashboardScreen() {
     // Sheet dismissed, no-op
   }, []);
 
+  const [hasSubscription, setHasSubscription] = useState<boolean>(() => {
+    return (user?.customer_dashboard?.active_subscriptions ?? 0) > 0;
+  });
+  const [pausedSubscription, setPausedSubscription] = useState<any | null>(null);
+  const [isResumingDashboardSub, setIsResumingDashboardSub] = useState(false);
+
+  const handleResumeDashboardSub = (subId: string) => {
+    if (!domainName || !subId) return;
+    Alert.alert(
+      "Resume Delivery",
+      "Are you sure you want to resume deliveries? This will cancel your vacation pause and resume your scheduled deliveries.",
+      [
+        { text: "Keep Paused", style: "cancel" },
+        {
+          text: "Resume Delivery",
+          onPress: async () => {
+            setIsResumingDashboardSub(true);
+            try {
+              await subscriptionApi.resumeSubscription(domainName, subId);
+              Alert.alert("Success", "Deliveries resumed successfully!");
+              setPausedSubscription(null);
+              checkSubscriptionStatus();
+            } catch (err: any) {
+              Alert.alert("Resume Failed", err?.message || "Failed to resume subscription.");
+            } finally {
+              setIsResumingDashboardSub(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const checkSubscriptionStatus = useCallback(async () => {
+    if (!domainName) return;
+    try {
+      const data: any = await subscriptionApi.getSubscriptions(domainName);
+      const list = Array.isArray(data) ? data : data?.results || [];
+      const paused = list.find((s: any) => s.is_paused || s.status === "paused");
+      setPausedSubscription(paused || null);
+
+      const hasActive = list.some(
+        (s: any) => !s.status || s.status === "active" || s.status === "paused"
+      );
+      if (list.length > 0 && hasActive) {
+        setHasSubscription(true);
+        return;
+      }
+
+      if (user?.id) {
+        const now = new Date();
+        const targetId = user.customer_uuid || user.id.toString();
+        const summary: any = await subscriptionApi.getCustomerMonthlySummary(
+          domainName,
+          targetId,
+          now.getFullYear(),
+          now.getMonth() + 1
+        );
+        if (summary?.subscriptions && summary.subscriptions.length > 0) {
+          const pausedFromSummary = summary.subscriptions.find((s: any) => s.is_paused || s.status === "paused");
+          if (pausedFromSummary) {
+            setPausedSubscription(pausedFromSummary);
+          }
+          setHasSubscription(true);
+          return;
+        }
+      }
+
+      if ((user?.customer_dashboard?.active_subscriptions ?? 0) > 0) {
+        setHasSubscription(true);
+      } else {
+        setHasSubscription(false);
+      }
+    } catch (err) {
+      console.warn("Failed to check customer subscriptions:", err);
+      if ((user?.customer_dashboard?.active_subscriptions ?? 0) > 0) {
+        setHasSubscription(true);
+      }
+    }
+  }, [domainName, user]);
+
   const [products, setProducts] = useState<Product[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+
+  const fetchOrders = useCallback(async () => {
+    if (!domainName) return;
+    try {
+      const data = await orderApi.getOrders(domainName);
+      setOrders(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.warn("Failed to fetch orders on dashboard:", err);
+    }
+  }, [domainName]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (domainName) {
+        fetchOrders();
+        checkSubscriptionStatus();
+      }
+    }, [domainName, fetchOrders, checkSubscriptionStatus])
+  );
 
   const fetchProducts = async () => {
     if (!domainName) return;
@@ -156,12 +260,16 @@ export function CustomerDashboardScreen() {
   useEffect(() => {
     if (domainName) {
       fetchProducts();
+      checkSubscriptionStatus();
+      fetchOrders();
     }
-  }, [domainName]);
+  }, [domainName, checkSubscriptionStatus, fetchOrders]);
 
   const onRefresh = () => {
     setRefreshing(true);
     fetchProducts();
+    checkSubscriptionStatus();
+    fetchOrders();
   };
 
   const filteredProducts = products;
@@ -175,6 +283,7 @@ export function CustomerDashboardScreen() {
           onLocationPress={() => {
             locationSheetRef.current?.present();
           }}
+          orders={orders}
         />
       </View>
       <ScrollView
@@ -187,7 +296,42 @@ export function CustomerDashboardScreen() {
       >
         <BannerCarousel items={BANNERS} />
 
+        {/* Vacation Paused Alert Banner on Dashboard */}
+        {pausedSubscription && (
+          <View className="mx-4 mt-3 mb-1 p-3.5 rounded-2xl bg-amber-50 border border-amber-200 shadow-xs flex-row items-center justify-between">
+            <View className="flex-1 pr-2">
+              <View className="flex-row items-center gap-1.5">
+                <Ionicons name="pause-circle" size={16} color="#B45309" />
+                <Text className="text-[12px] font-black text-amber-900">
+                  Milk Delivery Paused
+                </Text>
+              </View>
+              <Text className="text-[10px] font-semibold text-amber-700 mt-0.5">
+                {pausedSubscription.pause_start
+                  ? `Vacation pause (${pausedSubscription.pause_start}${pausedSubscription.pause_end ? ` to ${pausedSubscription.pause_end}` : ""}). Resume anytime.`
+                  : "Paused by vacation. Tap to resume."}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={() => handleResumeDashboardSub(pausedSubscription.subscription_id || pausedSubscription.id)}
+              disabled={isResumingDashboardSub}
+              activeOpacity={0.8}
+              className="px-3.5 py-2 rounded-xl bg-[#0C5A35] flex-row items-center gap-1.5 shadow-2xs"
+            >
+              {isResumingDashboardSub ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <Ionicons name="play" size={12} color="#FFFFFF" />
+                  <Text className="text-[11px] font-black text-white">Resume</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
         {/* Flexible Subscription Model Section */}
+        {!hasSubscription && (
         <View className="mx-4 mt-4 mb-2 p-5 rounded-2xl bg-[#F3F9F6] border border-[#0C5A35]/15 shadow-sm">
           <View className="flex-row items-center gap-2.5 mb-4">
             <View className="h-9 w-9 rounded-xl bg-[#0C5A35]/10 items-center justify-center">
@@ -244,6 +388,7 @@ export function CustomerDashboardScreen() {
             <Ionicons name="arrow-forward-outline" size={14} color="#ffffff" style={{ marginLeft: 6 }} />
           </TouchableOpacity>
         </View>
+        )}
 
         <View className="px-4 mt-4 mb-4 flex-row items-end justify-between">
           <View>

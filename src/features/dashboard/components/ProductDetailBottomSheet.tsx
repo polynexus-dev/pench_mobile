@@ -245,7 +245,7 @@ export const ProductDetailBottomSheet = forwardRef<BottomSheetModal, Props>(
                   activeOpacity={0.88}
                   onPress={() => {
                     handleClose();
-                    router.push("/(customer)/cart");
+                    router.push("/(customer)/(tabs)/cart" as any);
                   }}
                   className="bg-[#0C5A35] px-6 py-4 rounded-2xl flex-row items-center justify-center shadow-md active:opacity-95"
                 >
