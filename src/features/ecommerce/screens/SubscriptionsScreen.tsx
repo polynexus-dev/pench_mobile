@@ -125,6 +125,18 @@ export default function SubscriptionsScreen() {
     const [selectedPlanProduct, setSelectedPlanProduct] = useState<Product | null>(null);
     const [selectedCustomDays, setSelectedCustomDays] = useState<string[]>(["mon", "wed", "fri"]);
 
+    // Ensure selectedBottleSize does not exceed selectedDeliveryQty (dynamic bottle restriction)
+    useEffect(() => {
+        const currentSizeVal = parseFloat(selectedBottleSize);
+        if (currentSizeVal > selectedDeliveryQty) {
+            if (selectedDeliveryQty >= 1.0) {
+                setSelectedBottleSize("1");
+            } else {
+                setSelectedBottleSize("0.5");
+            }
+        }
+    }, [selectedDeliveryQty, selectedBottleSize]);
+
     const getCustomFrequencyLabel = useCallback((days: string[]) => {
         if (days.length === 7) return "Daily (7 Days/Wk)";
         if (days.length === 5 && !days.includes("sat") && !days.includes("sun")) return "Weekdays (Mon-Fri)";
@@ -293,13 +305,16 @@ export default function SubscriptionsScreen() {
     const [editStartDate, setEditStartDate] = useState<string>("");
     const [editStatus, setEditStatus] = useState<"active" | "paused">("active");
 
-    const handleOpenEditModal = () => {
-        if (!selectedSub) return;
-        const currentQty = selectedSub.items?.[0]?.quantity || 1;
+    const handleOpenEditModal = (targetSub?: SubscriptionSummary) => {
+        const sub = targetSub || selectedSub;
+        if (!sub) return;
+        if (targetSub) setSelectedSubId(targetSub.subscription_id);
+
+        const currentQty = sub.items?.[0]?.quantity || 1;
         setEditQuantity(currentQty);
-        setEditFrequency(selectedSub.frequency || "daily");
-        setEditStartDate(selectedSub.subscription_start || new Date().toISOString().split("T")[0]);
-        setEditStatus(selectedSub.is_paused ? "paused" : "active");
+        setEditFrequency(sub.frequency || "daily");
+        setEditStartDate(sub.subscription_start || new Date().toISOString().split("T")[0]);
+        setEditStatus(sub.is_paused ? "paused" : "active");
         setShowEditModal(true);
     };
 
@@ -320,6 +335,13 @@ export default function SubscriptionsScreen() {
             };
 
             await subscriptionApi.updateSubscription(domainName, selectedSubId, payload);
+            if (selectedSub?.is_paused && editStatus === "active") {
+                try {
+                    await subscriptionApi.resumeSubscription(domainName, selectedSubId);
+                } catch (e) {
+                    console.warn("Resume call during edit failed:", e);
+                }
+            }
             Alert.alert("Success", "Subscription updated successfully.");
             setShowEditModal(false);
             fetchSubs();
@@ -330,12 +352,14 @@ export default function SubscriptionsScreen() {
         }
     };
 
-    const handleQuickUpdateQuantity = async (newQty: number) => {
-        if (!selectedSubId || !domainName || newQty < 1) return;
+    const handleQuickUpdateQuantity = async (newQty: number, targetSubId?: string) => {
+        const subId = targetSubId || selectedSubId;
+        if (!subId || !domainName || newQty < 1) return;
+        // checked subId
         setIsUpdatingQuantity(true);
         try {
             const productId = selectedSub?.items?.[0]?.product_id;
-            await subscriptionApi.updateSubscriptionQuantity(domainName, selectedSubId, {
+            await subscriptionApi.updateSubscriptionQuantity(domainName, subId, {
                 quantity: newQty,
                 ...(productId ? { product: productId } : {}),
             });
@@ -348,9 +372,11 @@ export default function SubscriptionsScreen() {
         }
     };
 
-    const handleConfirmDeleteSubscription = () => {
-        if (!selectedSubId || !domainName) return;
-        const planName = selectedSub?.items?.[0]?.product_name || "this subscription";
+    const handleConfirmDeleteSubscription = (targetSubId?: string, targetName?: string) => {
+        const subId = targetSubId || selectedSubId;
+        if (!subId || !domainName) return;
+        const planName = targetName || selectedSub?.items?.[0]?.product_name || "this subscription";
+        // checked subId and planName
 
         Alert.alert(
             "Cancel Subscription",
@@ -363,7 +389,7 @@ export default function SubscriptionsScreen() {
                     onPress: async () => {
                         setIsDeletingSub(true);
                         try {
-                            await subscriptionApi.deleteSubscription(domainName, selectedSubId);
+                            await subscriptionApi.deleteSubscription(domainName, subId);
                             Alert.alert("Deleted", "Your subscription has been cancelled and deleted.");
                             setSelectedSubId(null);
                             fetchSubs();
@@ -378,31 +404,62 @@ export default function SubscriptionsScreen() {
         );
     };
 
+    const [isResumingSub, setIsResumingSub] = useState<boolean>(false);
+
+    const handleConfirmResumeSubscription = (targetSubId?: string) => {
+        const subId = targetSubId || selectedSubId;
+        if (!subId || !domainName) return;
+
+        Alert.alert(
+            "Resume Delivery",
+            "Are you sure you want to resume deliveries? This will cancel your vacation pause and resume your scheduled deliveries.",
+            [
+                { text: "Keep Paused", style: "cancel" },
+                {
+                    text: "Resume Delivery",
+                    onPress: async () => {
+                        setIsResumingSub(true);
+                        try {
+                            await subscriptionApi.resumeSubscription(domainName, subId);
+                            Alert.alert("Delivery Resumed", "Your subscription deliveries have been resumed successfully!");
+                            setIsSelectingVacation(false);
+                            setVacationStart(null);
+                            setVacationEnd(null);
+                            fetchSubs();
+                        } catch (err: any) {
+                            Alert.alert("Resume Failed", err?.message || "Failed to resume subscription. Please try again.");
+                        } finally {
+                            setIsResumingSub(false);
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
 
     const fetchSubs = async () => {
-        if (!domainName) return;
-        if (!user?.id && !isGuest) return;
+        if (!domainName || !user?.id) return;
         if (!refreshing) {
             setLoading(true);
         }
         try {
+            const targetId = user.customer_uuid || user.id.toString();
+
             let summaryData: any = { subscriptions: [] };
             let modelsData: any[] = [];
             let productsData: Product[] = [];
 
-            if (user?.id) {
-                const targetId = user.customer_uuid || user.id.toString();
-                try {
-                    summaryData = await subscriptionApi.getCustomerMonthlySummary(domainName, targetId, currentYear, currentMonth);
-                    if (summaryData?.customer_id && isValidUuid(summaryData.customer_id) && user && !user.customer_uuid) {
-                        useAuthStore.getState().setUser({
-                            ...user,
-                            customer_uuid: summaryData.customer_id.trim(),
-                        });
-                    }
-                } catch (err) {
-                    console.warn("Failed to fetch monthly summary:", err);
+            try {
+                summaryData = await subscriptionApi.getCustomerMonthlySummary(domainName, targetId, currentYear, currentMonth);
+                if (summaryData?.customer_id && isValidUuid(summaryData.customer_id) && user && !user.customer_uuid) {
+                    useAuthStore.getState().setUser({
+                        ...user,
+                        customer_uuid: summaryData.customer_id.trim(),
+                    });
                 }
+            } catch (err) {
+                console.warn("Failed to fetch monthly summary:", err);
             }
 
             try {
@@ -795,175 +852,181 @@ export default function SubscriptionsScreen() {
                         </View>
                     ) : (
                         <>
-                            {/* Compact List of Subscriptions */}
-                            <View className="mb-4">
+                            {/* Active Subscription Single Unified Card */}
+                            <View className="mb-5">
                                 <Text className="mb-2.5 text-[12px] font-black text-gray-400 uppercase tracking-widest">
-                                    Your Active Plans
+                                    Active Subscription
                                 </Text>
                                 {subs.map((item, index) => {
                                     const isSelected = item.subscription_id === selectedSubId;
-                                    const title = item.items?.[0]?.product_name || `Plan ${index + 1}`;
+                                    const title = item.items?.[0]?.product_name || `Milk Subscription ${index + 1}`;
                                     const isPaused = item.is_paused;
                                     const quantity = item.items?.[0]?.quantity || 1;
+                                    const unit = item.items?.[0]?.product_id ? "Litre(s)" : "Bottle(s)";
 
                                     return (
-                                        <TouchableOpacity
+                                        <View
                                             key={item.subscription_id}
-                                            onPress={() => {
-                                                setSelectedSubId(item.subscription_id);
-                                                setIsSelectingVacation(false);
-                                                setVacationStart(null);
-                                                setVacationEnd(null);
-                                            }}
-                                            activeOpacity={0.88}
-                                            className="p-3.5 mb-2.5 rounded-2xl border flex-row items-center justify-between"
+                                            className="mb-3 rounded-2xl bg-white p-4 border"
                                             style={{
-                                                backgroundColor: isSelected ? "#ffffff" : "rgba(255, 255, 255, 0.8)",
-                                                borderColor: isSelected ? "#1B5E37" : "#F3F4F6",
-                                                ...(isSelected ? {
-                                                    shadowColor: "#000",
-                                                    shadowOffset: { width: 0, height: 1 },
-                                                    shadowOpacity: 0.05,
-                                                    shadowRadius: 2,
-                                                    elevation: 2,
-                                                } : {})
+                                                borderColor: isSelected && subs.length > 1 ? "#1B5E37" : "#E5E7EB",
+                                                shadowColor: "#000",
+                                                shadowOffset: { width: 0, height: 1 },
+                                                shadowOpacity: 0.05,
+                                                shadowRadius: 3,
+                                                elevation: 2,
                                             }}
                                         >
-                                            <View className="flex-row items-center gap-3 flex-1 pr-2">
-                                                <View className={`h-10 w-10 rounded-xl items-center justify-center ${isSelected ? "bg-[#1B5E37]/10" : "bg-gray-100"}`}>
-                                                    <Ionicons name="repeat" size={18} color={isSelected ? "#1B5E37" : "#4B5563"} />
+                                            {/* Top Row: Icon + Title + Status */}
+                                            <TouchableOpacity
+                                                activeOpacity={0.8}
+                                                onPress={() => {
+                                                    setSelectedSubId(item.subscription_id);
+                                                    setIsSelectingVacation(false);
+                                                    setVacationStart(null);
+                                                    setVacationEnd(null);
+                                                }}
+                                                className="flex-row items-center justify-between pb-3 border-b border-gray-100"
+                                            >
+                                                <View className="flex-row items-center gap-3 flex-1 pr-2">
+                                                    <View className="h-10 w-10 rounded-xl bg-[#1B5E37]/10 items-center justify-center">
+                                                        <Ionicons name="repeat" size={20} color="#1B5E37" />
+                                                    </View>
+                                                    <View className="flex-1">
+                                                        <Text className="text-[14px] font-black text-gray-900 leading-tight" numberOfLines={1}>
+                                                            {title}
+                                                        </Text>
+                                                        <Text className="text-[11px] font-bold text-gray-500 mt-1 leading-none">
+                                                            {item.frequency_display || "Daily"} • {quantity} {unit}
+                                                        </Text>
+                                                    </View>
                                                 </View>
-                                                <View className="flex-1">
-                                                    <Text className="text-[13px] font-black text-gray-900 leading-tight" numberOfLines={1}>
-                                                        {title}
-                                                    </Text>
-                                                    <Text className="text-[10px] font-bold text-gray-500 mt-1 leading-none">
-                                                        {item.frequency_display} • Qty: {quantity} {item.items?.[0]?.product_id ? "Litre(s)" : ""}
+                                                <View className={`px-2.5 py-1 rounded-full ${isPaused ? "bg-amber-100" : "bg-[#EAF5EF]"}`}>
+                                                    <Text className={`text-[9px] font-black ${isPaused ? "text-amber-800" : "text-[#15803D]"} uppercase`}>
+                                                        {item.status || (isPaused ? "Paused" : "Active")}
                                                     </Text>
                                                 </View>
+                                            </TouchableOpacity>
+
+                                            {/* Paused Vacation Banner with Resume Button */}
+                                            {isPaused && (
+                                                <View className="mt-3 p-3 rounded-xl bg-amber-50 border border-amber-200">
+                                                    <View className="flex-row items-center justify-between">
+                                                        <View className="flex-1 pr-2">
+                                                            <View className="flex-row items-center gap-1.5">
+                                                                <Ionicons name="pause-circle" size={15} color="#B45309" />
+                                                                <Text className="text-[12px] font-black text-amber-900">
+                                                                    Delivery Paused (Vacation Gap)
+                                                                </Text>
+                                                            </View>
+                                                            {item.pause_start ? (
+                                                                <Text className="text-[10px] font-semibold text-amber-700 mt-0.5">
+                                                                    {item.pause_start}{item.pause_end ? ` to ${item.pause_end}` : ""}
+                                                                </Text>
+                                                            ) : (
+                                                                <Text className="text-[10px] font-semibold text-amber-700 mt-0.5">
+                                                                    Deliveries currently on hold
+                                                                </Text>
+                                                            )}
+                                                        </View>
+                                                        <TouchableOpacity
+                                                            onPress={() => handleConfirmResumeSubscription(item.subscription_id)}
+                                                            disabled={isResumingSub}
+                                                            activeOpacity={0.8}
+                                                            className="px-3.5 py-2 rounded-xl bg-[#1B5E37] flex-row items-center gap-1.5 shadow-2xs"
+                                                        >
+                                                            {isResumingSub && selectedSubId === item.subscription_id ? (
+                                                                <ActivityIndicator size="small" color="#FFFFFF" />
+                                                            ) : (
+                                                                <>
+                                                                    <Ionicons name="play" size={13} color="#FFFFFF" />
+                                                                    <Text className="text-[11px] font-black text-white">Resume Delivery</Text>
+                                                                </>
+                                                            )}
+                                                        </TouchableOpacity>
+                                                    </View>
+                                                </View>
+                                            )}
+
+                                            {/* Daily Quantity Stepper Row */}
+                                            {/* <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
+                                                <View>
+                                                    <Text className="text-[11px] font-bold text-gray-500 uppercase">Daily Quantity</Text>
+                                                    <Text className="text-[13px] font-black text-gray-900 mt-0.5">
+                                                        {quantity} {unit}
+                                                    </Text>
+                                                </View>
+
+                                                <View className="flex-row items-center gap-2">
+                                                    <TouchableOpacity
+                                                        onPress={() => handleQuickUpdateQuantity(quantity - 1, item.subscription_id)}
+                                                        disabled={isUpdatingQuantity || quantity <= 1}
+                                                        activeOpacity={0.7}
+                                                        className={`h-8 w-8 rounded-lg items-center justify-center border ${
+                                                            quantity <= 1
+                                                                ? "bg-gray-50 border-gray-200"
+                                                                : "bg-white border-gray-300"
+                                                        }`}
+                                                    >
+                                                        <Ionicons
+                                                            name="remove"
+                                                            size={16}
+                                                            color={quantity <= 1 ? "#9CA3AF" : "#1B5E37"}
+                                                        />
+                                                    </TouchableOpacity>
+
+                                                    <View className="min-w-8 items-center">
+                                                        {isUpdatingQuantity && selectedSubId === item.subscription_id ? (
+                                                            <ActivityIndicator size="small" color="#1B5E37" />
+                                                        ) : (
+                                                            <Text className="text-[14px] font-black text-gray-900">
+                                                                {quantity}
+                                                            </Text>
+                                                        )}
+                                                    </View>
+
+                                                    <TouchableOpacity
+                                                        onPress={() => handleQuickUpdateQuantity(quantity + 1, item.subscription_id)}
+                                                        disabled={isUpdatingQuantity}
+                                                        activeOpacity={0.7}
+                                                        className="h-8 w-8 rounded-lg bg-[#1B5E37] items-center justify-center shadow-2xs"
+                                                    >
+                                                        <Ionicons name="add" size={16} color="#FFFFFF" />
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </View> */}
+
+                                            {/* Action Buttons: Edit & Cancel */}
+                                            <View className="flex-row items-center gap-2.5 pt-3">
+                                                <TouchableOpacity
+                                                    onPress={() => handleOpenEditModal(item)}
+                                                    activeOpacity={0.8}
+                                                    className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gray-50 border border-gray-200 active:bg-gray-100"
+                                                >
+                                                    <Ionicons name="create-outline" size={15} color="#1F2937" />
+                                                    <Text className="text-[12px] font-black text-gray-800">Edit</Text>
+                                                </TouchableOpacity>
+
+                                                <TouchableOpacity
+                                                    onPress={() => handleConfirmDeleteSubscription(item.subscription_id, title)}
+                                                    disabled={isDeletingSub}
+                                                    activeOpacity={0.8}
+                                                    className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-red-50 border border-red-200 active:bg-red-100"
+                                                >
+                                                    {isDeletingSub && selectedSubId === item.subscription_id ? (
+                                                        <ActivityIndicator size="small" color="#DC2626" />
+                                                    ) : (
+                                                        <>
+                                                            <Ionicons name="trash-outline" size={15} color="#DC2626" />
+                                                            <Text className="text-[12px] font-black text-red-600">Cancel</Text>
+                                                        </>
+                                                    )}
+                                                </TouchableOpacity>
                                             </View>
-                                            <View className="flex-row items-center gap-2">
-                                                <View className={`px-2.5 py-0.5 rounded-full ${isPaused ? "bg-amber-100" : "bg-[#EAF5EF]"}`}>
-                                                    <Text className={`text-[8px] font-black ${isPaused ? "text-amber-700" : "text-[#15803D]"} uppercase`}>
-                                                        {isPaused ? "Paused" : "Active"}
-                                                    </Text>
-                                                </View>
-                                                {isSelected && <Ionicons name="checkmark-circle" size={16} color="#1B5E37" />}
-                                            </View>
-                                        </TouchableOpacity>
+                                        </View>
                                     );
                                 })}
                             </View>
-
-                            {/* Manage Selected Plan Card */}
-                            {selectedSub && (
-                                <View
-                                    className="mb-5 rounded-2xl bg-white p-4 border border-gray-150"
-                                    style={{
-                                        shadowColor: "#000",
-                                        shadowOffset: { width: 0, height: 1 },
-                                        shadowOpacity: 0.05,
-                                        shadowRadius: 3,
-                                        elevation: 2,
-                                    }}
-                                >
-                                    <View className="flex-row items-center justify-between pb-3 border-b border-gray-100">
-                                        <View className="flex-row items-center gap-2">
-                                            <View className="h-7 w-7 rounded-lg bg-[#1B5E37]/10 items-center justify-center">
-                                                <Ionicons name="options" size={15} color="#1B5E37" />
-                                            </View>
-                                            <View>
-                                                <Text className="text-[12px] font-black text-gray-900 uppercase tracking-wider">
-                                                    Manage Selected Plan
-                                                </Text>
-                                                <Text className="text-[10px] font-medium text-gray-400">
-                                                    {selectedSub.items?.[0]?.product_name || "Milk Plan"}
-                                                </Text>
-                                            </View>
-                                        </View>
-                                        <View className={`px-2.5 py-0.5 rounded-full ${selectedSub.is_paused ? "bg-amber-100" : "bg-[#EAF5EF]"}`}>
-                                            <Text className={`text-[9px] font-black ${selectedSub.is_paused ? "text-amber-800" : "text-[#15803D]"} uppercase`}>
-                                                {selectedSub.status || (selectedSub.is_paused ? "Paused" : "Active")}
-                                            </Text>
-                                        </View>
-                                    </View>
-
-                                    {/* Quick Quantity Stepper */}
-                                    <View className="flex-row items-center justify-between py-3 border-b border-gray-100">
-                                        <View>
-                                            <Text className="text-[11px] font-bold text-gray-500 uppercase">Daily Quantity</Text>
-                                            <Text className="text-[13px] font-black text-gray-900 mt-0.5">
-                                                {selectedSub.items?.[0]?.quantity || 1} {selectedSub.items?.[0]?.product_id ? "Litre(s)" : "Bottle(s)"}
-                                            </Text>
-                                        </View>
-
-                                        <View className="flex-row items-center gap-2">
-                                            <TouchableOpacity
-                                                onPress={() => handleQuickUpdateQuantity((selectedSub.items?.[0]?.quantity || 1) - 1)}
-                                                disabled={isUpdatingQuantity || (selectedSub.items?.[0]?.quantity || 1) <= 1}
-                                                activeOpacity={0.7}
-                                                className={`h-8 w-8 rounded-lg items-center justify-center border ${(selectedSub.items?.[0]?.quantity || 1) <= 1
-                                                        ? "bg-gray-50 border-gray-200"
-                                                        : "bg-white border-gray-300"
-                                                    }`}
-                                            >
-                                                <Ionicons
-                                                    name="remove"
-                                                    size={16}
-                                                    color={(selectedSub.items?.[0]?.quantity || 1) <= 1 ? "#9CA3AF" : "#1B5E37"}
-                                                />
-                                            </TouchableOpacity>
-
-                                            <View className="min-w-8 items-center">
-                                                {isUpdatingQuantity ? (
-                                                    <ActivityIndicator size="small" color="#1B5E37" />
-                                                ) : (
-                                                    <Text className="text-[14px] font-black text-gray-900">
-                                                        {selectedSub.items?.[0]?.quantity || 1}
-                                                    </Text>
-                                                )}
-                                            </View>
-
-                                            <TouchableOpacity
-                                                onPress={() => handleQuickUpdateQuantity((selectedSub.items?.[0]?.quantity || 1) + 1)}
-                                                disabled={isUpdatingQuantity}
-                                                activeOpacity={0.7}
-                                                className="h-8 w-8 rounded-lg bg-[#1B5E37] items-center justify-center shadow-2xs"
-                                            >
-                                                <Ionicons name="add" size={16} color="#FFFFFF" />
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-
-                                    {/* Action Buttons: Edit Details & Cancel Plan */}
-                                    <View className="flex-row items-center gap-2.5 pt-3">
-                                        <TouchableOpacity
-                                            onPress={handleOpenEditModal}
-                                            activeOpacity={0.8}
-                                            className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-gray-50 border border-gray-200 active:bg-gray-100"
-                                        >
-                                            <Ionicons name="create-outline" size={15} color="#1F2937" />
-                                            <Text className="text-[12px] font-black text-gray-800">Edit Details</Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            onPress={handleConfirmDeleteSubscription}
-                                            disabled={isDeletingSub}
-                                            activeOpacity={0.8}
-                                            className="flex-1 flex-row items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-red-50 border border-red-200 active:bg-red-100"
-                                        >
-                                            {isDeletingSub ? (
-                                                <ActivityIndicator size="small" color="#DC2626" />
-                                            ) : (
-                                                <>
-                                                    <Ionicons name="trash-outline" size={15} color="#DC2626" />
-                                                    <Text className="text-[12px] font-black text-red-600">Cancel Plan</Text>
-                                                </>
-                                            )}
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            )}
 
                             {/* Get Subscription Section */}
                             <View className="mb-6">
@@ -1082,21 +1145,63 @@ export default function SubscriptionsScreen() {
 
                                     {/* Action Pause / Schedule Button */}
                                     {!isSelectingVacation ? (
-                                        <TouchableOpacity
-                                            onPress={() => setIsSelectingVacation(true)}
-                                            className="rounded-xl bg-[#1B5E37] py-3.5 items-center"
-                                            style={{
-                                                shadowColor: "#000",
-                                                shadowOffset: { width: 0, height: 1 },
-                                                shadowOpacity: 0.05,
-                                                shadowRadius: 1,
-                                                elevation: 1,
-                                            }}
-                                        >
-                                            <Text className="text-[15px] font-bold text-white">
-                                                Pause Delivery (Vacation Gap)
-                                            </Text>
-                                        </TouchableOpacity>
+                                        selectedSub?.is_paused ? (
+                                            <View className="rounded-2xl bg-amber-50 p-4 border border-amber-200">
+                                                <View className="flex-row items-center gap-2 mb-1.5">
+                                                    <Ionicons name="pause-circle" size={18} color="#B45309" />
+                                                    <Text className="text-[14px] font-black text-amber-900">
+                                                        Deliveries are Paused
+                                                    </Text>
+                                                </View>
+                                                <Text className="text-[12px] text-amber-800 font-medium mb-3 leading-relaxed">
+                                                    Your subscription is on vacation hold{selectedSub.pause_start ? ` (${selectedSub.pause_start}${selectedSub.pause_end ? ` to ${selectedSub.pause_end}` : ""})` : ""}. If you paused by mistake, you can resume right away.
+                                                </Text>
+                                                <View className="flex-row gap-2.5">
+                                                    <TouchableOpacity
+                                                        onPress={() => handleConfirmResumeSubscription(selectedSub.subscription_id)}
+                                                        disabled={isResumingSub}
+                                                        activeOpacity={0.85}
+                                                        className="flex-1 rounded-xl bg-[#1B5E37] py-3 items-center justify-center flex-row gap-2 shadow-xs"
+                                                    >
+                                                        {isResumingSub ? (
+                                                            <ActivityIndicator size="small" color="#FFFFFF" />
+                                                        ) : (
+                                                            <>
+                                                                <Ionicons name="play" size={16} color="#FFFFFF" />
+                                                                <Text className="text-[14px] font-black text-white">
+                                                                    Resume Deliveries
+                                                                </Text>
+                                                            </>
+                                                        )}
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        onPress={() => setIsSelectingVacation(true)}
+                                                        activeOpacity={0.8}
+                                                        className="px-4 rounded-xl bg-white border border-gray-300 py-3 items-center justify-center"
+                                                    >
+                                                        <Text className="text-[13px] font-bold text-gray-700">
+                                                            Change Dates
+                                                        </Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </View>
+                                        ) : (
+                                            <TouchableOpacity
+                                                onPress={() => setIsSelectingVacation(true)}
+                                                className="rounded-xl bg-[#1B5E37] py-3.5 items-center"
+                                                style={{
+                                                    shadowColor: "#000",
+                                                    shadowOffset: { width: 0, height: 1 },
+                                                    shadowOpacity: 0.05,
+                                                    shadowRadius: 1,
+                                                    elevation: 1,
+                                                }}
+                                            >
+                                                <Text className="text-[15px] font-bold text-white">
+                                                    Pause Delivery (Vacation Gap)
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )
                                     ) : (
                                         <View className="rounded-xl bg-gray-100 p-4 border border-gray-200">
                                             <View className="flex-row gap-3">
@@ -1251,6 +1356,31 @@ export default function SubscriptionsScreen() {
                                                 <Text className="text-xs text-gray-500 italic">No items listed in subscription</Text>
                                             )}
                                         </View>
+
+                                        {/* Resume Button if this day is marked vacation */}
+                                        {selectedDayInfo.status === "vacation" && selectedSub && (
+                                            <TouchableOpacity
+                                                onPress={() => {
+                                                    statusSheetRef.current?.dismiss();
+                                                    handleConfirmResumeSubscription(selectedSub.subscription_id);
+                                                }}
+                                                disabled={isResumingSub}
+                                                activeOpacity={0.85}
+                                                className="bg-[#1B5E37] py-3.5 rounded-2xl items-center justify-center flex-row gap-2 mb-3 shadow-md"
+                                                style={{
+                                                    shadowColor: "#1B5E37",
+                                                    shadowOffset: { width: 0, height: 4 },
+                                                    shadowOpacity: 0.15,
+                                                    shadowRadius: 6,
+                                                    elevation: 3,
+                                                }}
+                                            >
+                                                <Ionicons name="play-circle-outline" size={18} color="#FFFFFF" />
+                                                <Text className="text-[14px] font-black text-white">
+                                                    Cancel Vacation & Resume Delivery
+                                                </Text>
+                                            </TouchableOpacity>
+                                        )}
 
                                         {/* Close Button */}
                                         <TouchableOpacity
@@ -1533,83 +1663,49 @@ export default function SubscriptionsScreen() {
                             </View>
 
                             <View className="flex-row gap-2 mb-3">
-                                {/* 1/2 Litre Option */}
-                                <TouchableOpacity
-                                    onPress={() => setSelectedBottleSize("0.5")}
-                                    activeOpacity={0.85}
-                                    className={`flex-1 p-3 rounded-2xl border items-center text-center ${selectedBottleSize === "0.5"
-                                            ? "bg-[#E8F5EE] border-[#1B5E37]"
-                                            : "bg-gray-50/70 border-gray-200/80"
-                                        }`}
-                                >
-                                    <View className={`h-8 w-8 rounded-full items-center justify-center mb-1.5 ${selectedBottleSize === "0.5" ? "bg-[#1B5E37]" : "bg-white border border-gray-200/60"
-                                        }`}>
-                                        <Ionicons
-                                            name="flask-outline"
-                                            size={16}
-                                            color={selectedBottleSize === "0.5" ? "#ffffff" : "#4B5563"}
-                                        />
-                                    </View>
-                                    <Text className={`text-[12px] font-black ${selectedBottleSize === "0.5" ? "text-[#1B5E37]" : "text-gray-800"
-                                        }`}>
-                                        1/2 Litre
-                                    </Text>
-                                    <Text className="text-[9.5px] font-medium text-gray-400 mt-0.5">
-                                        500 ml
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {/* 1 Litre Option */}
-                                <TouchableOpacity
-                                    onPress={() => setSelectedBottleSize("1")}
-                                    activeOpacity={0.85}
-                                    className={`flex-1 p-3 rounded-2xl border items-center text-center ${selectedBottleSize === "1"
-                                            ? "bg-[#E8F5EE] border-[#1B5E37]"
-                                            : "bg-gray-50/70 border-gray-200/80"
-                                        }`}
-                                >
-                                    <View className={`h-8 w-8 rounded-full items-center justify-center mb-1.5 ${selectedBottleSize === "1" ? "bg-[#1B5E37]" : "bg-white border border-gray-200/60"
-                                        }`}>
-                                        <Ionicons
-                                            name="wine-outline"
-                                            size={16}
-                                            color={selectedBottleSize === "1" ? "#ffffff" : "#4B5563"}
-                                        />
-                                    </View>
-                                    <Text className={`text-[12px] font-black ${selectedBottleSize === "1" ? "text-[#1B5E37]" : "text-gray-800"
-                                        }`}>
-                                        1 Litre
-                                    </Text>
-                                    <Text className="text-[9.5px] font-medium text-gray-400 mt-0.5">
-                                        1000 ml
-                                    </Text>
-                                </TouchableOpacity>
-
-                                {/* 1.5 Litres Option */}
-                                <TouchableOpacity
-                                    onPress={() => setSelectedBottleSize("1.5")}
-                                    activeOpacity={0.85}
-                                    className={`flex-1 p-3 rounded-2xl border items-center text-center ${selectedBottleSize === "1.5"
-                                            ? "bg-[#E8F5EE] border-[#1B5E37]"
-                                            : "bg-gray-50/70 border-gray-200/80"
-                                        }`}
-                                >
-                                    <View className={`h-8 w-8 rounded-full items-center justify-center mb-1.5 ${selectedBottleSize === "1.5" ? "bg-[#1B5E37]" : "bg-white border border-gray-200/60"
-                                        }`}>
-                                        <Ionicons
-                                            name="beaker-outline"
-                                            size={16}
-                                            color={selectedBottleSize === "1.5" ? "#ffffff" : "#4B5563"}
-                                        />
-                                    </View>
-                                    <Text className={`text-[12px] font-black ${selectedBottleSize === "1.5" ? "text-[#1B5E37]" : "text-gray-800"
-                                        }`}>
-                                        1.5 Litres
-                                    </Text>
-                                    <Text className="text-[9.5px] font-medium text-gray-400 mt-0.5">
-                                        1500 ml
-                                    </Text>
-                                </TouchableOpacity>
+                                {([
+                                    { id: "0.5" as const, label: "1/2 Litre", sublabel: "500 ml", icon: "flask-outline" as const, sizeVal: 0.5 },
+                                    { id: "1" as const, label: "1 Litre", sublabel: "1000 ml", icon: "wine-outline" as const, sizeVal: 1.0 },
+                                    { id: "1.5" as const, label: "1.5 Litres", sublabel: "1500 ml", icon: "beaker-outline" as const, sizeVal: 1.5 },
+                                ])
+                                    .filter((bottle) => bottle.sizeVal <= selectedDeliveryQty)
+                                    .map((bottle) => {
+                                        const isSelected = selectedBottleSize === bottle.id;
+                                        return (
+                                            <TouchableOpacity
+                                                key={bottle.id}
+                                                onPress={() => setSelectedBottleSize(bottle.id)}
+                                                activeOpacity={0.85}
+                                                className={`flex-1 p-3 rounded-2xl border items-center text-center ${
+                                                    isSelected
+                                                        ? "bg-[#E8F5EE] border-[#1B5E37]"
+                                                        : "bg-gray-50/70 border-gray-200/80"
+                                                }`}
+                                            >
+                                                <View
+                                                    className={`h-8 w-8 rounded-full items-center justify-center mb-1.5 ${
+                                                        isSelected ? "bg-[#1B5E37]" : "bg-white border border-gray-200/60"
+                                                    }`}
+                                                >
+                                                    <Ionicons
+                                                        name={bottle.icon}
+                                                        size={16}
+                                                        color={isSelected ? "#ffffff" : "#4B5563"}
+                                                    />
+                                                </View>
+                                                <Text
+                                                    className={`text-[12px] font-black ${
+                                                        isSelected ? "text-[#1B5E37]" : "text-gray-800"
+                                                    }`}
+                                                >
+                                                    {bottle.label}
+                                                </Text>
+                                                <Text className="text-[9.5px] font-medium text-gray-400 mt-0.5">
+                                                    {bottle.sublabel}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                             </View>
 
                             {/* Packaging breakdown banner */}
@@ -1917,7 +2013,7 @@ export default function SubscriptionsScreen() {
                                         {
                                             text: "View Cart",
                                             onPress: () => {
-                                                router.push("/(customer)/cart");
+                                                router.push("/(customer)/(tabs)/cart" as any);
                                             }
                                         }
                                     ]

@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useMemo } from "react";
+import type { Order } from "../api/orderApi";
 import {
   Animated,
   Dimensions,
@@ -21,14 +22,36 @@ const PRODUCT_CARD_WIDTH = (width - 40) / 2; // 2 columns with gaps
 export function HeaderSection({
   locationName = "Bilzen, Tanjungbalai",
   onLocationPress,
+  orders = [],
 }: {
   locationName?: string;
   onLocationPress?: () => void;
+  orders?: Order[];
 }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const cartItems = useCartStore((s) => s.items);
   const cartCount = cartItems.reduce((acc, item) => acc + item.quantity, 0);
+
+  // Find most relevant order to track (active first, otherwise latest)
+  const orderToTrack = useMemo(() => {
+    if (!orders || orders.length === 0) return null;
+    const active = orders.find(
+      (o) =>
+        o.status !== "delivered" &&
+        o.status !== "cancelled" &&
+        o.status !== "rejected"
+    );
+    return active || orders[0];
+  }, [orders]);
+
+  const itemsSummary = useMemo(() => {
+    if (!orderToTrack) return "";
+    const items = orderToTrack.items || [];
+    if (items.length === 0) return `Order #${orderToTrack.id ? String(orderToTrack.id).slice(0, 8) : ""}`;
+    if (items.length === 1) return `${items[0].product_name || "Item"} (x${items[0].quantity})`;
+    return `${items[0].product_name || "Item"} +${items.length - 1} more`;
+  }, [orderToTrack]);
 
   return (
     <LinearGradient
@@ -60,7 +83,7 @@ export function HeaderSection({
           </View>
         </TouchableOpacity>
         <TouchableOpacity
-          onPress={() => router.push("/(customer)/cart")}
+          onPress={() => router.push("/(customer)/(tabs)/cart" as any)}
           className="h-10 w-10 items-center justify-center rounded-full bg-white shadow-sm border border-gray-200/50 relative"
         >
           <Ionicons name="cart-outline" size={20} color="#0C5A35" />
@@ -85,6 +108,40 @@ export function HeaderSection({
           <Ionicons name="options-outline" size={18} color="#0C5A35" />
         </TouchableOpacity>
       </View>
+
+      {/* Track Order Strip (below search bar if orders exist) */}
+      {orderToTrack && (
+        <TouchableOpacity
+          activeOpacity={0.88}
+          onPress={() => router.push("/(customer)/orders" as any)}
+          className="mt-3 flex-row items-center justify-between rounded-2xl bg-[#0C5A35] px-3.5 py-2.5 shadow-md shadow-[#0C5A35]/20"
+        >
+          <View className="flex-row items-center gap-2.5 flex-1 pr-2">
+            <View className="h-8 w-8 rounded-full bg-white/15 items-center justify-center">
+              <Ionicons name="bicycle" size={17} color="#FFFFFF" />
+            </View>
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Text className="text-[12px] font-black text-white">
+                  Track Order
+                </Text>
+                <View className="h-1.5 w-1.5 rounded-full bg-[#34D399]" />
+                <Text className="text-[10px] font-extrabold text-[#34D399] uppercase tracking-wider">
+                  {orderToTrack.status_display || orderToTrack.status || "Active"}
+                </Text>
+              </View>
+              <Text className="text-[10.5px] text-white/85 font-medium mt-0.5" numberOfLines={1}>
+                {itemsSummary} • ₹{orderToTrack.total}
+              </Text>
+            </View>
+          </View>
+
+          <View className="flex-row items-center gap-1 bg-white/20 px-2.5 py-1.5 rounded-xl">
+            <Text className="text-[11px] font-black text-white">Track</Text>
+            <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
+          </View>
+        </TouchableOpacity>
+      )}
     </LinearGradient>
   );
 }

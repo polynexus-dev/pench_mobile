@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
-import { useLocalSearchParams } from "expo-router";
+import { useLocalSearchParams, router } from "expo-router";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Alert, FlatList, RefreshControl, Text, TouchableOpacity, View } from "react-native";
 
@@ -15,11 +15,9 @@ import { EmptyOrdersState } from "../components/EmptyOrdersState";
 import { OrderCard } from "../components/OrderCard";
 import { OrderExtraBottomSheet } from "../components/OrderExtraBottomSheet";
 import { OrdersTabs } from "../components/OrdersTabs";
-import { GuestGate } from "@/features/auth/components/GuestGate";
 
 export default function OrdersScreen() {
     const domainName = useAuthStore((s) => s.domain_name) || "";
-    const isGuest = useAuthStore((s) => s.isGuest);
     const params = useLocalSearchParams<{ openModal?: string }>();
     const bottomTabPadding = useBottomTabPadding(24);
 
@@ -64,13 +62,13 @@ export default function OrdersScreen() {
     }, [params.openModal, openOrderSheet]);
 
     useEffect(() => {
-        if (!domainName || isGuest) {
+        if (!domainName) {
             setLoading(false);
             return;
         }
         fetchOrders();
         fetchProducts();
-    }, [domainName, isGuest, fetchOrders, fetchProducts]);
+    }, [domainName, fetchOrders, fetchProducts]);
 
     const onRefresh = useCallback(() => {
         setRefreshing(true);
@@ -103,25 +101,18 @@ export default function OrdersScreen() {
         });
     }, [orders, tab]);
 
-    if (isGuest) {
-        return (
-            <ScreenWrapper screenBgColor="#F5F8F6">
-                <GuestGate
-                    icon="receipt-outline"
-                    title="Your orders live here"
-                    message="Sign in or create an account to place orders and track your deliveries."
-                />
-            </ScreenWrapper>
-        );
-    }
-
     return (
         <ScreenWrapper screenBgColor="#F5F8F6">
-
-
-            <View className="px-4 py-4 border-b border-gray-100 bg-white">
-                <Text className="text-2xl font-black text-gray-900">Your Orders</Text>
-                <Text className="text-[13px] text-gray-500">Track and manage your upcoming deliveries</Text>
+            <View className="px-4 py-4 border-b border-gray-100 bg-white flex-row items-center">
+                {router.canGoBack() && (
+                    <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+                        <Ionicons name="arrow-back" size={24} color="#1F2937" />
+                    </TouchableOpacity>
+                )}
+                <View className="flex-1">
+                    <Text className="text-2xl font-black text-gray-900">Your Orders</Text>
+                    <Text className="text-[13px] text-gray-500">Track and manage your upcoming deliveries</Text>
+                </View>
             </View>
 
             <View className="px-4 py-3">

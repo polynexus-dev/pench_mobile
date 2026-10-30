@@ -1,6 +1,6 @@
 import React from "react";
-import { CartScreen } from "@/features/ecommerce/screens/CartScreen";
+import { Redirect } from "expo-router";
 
 export default function CartRoute() {
-  return <CartScreen />;
+  return <Redirect href="/(customer)/(tabs)/cart" />;
 }

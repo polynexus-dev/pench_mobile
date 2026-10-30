@@ -1,7 +1,8 @@
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useFocusEffect } from "expo-router";
+import { orderApi } from "@/features/dashboard/api/orderApi";
 import React from "react";
 import {
   Alert,
@@ -28,6 +29,7 @@ import { LocationSelectBottomSheet } from "../../map/screens/LocationSelectBotto
 import { BottomSheetModal } from "@gorhom/bottom-sheet";
 import { asyncStorage } from "../../../services/storage/asyncStorage";
 import { locationApi } from "@/services/api/locationApi";
+import type { CustomerLocation } from "@/types/domain/location.types";
 
 interface MenuItemProps {
   icon: keyof typeof Ionicons.glyphMap;
@@ -89,16 +91,24 @@ function CardShell({ children }: { children: React.ReactNode }) {
 interface StatsCardProps {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  badge?: number | string | null;
   onPress: () => void;
 }
 
-function StatsCard({ icon, label, onPress }: StatsCardProps) {
+function StatsCard({ icon, label, badge, onPress }: StatsCardProps) {
   return (
     <TouchableOpacity
       activeOpacity={0.7}
       onPress={onPress}
-      className="flex-1 bg-white rounded-[20px] py-5 items-center justify-center border border-[#F0F2F5] shadow-xs"
+      className="flex-1 bg-white rounded-[20px] py-5 items-center justify-center border border-[#F0F2F5] shadow-xs relative"
     >
+      {badge != null && Number(badge) > 0 && (
+        <View className="absolute top-2.5 right-2.5 bg-[#0C5A35] min-w-[20px] h-5 px-1.5 rounded-full items-center justify-center shadow-xs">
+          <Text className="text-[10px] font-black text-white leading-none">
+            {badge}
+          </Text>
+        </View>
+      )}
       <Ionicons name={icon} size={24} color="#0A3925" className="mb-2" />
       <Text className="text-[13px] font-semibold text-[#1A1A1A] text-center">
         {label}
@@ -120,6 +130,30 @@ export function CustomerProfileScreen() {
   const { requireAuth } = useRequireAuth();
   const { exitGuestSession } = useGuestSession();
   const { deleteAccount, isDeleting } = useDeleteAccount();
+
+  const [orderCount, setOrderCount] = React.useState<number>(() => user?.customer_dashboard?.total_orders ?? 0);
+
+  const fetchOrdersCount = React.useCallback(async () => {
+    if (!domain_name || isGuest) return;
+    try {
+      const orders = await orderApi.getOrders(domain_name);
+      if (Array.isArray(orders)) {
+        setOrderCount(orders.length);
+      }
+    } catch (err) {
+      console.warn("Failed to fetch order count in profile:", err);
+    }
+  }, [domain_name, isGuest]);
+
+  React.useEffect(() => {
+    fetchOrdersCount();
+  }, [fetchOrdersCount]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchOrdersCount();
+    }, [fetchOrdersCount])
+  );
 
   const [activeView, setActiveView] = React.useState<
     'view' | 'edit_profile' | 'change_password' | 'delete_account'
@@ -627,7 +661,8 @@ export function CustomerProfileScreen() {
                 <StatsCard
                   icon="time-outline"
                   label="Your orders"
-                  onPress={() => router.push("/(customer)/(tabs)/orders")}
+                  badge={orderCount > 0 ? orderCount : undefined}
+                  onPress={() => router.push("/(customer)/orders")}
                 />
                 <StatsCard
                   icon="wallet-outline"

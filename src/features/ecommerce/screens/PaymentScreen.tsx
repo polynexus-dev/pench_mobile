@@ -380,37 +380,7 @@ export function PaymentScreen({
     }
   };
 
-  const handleTakePhoto = async () => {
-    try {
-      const { status } = await ImagePicker.requestCameraPermissionsAsync();
-      if (status !== "granted") {
-        Alert.alert(
-          "Permission Required",
-          "Camera permission is required to take a photo of your payment receipt."
-        );
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ["images"],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (!result.canceled && result.assets && result.assets.length > 0) {
-        const asset = result.assets[0];
-        setPaymentScreenshot({
-          uri: asset.uri,
-          name: asset.fileName || `payment_camera_${Date.now()}.jpg`,
-          type: asset.mimeType || "image/jpeg",
-        });
-      }
-    } catch (err: any) {
-      Alert.alert("Camera Failed", err?.message || "Could not launch camera.");
-    }
-  };
-
-  const getItemAmount = (item: any): number => {
+    const getItemAmount = (item: any): number => {
     const idStr = String(item.id).toLowerCase();
     const moMatch = idStr.match(/_(\d+)mo_/);
     const months = moMatch ? parseInt(moMatch[1], 10) : 1;
@@ -460,10 +430,9 @@ export function PaymentScreen({
     if (!paymentScreenshot) {
       Alert.alert(
         "Payment Screenshot Required",
-        "Please upload or capture a screenshot of your payment receipt before confirming your order.",
+        "Please upload a screenshot of your payment receipt before confirming your order.",
         [
-          { text: "Choose from Gallery", onPress: handlePickFromGallery },
-          { text: "Take Photo", onPress: handleTakePhoto },
+          { text: "Upload Screenshot", onPress: handlePickFromGallery },
           { text: "Cancel", style: "cancel" },
         ]
       );
@@ -620,7 +589,7 @@ export function PaymentScreen({
             if (hasSubs) {
               router.replace("/(customer)/(tabs)/subscriptions");
             } else {
-              router.replace("/(customer)/(tabs)/orders");
+              router.replace("/(customer)/orders");
             }
           },
         },
@@ -876,7 +845,7 @@ export function PaymentScreen({
                       className="flex-row items-center gap-1 bg-white border border-gray-200 px-2.5 py-1.5 rounded-lg shadow-2xs"
                     >
                       <Ionicons name="refresh-outline" size={13} color="#374151" />
-                      <Text className="text-[11px] font-bold text-gray-700">Change</Text>
+                      <Text className="text-[11px] font-bold text-gray-700">Update Screenshot</Text>
                     </TouchableOpacity>
 
                     <TouchableOpacity
@@ -892,29 +861,16 @@ export function PaymentScreen({
               </View>
             </View>
           ) : (
-            <View className="flex-row gap-2.5">
-              <TouchableOpacity
-                onPress={handlePickFromGallery}
-                activeOpacity={0.8}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-gray-50 border border-dashed border-gray-300 py-3.5 px-2 active:bg-gray-100"
-              >
-                <Ionicons name="images-outline" size={18} color="#0C5A35" />
-                <Text className="text-[12px] font-black text-gray-800">
-                  Upload Photo
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handleTakePhoto}
-                activeOpacity={0.8}
-                className="flex-1 flex-row items-center justify-center gap-2 rounded-xl bg-gray-50 border border-dashed border-gray-300 py-3.5 px-2 active:bg-gray-100"
-              >
-                <Ionicons name="camera-outline" size={18} color="#0C5A35" />
-                <Text className="text-[12px] font-black text-gray-800">
-                  Take Photo
-                </Text>
-              </TouchableOpacity>
-            </View>
+            <TouchableOpacity
+              onPress={handlePickFromGallery}
+              activeOpacity={0.8}
+              className="w-full flex-row items-center justify-center gap-2 rounded-xl bg-gray-50 border border-dashed border-gray-300 py-3.5 px-4 active:bg-gray-100"
+            >
+              <Ionicons name="images-outline" size={18} color="#0C5A35" />
+              <Text className="text-[13px] font-black text-gray-800">
+                Upload Screenshot
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
 

@@ -12,7 +12,7 @@ import {
   UIManager,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { Calendar } from "react-native-calendars";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -21,6 +21,7 @@ import { useAuthStore } from "@/store/authStore";
 import { useRequireAuth } from "@/features/auth/hooks/useRequireAuth";
 import { useCartStore } from "@/store/useCartStore";
 import { orderApi } from "@/features/dashboard/api/orderApi";
+import { productApi } from "@/features/dashboard/api/productApi";
 import { PaymentScreen } from "@/features/ecommerce/screens/PaymentScreen";
 
 const getProductThumbnail = (name: string) => {
@@ -260,6 +261,7 @@ const CartItemRow = React.memo(({
 });
 
 export function CartScreen() {
+  const insets = useSafeAreaInsets();
   const { user } = useAuthStore();
   const isGuest = useAuthStore((s) => s.isGuest);
   const { requireAuth } = useRequireAuth();
@@ -272,9 +274,10 @@ export function CartScreen() {
 
   const [orderDate, setOrderDate] = useState("");
   const [showCalendar, setShowCalendar] = useState(false);
-  const [showPaymentStep, setShowPaymentStep] = useState(false);
+  const [isPlacingOrder, setIsPlacingOrder] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [expandedItems, setExpandedItems] = useState<Record<string | number, boolean>>({});
+  const [showPaymentStep, setShowPaymentStep] = useState(false);
 
   const toggleExpand = (id: string | number) => {
     setExpandedItems((prev) => ({
@@ -319,16 +322,82 @@ export function CartScreen() {
     return todayOrder.status === "pending" || todayOrder.status === "confirmed";
   };
 
-  const handleProceedToPayment = () => {
-    // Guests browse the cart freely; paying is where an account is required
-    if (!requireAuth({ action: "place an order" })) return;
+  const handlePlaceOrder = async () => {
+    let finalDeliveryDate = orderDate ? orderDate.trim() : "";
+    if (!finalDeliveryDate) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      const year = tomorrow.getFullYear();
+      const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+      const day = String(tomorrow.getDate()).padStart(2, "0");
+      finalDeliveryDate = `${year}-${month}-${day}`;
+    }
 
+    setIsPlacingOrder(true);
+    try {
+      let availableProducts: any[] = [];
+      try {
+        availableProducts = await productApi.getProducts(domainName);
+      } catch {
+        // ignore
+      }
+
+      const items = cartItems.map((item) => {
+        let productId = item.id;
+        if (typeof productId === "string" && productId.startsWith("sub_")) {
+          const match = productId.match(/^sub_([^_]+)/);
+          if (match && match[1]) {
+            productId = match[1];
+          }
+        }
+
+        if (isNaN(Number(productId)) && availableProducts.length > 0) {
+          const matched = availableProducts.find(
+            (p) =>
+              String(p.id) === String(productId) ||
+              p.name?.toLowerCase().includes(String(productId).toLowerCase()) ||
+              item.name?.toLowerCase().includes(p.name?.toLowerCase()) ||
+              p.sku?.toLowerCase() === String(productId).toLowerCase()
+          );
+          if (matched) {
+            productId = matched.id;
+          } else {
+            productId = availableProducts[0].id;
+          }
+        }
+
+        return {
+          product: !isNaN(Number(productId)) ? Number(productId) : productId,
+          quantity: Number(item.quantity) || 1,
+        };
+      });
+
+      if (items.length === 0) {
+        Alert.alert("Empty Selection", "Please add at least 1 product to place an order.");
+        return;
+      }
+
+      await orderApi.createOrder(domainName, {
+        scheduled_delivery_date: finalDeliveryDate,
+        items,
+      });
+      Alert.alert("Order Placed!", "Your one-time extra order has been successfully placed!");
+      clearCart();
+      router.replace("/(customer)/orders");
+    } catch (e: any) {
+      Alert.alert("Order Failed", e?.message || "Failed to create order.");
+    } finally {
+      setIsPlacingOrder(false);
+    }
+  };
+
+  const handleProceedToPayment = () => {
+    if (!requireAuth({ action: "place an order" })) return;
     if (cartItems.length === 0) {
       Alert.alert("Empty Selection", "Please add at least 1 product to place an order.");
       return;
     }
 
-    // Subscriptions carry their own start date; only one-time items need one here
     if (hasOneTimeItems && !orderDate.trim()) {
       Alert.alert("Required Date", "Please select a valid scheduled delivery date.");
       return;
@@ -368,8 +437,6 @@ export function CartScreen() {
     return sum + item.price * item.quantity * multiplier;
   }, 0);
 
-  // Checkout is a second step rather than a route, so backing out of payment
-  // returns to the cart with its contents and chosen date still intact.
   if (showPaymentStep) {
     return (
       <PaymentScreen
@@ -381,14 +448,16 @@ export function CartScreen() {
   }
 
   return (
-    <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top", "bottom"]}>
+    <SafeAreaView className="flex-1 bg-[#FDFDFD]" edges={["top"]}>
       <StatusBar style="dark" />
       
       {/* Header */}
       <View className="flex-row items-center border-b border-gray-100 bg-white px-4 py-3.5 shadow-sm">
-        <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
-          <Ionicons name="arrow-back" size={24} color="#1F2937" />
-        </TouchableOpacity>
+        {router.canGoBack() && (
+          <TouchableOpacity onPress={() => router.back()} className="mr-3 p-1">
+            <Ionicons name="arrow-back" size={24} color="#1F2937" />
+          </TouchableOpacity>
+        )}
         <View className="flex-1">
           <Text className="text-[18px] font-black text-gray-900">Your Cart</Text>
           <Text className="text-[11px] font-bold text-gray-500 mt-0.5">Place a one-time order</Text>
@@ -411,7 +480,13 @@ export function CartScreen() {
             Add some pure, farm-fresh milk and organic dairy essentials to your cart.
           </Text>
           <TouchableOpacity
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.push("/(customer)/(tabs)/dashboard" as any);
+              }
+            }}
             className="rounded-full bg-[#0C5A35] px-8 py-3.5 shadow-md active:opacity-90"
           >
             <Text className="text-[14px] font-bold text-white uppercase tracking-wider">Browse Products</Text>
@@ -422,7 +497,7 @@ export function CartScreen() {
         <View className="flex-1">
           <ScrollView
             className="flex-1"
-            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 32 }}
+            contentContainerStyle={{ paddingHorizontal: 16, paddingTop: 16, paddingBottom: 60 }}
             showsVerticalScrollIndicator={false}
           >
             {/* Selected Products List */}
@@ -615,8 +690,9 @@ export function CartScreen() {
 
           {/* Bottom Sticky Footer */}
           <View
-            className="border-t border-gray-100 bg-white p-4 pb-6"
+            className="border-t border-gray-100 bg-white p-4"
             style={{
+              paddingBottom: Math.max(insets.bottom, 12) + 72,
               shadowColor: "#000000",
               shadowOffset: { width: 0, height: -4 },
               shadowOpacity: 0.03,
@@ -651,9 +727,9 @@ export function CartScreen() {
                 elevation: 4,
               }}
             >
-              <Ionicons name="lock-closed" size={16} color="#FFFFFF" />
+              <Ionicons name="qr-code-outline" size={20} color="#FFFFFF" />
               <Text className="text-[15px] font-black text-white uppercase tracking-wider">
-                Proceed to Payment
+                Proceed to Pay ₹{totalAmount}
               </Text>
             </TouchableOpacity>
           </View>

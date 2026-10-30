@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
   TextInput,
   Alert,
+  Linking,
   StyleSheet,
 } from "react-native";
 import {
@@ -120,7 +121,7 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
 
           backendLocations.forEach((loc) => {
             const rawTag = (loc.tag || "home").trim();
-            const profileLabel = rawTag.charAt(0).toUpperCase() + rawTag.slice(1);
+            const profileLabel = loc.label?.trim() || (rawTag.charAt(0).toUpperCase() + rawTag.slice(1));
             const lat = typeof loc.latitude === "string" ? parseFloat(loc.latitude) : loc.latitude;
             const lng = typeof loc.longitude === "string" ? parseFloat(loc.longitude) : loc.longitude;
             const safeLat = isNaN(lat) ? DEFAULT_LAT : lat;
@@ -362,32 +363,49 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
       return () => clearTimeout(timer);
     }, [searchQuery]);
 
-    // Handle "Use current location" -> Open ConfirmLocationScreen map
-    const handleOpenCurrentLocationMap = () => {
-      modalRef.current?.dismiss();
-      router.push("/(customer)/confirm-location" as any);
-    };
-
-    // Handle Enable device location button
-    const handleEnableLocation = async () => {
+        // Handle "Use current location" with permission request and prompt
+    const handleUseCurrentLocation = async () => {
       setLocating(true);
       try {
+        const servicesEnabled = await Location.hasServicesEnabledAsync();
+        if (!servicesEnabled) {
+          Alert.alert(
+            "Location Services Disabled",
+            "Please turn on Device Location (GPS) in your phone settings to detect your current location.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ]
+          );
+          return;
+        }
+
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status === "granted") {
           setIsLocationEnabled(true);
-          handleOpenCurrentLocationMap();
+          modalRef.current?.dismiss();
+          router.push("/(customer)/confirm-location" as any);
         } else {
           Alert.alert(
             "Location Permission Required",
-            "Please enable location permission to detect your current location."
+            "Pench needs location access to detect your delivery address. Please allow location permission in your device settings.",
+            [
+              { text: "Cancel", style: "cancel" },
+              { text: "Open Settings", onPress: () => Linking.openSettings() },
+            ]
           );
         }
-      } catch (e) {
-        handleOpenCurrentLocationMap();
+      } catch (err: any) {
+        console.warn("Location permission check failed:", err);
+        modalRef.current?.dismiss();
+        router.push("/(customer)/confirm-location" as any);
       } finally {
         setLocating(false);
       }
     };
+
+    const handleOpenCurrentLocationMap = handleUseCurrentLocation;
+    const handleEnableLocation = handleUseCurrentLocation;
 
     // Handle Function 2: Parse Google Maps link
     const handleExtractGoogleMapsLink = async () => {
@@ -981,7 +999,7 @@ export const LocationSelectBottomSheet = forwardRef<BottomSheetModal, Props>(
               <View style={styles.optionsCard}>
                 {/* Row 1: Function 1: "Use current location" -> Opens ConfirmLocationScreen */}
                 <TouchableOpacity
-                  onPress={handleOpenCurrentLocationMap}
+                  onPress={handleUseCurrentLocation}
                   style={styles.optionRow}
                   activeOpacity={0.7}
                 >

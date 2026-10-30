@@ -1,27 +1,28 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { buildUrl } from "@/services/api/buildUrl";
+import { httpClient } from "@/services/api/httpClient";
+import { locationApi } from "@/services/api/locationApi";
+import { useAuthStore } from "@/store/authStore";
+import type { CustomerLocation } from "@/types/domain/location.types";
+import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Location from "expo-location";
+import { useRouter } from "expo-router";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  TextInput,
   ActivityIndicator,
-  StyleSheet,
   Alert,
-  Keyboard,
   Image,
+  Keyboard,
+  Linking,
   ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { useRouter } from "expo-router";
-import * as Location from "expo-location";
 import { WebView } from "react-native-webview";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAuthStore } from "@/store/authStore";
-import { httpClient } from "@/services/api/httpClient";
-import { buildUrl } from "@/services/api/buildUrl";
-import { locationApi } from "@/services/api/locationApi";
-import type { CustomerLocation } from "@/types/domain/location.types";
 
 const DEFAULT_LAT = 21.1458;
 const DEFAULT_LNG = 79.0882;
@@ -157,7 +158,7 @@ export function ConfirmLocationScreen() {
         setIsGeocoding(false);
         return;
       }
-    } catch (e) {}
+    } catch (e) { }
 
     setAddressTitle("Pinned Location");
     setAddressSubtitle(`${lat.toFixed(5)}, ${lng.toFixed(5)}`);
@@ -237,15 +238,41 @@ export function ConfirmLocationScreen() {
   const handleUseCurrentLocation = async () => {
     setIsLocating(true);
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== "granted") {
+      // 1. Request foreground permissions directly (prompts Android OS dialog if not yet asked)
+      const perm = await Location.requestForegroundPermissionsAsync();
+
+      // If permission is not granted, show the permission prompt dialog
+      if (perm.status !== "granted") {
         Alert.alert(
           "Location Permission Required",
-          "Please enable location permission in your device settings to detect your current location."
+          "Pench needs access to your device location to detect your delivery address. Please grant location permission in Settings.",
+          [
+            { text: "Cancel", style: "cancel" },
+            {
+              text: "Give Permission",
+              style: "default",
+              onPress: () => Linking.openSettings(),
+            },
+          ]
         );
         return;
       }
 
+      // 2. Check if device location services (GPS) are enabled
+      const servicesEnabled = await Location.hasServicesEnabledAsync();
+      if (!servicesEnabled) {
+        Alert.alert(
+          "Location Services Disabled",
+          "Device GPS / Location is turned off. Please turn on Location in your phone settings to detect your current position.",
+          [
+            { text: "Cancel", style: "cancel" },
+            { text: "Open Settings", onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      // 3. Get accurate current GPS position
       const pos = await Location.getCurrentPositionAsync({
         accuracy: Location.Accuracy.Balanced,
       });
@@ -254,7 +281,15 @@ export function ConfirmLocationScreen() {
       zoomMapTo(latitude, longitude);
       await fetchAddress(latitude, longitude);
     } catch (e: any) {
-      Alert.alert("Location Detection Failed", "Could not detect GPS location.");
+      console.warn("Location detection error:", e);
+      Alert.alert(
+        "Location Detection Failed",
+        "Could not detect your current location. Please verify that GPS and location permissions are enabled.",
+        [
+          { text: "Cancel", style: "cancel" },
+          { text: "Open Settings", onPress: () => Linking.openSettings() },
+        ]
+      );
     } finally {
       setIsLocating(false);
     }
@@ -299,8 +334,8 @@ export function ConfirmLocationScreen() {
         selectedTag === "home"
           ? "Home"
           : selectedTag === "work"
-          ? "Work"
-          : tagLabel.trim() || "Other";
+            ? "Work"
+            : tagLabel.trim() || "Other";
       const labelValue = selectedTag === "other" ? tagLabel.trim() : "";
 
       const payload = {
@@ -388,7 +423,7 @@ export function ConfirmLocationScreen() {
             promptUpdateConfirmation(found);
             return;
           }
-        } catch {}
+        } catch { }
       }
 
       Alert.alert("Error Saving Location", err?.message || "Failed to confirm location.");
@@ -402,8 +437,8 @@ export function ConfirmLocationScreen() {
       existing.tag === "home"
         ? "Home"
         : existing.tag === "work"
-        ? "Work"
-        : existing.label || "Other";
+          ? "Work"
+          : existing.label || "Other";
 
     Alert.alert(
       `Update Existing ${tagName} Location?`,
@@ -434,7 +469,7 @@ export function ConfirmLocationScreen() {
         existing = found.find(
           (l) => (l.tag || "").toLowerCase() === selectedTag.toLowerCase()
         );
-      } catch (e) {}
+      } catch (e) { }
     }
 
     if (existing?.id) {
@@ -619,9 +654,9 @@ export function ConfirmLocationScreen() {
           activeOpacity={0.85}
         >
           {isLocating ? (
-            <ActivityIndicator size="small" color="#16A34A" />
+            <ActivityIndicator size="small" color="#FFFFFF" />
           ) : (
-            <Ionicons name="locate-outline" size={18} color="#16A34A" />
+            <Ionicons name="locate" size={19} color="#FFFFFF" />
           )}
           <Text style={styles.floatingCurrentLocationText}>
             {isLocating ? "Locating..." : "Use current location"}
@@ -961,28 +996,29 @@ const styles = StyleSheet.create({
   // Floating Use Current Location Button
   floatingCurrentLocationBtn: {
     position: "absolute",
-    bottom: 18,
+    bottom: 20,
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    gap: 7,
-    backgroundColor: "#FFFFFF",
+    gap: 8,
+    backgroundColor: "#0C5A35",
     borderWidth: 1.5,
     borderColor: "#16A34A",
     borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    shadowColor: "#0C5A35",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 8,
+    elevation: 8,
     zIndex: 30,
   },
   floatingCurrentLocationText: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#16A34A",
+    fontSize: 14,
+    fontWeight: "900",
+    color: "#FFFFFF",
+    letterSpacing: 0.3,
   },
 
   // Bottom Card
