@@ -10,7 +10,11 @@ import {
   Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { VersionCheckResult } from "../services/versionService";
+import {
+  ANDROID_PACKAGE,
+  IOS_APP_STORE_ID,
+  VersionCheckResult,
+} from "../services/versionService";
 
 interface Props {
   checkResult: VersionCheckResult | null;
@@ -41,26 +45,37 @@ export function ForceUpdateModal({ checkResult, onDismissOptional, onRetry }: Pr
   if (!isVisible || !checkResult) return null;
 
   const handleUpdatePress = async () => {
-    try {
-      const url = checkResult.storeUrl;
-      const canOpen = await Linking.canOpenURL(url);
+    // Native store app first (opens Play Store / App Store directly), then the
+    // URL from the backend, then the public web listing. openURL is tried
+    // directly because canOpenURL wrongly reports false for market:// on
+    // Android 11+ and itms-apps:// on iOS unless the schemes are declared.
+    const candidates =
+      Platform.OS === "android"
+        ? [
+            `market://details?id=${ANDROID_PACKAGE}`,
+            checkResult.storeUrl,
+            `https://play.google.com/store/apps/details?id=${ANDROID_PACKAGE}`,
+          ]
+        : [
+            `itms-apps://apps.apple.com/app/id${IOS_APP_STORE_ID}`,
+            checkResult.storeUrl,
+            `https://apps.apple.com/app/id${IOS_APP_STORE_ID}`,
+          ];
 
-      if (canOpen) {
+    for (const url of candidates) {
+      if (!url) continue;
+      try {
         await Linking.openURL(url);
-      } else {
-        // Fallback to web Play Store if market:// cannot be opened (e.g. emulator without store)
-        const fallbackUrl =
-          Platform.OS === "android"
-            ? "https://play.google.com/store/apps/details?id=in.polynexus.penchfoods"
-            : "https://apps.apple.com/app/id6803119085";
-        await Linking.openURL(fallbackUrl);
+        return;
+      } catch {
+        // try the next candidate
       }
-    } catch (err: any) {
-      Alert.alert(
-        "Could Not Open Store",
-        "Please visit the Google Play Store or App Store manually and search for 'Pench' to update."
-      );
     }
+
+    Alert.alert(
+      "Could Not Open Store",
+      `Please open the ${Platform.OS === "android" ? "Google Play Store" : "App Store"} and search for 'Pench' to update.`
+    );
   };
 
   return (

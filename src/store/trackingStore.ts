@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/useToast";
 import { useGeofenceStore } from "./geofenceStore";
 import { asyncStorage } from "@services/storage/asyncStorage";
 import { queryClient } from "@/services/api/queryClient";
+import { getAppVersionQuery } from "@/features/version/services/versionService";
 
 const { show } = useToast();
 
@@ -182,7 +183,7 @@ export const useTrackingStore = createStore<TrackingStore>(
                 .replace(/\/+$/, "");
 
             const token = useAuthStore.getState().accessToken;
-            const ws = new WebSocket(`wss://${cleanDomain}/ws/tracking/?token=${token}`);
+            const ws = new WebSocket(`wss://${cleanDomain}/ws/tracking/?token=${token}${getAppVersionQuery()}`);
 
             console.log(
                 "Connecting to WebSocket at wss://",
