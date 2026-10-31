@@ -3,6 +3,9 @@ import { AppState, AppStateStatus } from "react-native";
 import { checkAppVersion } from "../services/versionService";
 import { useVersionStore } from "../store/versionStore";
 
+// Longest the splash screen waits for the launch check before letting the app open
+const LAUNCH_CHECK_MAX_WAIT_MS = 4000;
+
 // Once the user taps "Remind Me Later", don't nag again until the next cold start
 let optionalDismissed = false;
 
@@ -21,10 +24,17 @@ export function useAppVersionCheck() {
   }, [setCheckResult]);
 
   useEffect(() => {
-    // 1. Check immediately on mount
-    runCheck();
+    // 1. Check on launch while the splash screen is still showing. The splash is
+    //    released when the check finishes or after LAUNCH_CHECK_MAX_WAIT_MS,
+    //    whichever comes first; a late result still raises the modal.
+    const { setLaunchCheckDone } = useVersionStore.getState();
+    const timeoutId = setTimeout(setLaunchCheckDone, LAUNCH_CHECK_MAX_WAIT_MS);
+    runCheck().finally(() => {
+      clearTimeout(timeoutId);
+      setLaunchCheckDone();
+    });
 
-    // 2. Also re-check when app resumes from background
+    // 2. Also re-check when app resumes from background (no splash on resume)
     const subscription = AppState.addEventListener(
       "change",
       (nextState: AppStateStatus) => {
@@ -34,7 +44,10 @@ export function useAppVersionCheck() {
       }
     );
 
-    return () => subscription.remove();
+    return () => {
+      clearTimeout(timeoutId);
+      subscription.remove();
+    };
   }, [runCheck]);
 
   const dismissOptional = useCallback(() => {

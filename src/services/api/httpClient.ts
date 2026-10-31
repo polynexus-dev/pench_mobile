@@ -52,7 +52,18 @@ httpClient.interceptors.response.use(
       statusCode === 426 ||
       (statusCode === 503 && responseData?.status === "maintenance")
     ) {
-      const versionResult = resultFromBackendPayload(responseData);
+      // A 426 always means "update required", even if the body lacks version fields
+      const versionResult =
+        resultFromBackendPayload(responseData) ??
+        (statusCode === 426
+          ? resultFromBackendPayload({
+              status: "force_update",
+              force_update: true,
+              soft_update: false,
+              maintenance_mode: false,
+              message: responseData?.detail,
+            })
+          : null);
       if (versionResult) {
         useVersionStore.getState().setCheckResult(versionResult);
       }

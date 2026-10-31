@@ -42,8 +42,8 @@ export interface BackendVersionPayload {
 // Identifies this binary to the backend AppVersionConfig (one app serves all roles)
 export const APP_NAME = "pench";
 
-const IOS_APP_STORE_ID = "6803119085";
-const ANDROID_PACKAGE = "in.polynexus.penchfoods";
+export const IOS_APP_STORE_ID = "6803119085";
+export const ANDROID_PACKAGE = "in.polynexus.penchfoods";
 
 // Legacy fallback, used only when the backend is unreachable
 export const REMOTE_VERSION_CONFIG_URL =
@@ -64,6 +64,13 @@ export function getAppVersionHeaders(): Record<string, string> {
     "X-App-Platform": Platform.OS,
     "X-App-Version": getCurrentAppVersion().version,
   };
+}
+
+// Same info for WebSocket URLs (e.g. "&app=pench&platform=ios&version=1.0.5")
+export function getAppVersionQuery(): string {
+  if (Platform.OS !== "android" && Platform.OS !== "ios") return "";
+  const version = encodeURIComponent(getCurrentAppVersion().version);
+  return `&app=${APP_NAME}&platform=${Platform.OS}&version=${version}`;
 }
 
 function defaultStoreUrl(): string {
