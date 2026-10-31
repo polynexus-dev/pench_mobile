@@ -18,6 +18,7 @@ import { StatusBar } from "expo-status-bar";
 
 import { ForceUpdateModal } from "@/features/version/components/ForceUpdateModal";
 import { useAppVersionCheck } from "@/features/version/hooks/useAppVersionCheck";
+import { useVersionStore } from "@/features/version/store/versionStore";
 
 function AppInit() {
   useNotifications();
@@ -53,10 +54,14 @@ function RootNavigator() {
   // ── One-shot redirect guard ──────────────────────────────────
   const didRedirect = useRef(false);
 
+  // ── Version gate: splash stays up until the launch version check is done ──
+  const launchCheckDone = useVersionStore((s) => s.launchCheckDone);
+  const updateRequired = useVersionStore((s) => !!s.checkResult?.isMandatory);
+
   // ── Hide splash ──────────────────────────────────────────────
   useEffect(() => {
-    if (isReady) SplashScreen.hideAsync();
-  }, [isReady]);
+    if (isReady && launchCheckDone) SplashScreen.hideAsync();
+  }, [isReady, launchCheckDone]);
 
   // ── Redirect — fires only when isReady + user settle ────────
   useEffect(() => {
@@ -92,12 +97,17 @@ function RootNavigator() {
     }
   }, [user]);
 
-  if (!isReady) {
+  if (!isReady || !launchCheckDone) {
     return (
       <View className="flex-1 items-center justify-center bg-bg-screen">
         <ActivityIndicator size="large" color="#1B5E37" />
       </View>
     );
+  }
+
+  // Outdated build: don't mount any screens (or fire their API calls); only the update modal shows
+  if (updateRequired) {
+    return <View className="flex-1 bg-bg-screen" />;
   }
 
   return <Slot />;
